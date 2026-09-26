@@ -1390,10 +1390,14 @@ class _TagesplanHeader extends StatelessWidget {
             // passen. Beide Punkte fragen erst nach (_ganzenTagVerschieben,
             // _tagesplanLeeren); die rote Bestätigung fürs Leeren sitzt im
             // Dialog als TapKnopf(gefahr).
+            // Kompakt wie die IconButtons daneben: 40 statt 48 px — so breit
+            // wie der frühere Leeren-Knopf. Die Zeile ist knapp (26.09.2026
+            // mit Roboto gemessen: rund 420 px).
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
               tooltip: 'Weitere Aktionen',
               padding: EdgeInsets.zero,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
               onSelected: (v) {
                 if (v == 'verschieben') onTagVerschieben();
                 if (v == 'leeren') onLeeren();
@@ -2459,7 +2463,14 @@ void _einsatzEinplanungZurueckschreiben(
   }
 }
 
-/// Plan-Eintrag für den Zieltag; bei Einsätzen zieht `geplantAm` mit.
+/// Plan-Eintrag für den Zieltag. Bei Einsätzen zieht `geplantAm` mit — das
+/// wirkt NUR im Speicher, das Plan-JSON speichert `geplantAm` nicht (siehe
+/// `tourEintragToJson`); nach dem nächsten Laden ist das Feld leer.
+/// Einziger Nutzen: Landet der Eintrag im Notifier des Zieltags (Wechsel
+/// während des Verschiebens), sieht [_einsatzEinplanungZurueckschreiben]
+/// bei einer Änderung im Block-Sheet den Zieltag als bisheriges Plandatum
+/// und räumt keinen fremden Tag auf. Massgebend bleibt `geplant_am` am
+/// Einsatz (`umplanenAufTag`).
 TourEintrag _alsVerschobenerEintrag(TourEintrag e, DateTime ziel) {
   final plan = e.alsPlanEintrag();
   return geplanteEinsatzId(e) != null ? plan.copyWith(geplantAm: ziel) : plan;

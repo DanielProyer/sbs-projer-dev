@@ -490,6 +490,8 @@ class TourEintrag {
     Object? ankerZeit = _unset,
     bool? uebernommen,
     // Nur zum Umsetzen (Verschieben auf einen anderen Tag), nie zum Leeren.
+    // Wirkt nur im Speicher: `tourEintragToJson` speichert `geplantAm`
+    // nicht, massgebend ist `geplant_am` am Einsatz selbst.
     DateTime? geplantAm,
   }) => TourEintrag(
     typ: typ,

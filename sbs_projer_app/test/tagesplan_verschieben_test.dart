@@ -368,6 +368,44 @@ void main() {
     );
   });
 
+  // K7: `geplantAm` zieht beim Verschieben im Speicher mit — gespeichert wird
+  // es im Plan-JSON nicht.
+  group('TourEintrag.copyWith(geplantAm:)', () {
+    final montag = DateTime(2026, 9, 28);
+    final einsatz = TourEintrag(
+      typ: TourEintragTyp.montage,
+      id: 'm_1',
+      betriebName: 'Adler',
+      beschreibung: '',
+      ankerZeit: '09:00',
+      dauerMinuten: 120,
+      geplantAm: montag,
+      geplantZeit: '09:00',
+      geplantDauerMin: 180,
+    );
+
+    test('setzt das Plandatum, alles andere bleibt', () {
+      final neu = einsatz.copyWith(geplantAm: dienstag);
+      expect(neu.geplantAm, dienstag);
+      expect(neu.id, 'm_1');
+      expect(neu.typ, TourEintragTyp.montage);
+      expect(neu.ankerZeit, '09:00');
+      expect(neu.dauerMinuten, 120);
+      expect(neu.geplantZeit, '09:00');
+      expect(neu.geplantDauerMin, 180);
+    });
+
+    test('ohne Angabe bleibt das bisherige Plandatum', () {
+      expect(einsatz.copyWith(ankerZeit: null).geplantAm, montag);
+    });
+
+    test('das Plan-JSON trägt kein geplantAm', () {
+      final json = tourEintragToJson(einsatz.copyWith(geplantAm: dienstag));
+      expect(json.containsKey('geplantAm'), isFalse);
+      expect(tourEintragFromJson(json).geplantAm, isNull);
+    });
+  });
+
   test('Ruhetag-Hinweis für einen einzelnen Stopp', () {
     expect(
       ruhetagHinweisText('Rössli', dienstag),
