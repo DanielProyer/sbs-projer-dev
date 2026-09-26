@@ -54,46 +54,53 @@ class TapKnopf extends StatelessWidget {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: aktiv ? onTap : null,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: aktiv ? farbe : Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(8),
-              border: (primaer || gefahr)
-                  ? null
-                  : Border.all(color: Colors.grey.shade400),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (laeuft) ...[
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: textFarbe,
+          child: ConstrainedBox(
+            // Mindesthöhe 48 px — Tippziel, auch wenn der Text kurz ist.
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: aktiv ? farbe : Colors.grey.shade400,
+                borderRadius: BorderRadius.circular(8),
+                border: (primaer || gefahr)
+                    ? null
+                    : Border.all(color: Colors.grey.shade400),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                // Zentriert, damit Symbol+Text auch in Expanded/voller
+                // Breite mittig stehen statt linksbündig zu kleben.
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (laeuft) ...[
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: textFarbe,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ] else if (icon != null) ...[
+                    Icon(icon, size: 18, color: textFarbe),
+                    const SizedBox(width: 6),
+                  ],
+                  // Flexible, damit der Text umbricht statt überzulaufen:
+                  // bei vergrösserter Systemschrift oder in einem engen
+                  // Dialog wurde sonst genau die Beschriftung abgeschnitten,
+                  // an der man den Knopf erkennt.
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        color: textFarbe,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                ] else if (icon != null) ...[
-                  Icon(icon, size: 18, color: textFarbe),
-                  const SizedBox(width: 6),
                 ],
-                // Flexible, damit der Text umbricht statt überzulaufen:
-                // bei vergrösserter Systemschrift oder in einem engen
-                // Dialog wurde sonst genau die Beschriftung abgeschnitten,
-                // an der man den Knopf erkennt.
-                Flexible(
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      color: textFarbe,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

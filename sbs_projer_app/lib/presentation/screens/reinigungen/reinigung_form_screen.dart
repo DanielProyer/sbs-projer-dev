@@ -762,21 +762,32 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       if (_fotoBytes != null && !_istHeinekenMonteur) {
         String? neuerPfad;
         if (kIsWeb) {
-          await _laufenderUpload;
-          if (_hochgeladenerPfad == null) await _fotoHochladen(); // 2. Versuch
+          // Funkloch im Keller darf Speichern nicht endlos drehen lassen —
+          // nach 30 s in den bestehenden Fehlerfall unten (Snackbar).
+          try {
+            await _laufenderUpload?.timeout(const Duration(seconds: 30));
+            if (_hochgeladenerPfad == null) {
+              await _fotoHochladen().timeout(const Duration(seconds: 30)); // 2. Versuch
+            }
+          } on TimeoutException {
+            _fotoFehler = 'Zeitüberschreitung';
+          }
           neuerPfad = _hochgeladenerPfad;
         } else {
           setState(() => _fotoUploading = true);
           try {
             // Nativ: zuerst speichern, um eine Isar-ID zu haben
-            if (!_isEdit) await ReinigungRepository.save(r);
+            if (!_isEdit) {
+              await ReinigungRepository.save(r);
+              _fotoReinigungId = r.serverId ?? r.routeId;
+            }
             neuerPfad = await ProtokollFotoStorage.uploadFoto(
               r.serverId ?? r.routeId,
               _fotoBytes!,
             );
           } catch (e) {
             debugPrint('[Foto] Upload fehlgeschlagen (nativ): $e');
-            _fotoFehler = kurzeFehlermeldung(e);
+            if (mounted) setState(() => _fotoFehler = kurzeFehlermeldung(e));
           } finally {
             if (mounted) setState(() => _fotoUploading = false);
           }
