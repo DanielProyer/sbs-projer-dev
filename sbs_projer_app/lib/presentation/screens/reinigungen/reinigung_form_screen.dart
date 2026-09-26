@@ -9,6 +9,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_abschluss_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
+import 'package:sbs_projer_app/core/util/abschluss_dialog_regel.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/reinigung_korrektur_regel.dart';
@@ -149,10 +151,20 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   String _status = 'offen';
   BetriebLocal? _betrieb;
   String? _rechnungsstellung;
-  // true sobald der User im Abschluss-Dialog eine Zahlungsart BESTÄTIGT hat —
-  // nur dann darf _rechnungsstellung den frischen Betriebs-Default übersteuern
-  // (beim Erstöffnen stammt _rechnungsstellung aus dem evtl. veralteten Cache).
+  // true sobald der User im Formular (Zeile «Zahlungsart», V6) eine
+  // Zahlungsart GEWÄHLT hat — nur dann darf _rechnungsstellung den frischen
+  // Betriebs-Default übersteuern (beim Erstöffnen stammt _rechnungsstellung
+  // aus dem evtl. veralteten Cache).
   bool _zahlungsartManuellGewaehlt = false;
+
+  /// Rechnungsadresse-E-Mail, nur für den Klartext der Zahlungsart-Zeile.
+  /// Der Abschluss lädt sie frisch nach.
+  String? _raEmail;
+
+  /// Container für das Auffrischen der Heute-Karte nach dem Sichern/Löschen
+  /// des Entwurfs — `ref` ist nach dem Schliessen des Formulars nicht mehr
+  /// nutzbar, das Löschen läuft aber oft erst danach durch.
+  ProviderContainer? _container;
 
   // Multi-Anlagen-Auswahl
   List<AnlageLocal> _anlagenDesBetrieb = [];
@@ -200,7 +212,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
           .firstOrNull;
       if (match != null) {
         _betrieb = match;
-        _rechnungsstellung = match.rechnungsstellung;
+        // Vorbelegung der Zahlungsart-Zeile (V6) — `_loadPreisData` zieht
+        // sie mit dem frisch geladenen Betrieb nach.
+        _rechnungsstellung = resolveZahlungsart(null, match.rechnungsstellung);
         _istBergkunde = match.istBergkunde;
       }
     }
@@ -281,7 +295,25 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     _entwurfTimer?.cancel();
     _entwurfTimer = null;
     if (!_entwurfErlaubt) return;
-    _laufendeSicherung = ReinigungEntwurfSpeicher.speichern(_entwurfBauen());
+    _laufendeSicherung = ReinigungEntwurfSpeicher.speichern(
+      _entwurfBauen(),
+    ).then((_) => _heuteKarteAuffrischen());
+  }
+
+  /// Die Heute-Karte zeigt «angefangen» aus dem Entwurf-Speicher — nach
+  /// jedem Sichern/Löschen neu lesen lassen (Wunsch aus Task 4).
+  void _heuteKarteAuffrischen() {
+    try {
+      _container?.invalidate(draussenAufgabenProvider);
+    } catch (e) {
+      debugPrint('[Entwurf] Heute-Karte nicht aufgefrischt: $e');
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container ??= ProviderScope.containerOf(context, listen: false);
   }
 
   ReinigungEntwurf _entwurfBauen() => ReinigungEntwurf(
@@ -301,6 +333,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     notizen: _emptyToNull(_notizenController.text),
     protokollFotoPfad: _hochgeladenerPfad,
     fotoReinigungId: _fotoReinigungId,
+    zahlungsart: _rechnungsstellung,
     gespeichertAm: DateTime.now(),
   );
 
@@ -312,7 +345,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     final id = _entwurfBetriebId;
     if (id == null) return;
     final vorher = _laufendeSicherung ?? Future<void>.value();
-    unawaited(vorher.then((_) => ReinigungEntwurfSpeicher.loeschen(id)));
+    unawaited(
+      vorher
+          .then((_) => ReinigungEntwurfSpeicher.loeschen(id))
+          .then((_) => _heuteKarteAuffrischen()),
+    );
   }
 
   Future<void> _entwurfPruefen() async {
@@ -368,6 +405,15 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       _istKulanz = e.istKulanz;
       if (_istKulanz) _istHeinekenMonteur = false;
       _istBergkunde = e.istBergkunde;
+      // Zahlungsart (V6): Nur eine von der Vorgabe abweichende Wahl gilt als
+      // eigene — sonst bleibt die frische Betriebs-Vorgabe massgebend.
+      final art = e.zahlungsart;
+      if (art != null &&
+          zahlungsarten.contains(art) &&
+          art != resolveZahlungsart(null, _betrieb?.rechnungsstellung)) {
+        _rechnungsstellung = art;
+        _zahlungsartManuellGewaehlt = true;
+      }
       _notizenController.text = e.notizen ?? '';
       // Das Foto liegt schon im Speicher, im Ordner der vorab erzeugten
       // Reinigungs-ID — die ID MUSS mitkommen, sonst zeigte die Reinigung
@@ -401,7 +447,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     );
     if (!ok || !mounted) return;
     setState(() => _angebotenerEntwurf = null);
-    unawaited(ReinigungEntwurfSpeicher.loeschen(e.betriebId));
+    unawaited(
+      ReinigungEntwurfSpeicher.loeschen(
+        e.betriebId,
+      ).then((_) => _heuteKarteAuffrischen()),
+    );
     // Wurde inzwischen schon getippt, ab jetzt dieses Formular sichern.
     if (geaendert) _entwurfVormerken();
   }
@@ -645,7 +695,10 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
             .firstOrNull;
         if (match != null) {
           _betrieb = match;
-          _rechnungsstellung = match.rechnungsstellung;
+          _rechnungsstellung = resolveZahlungsart(
+            r.zahlungsart,
+            match.rechnungsstellung,
+          );
         }
       }
     });
@@ -683,7 +736,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         if (betrieb != null && mounted) {
           setState(() {
             _betrieb = betrieb;
-            _rechnungsstellung = betrieb.rechnungsstellung;
+            // Zahlungsart-Zeile (V6): eine eigene Wahl bleibt stehen, sonst
+            // die Art der Reinigung bzw. die frische Betriebs-Vorgabe.
+            if (!_zahlungsartManuellGewaehlt) {
+              _rechnungsstellung = resolveZahlungsart(
+                _existing?.zahlungsart,
+                betrieb.rechnungsstellung,
+              );
+            }
             if (!_isEdit) _istBergkunde = betrieb.istBergkunde;
             // Kulanz-Vorwahl: Steht der Merker am Betrieb, ist der Schalter
             // von Anfang an gesetzt — man muss aktiv widersprechen statt
@@ -700,6 +760,19 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         }
       } catch (e) {
         debugPrint('[Reinigung] Betrieb laden fehlgeschlagen: $e');
+      }
+
+      // Rechnungsadresse-E-Mail für den Klartext der Zahlungsart-Zeile.
+      try {
+        final ra = await BetriebRechnungsadresseRepository.getByBetrieb(
+          betriebId,
+        );
+        final mail = ra?.email?.trim();
+        if (mounted) {
+          setState(() => _raEmail = (mail?.isEmpty ?? true) ? null : mail);
+        }
+      } catch (e) {
+        debugPrint('[Reinigung] Rechnungsadresse laden fehlgeschlagen: $e');
       }
 
       try {
@@ -1437,30 +1510,19 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     }
     if (!mounted) return;
 
-    // Vorbelegung, Priorität:
-    // (1) bereits auf der Reinigung fixierte Zahlungsart (Edit/Retry einer
+    // Zahlungsart, Priorität:
+    // (1) im Formular GEWÄHLTE Art (Zeile «Zahlungsart», V6 — auch die
+    //     Retry-Wahl nach einem gescheiterten Abschluss),
+    // (2) bereits auf der Reinigung fixierte Zahlungsart (Edit/Retry einer
     //     bestehenden Reinigung — _save hat r.zahlungsart schon gesetzt),
-    // (2) letzte im Dialog BESTÄTIGTE User-Wahl (Retry bei neuer Reinigung,
-    //     wo _existing noch null ist),
     // (3) frischer Betriebs-Default.
-    // _rechnungsstellung allein taugt NICHT als Override: beim Erstöffnen
-    // stammt er aus dem evtl. veralteten Formular-Cache — nur nach expliziter
-    // Bestätigung (_zahlungsartManuellGewaehlt) darf er den frischen
-    // Betriebs-Default übersteuern.
-    var selected = resolveZahlungsart(
-      _existing?.zahlungsart ??
-          (_zahlungsartManuellGewaehlt ? _rechnungsstellung : null),
+    // _rechnungsstellung allein taugt NICHT als Override: ohne eigene Wahl
+    // stammt er aus dem evtl. veralteten Formular-Cache.
+    final selected = resolveZahlungsart(
+      _zahlungsartManuellGewaehlt ? _rechnungsstellung : _existing?.zahlungsart,
       betrieb?.rechnungsstellung,
     );
     var alsStandard = false;
-    // Standard-Checkbox nur zeigen, wenn die Wahl vom Betriebs-Default
-    // abweicht (Regel Daniel 22.07. — übersichtlicher). Beim Zurückwechseln
-    // auf den Default wird sie versteckt UND zurückgesetzt, damit kein
-    // unsichtbares Häkchen mitläuft.
-    final betriebsDefault = resolveZahlungsart(
-      null,
-      betrieb?.rechnungsstellung,
-    );
 
     // Rechnungsadresse-E-Mail (Versand läuft NUR darüber; betriebe.email = Info).
     String? raEmail;
@@ -1475,164 +1537,159 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     if (!mounted) return;
     final emailCtrl = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Reinigung abschliessen'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Service-Hinweis des Betriebs (z.B. «Nächste Reinigung GRATIS
-                // — Kulanz») — prominent, damit er beim Abschluss nicht
-                // untergeht (Wunsch Daniel 07.08.2026, Fall Chleina Pub).
-                if ((betrieb?.serviceHinweis ?? '').trim().isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withAlpha(30),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.warning.withAlpha(120),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.campaign,
-                          color: AppColors.warning,
-                          size: 20,
+    // Gegenstück zum Hinweis beim Beginn: Was vor dem Service ausgeschaltet
+    // wurde, muss jetzt wieder an.
+    final schalterHinweis = ServiceSchalter.hinweisEnde(_schalterKomponenten);
+    final serviceHinweis = betrieb?.serviceHinweis?.trim();
+
+    // Dialog nur, wenn es etwas zu sagen oder zu entscheiden gibt (V6) —
+    // sonst direkt abschliessen. Zeigte die Zeile im Formular eine andere Art
+    // als die jetzt massgebende (Betrieb inzwischen geändert), ebenfalls
+    // fragen: Es darf nie still eine andere Art verrechnet werden.
+    final gruende = abschlussDialogGruende(
+      gewaehlt: selected,
+      vorgabeBetrieb: betrieb?.rechnungsstellung,
+      kundenEmail: raEmail,
+      serviceHinweis: serviceHinweis,
+      schalterHinweis: schalterHinweis,
+    );
+    final zeigeDialog = gruende.isNotEmpty || selected != _rechnungsstellung;
+
+    if (zeigeDialog) {
+      final mailOhneAdresse = gruende.contains(
+        AbschlussDialogGrund.mailOhneAdresse,
+      );
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('Reinigung abschliessen'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Service-Hinweis des Betriebs (z.B. «Nächste Reinigung
+                  // GRATIS — Kulanz») — prominent, damit er beim Abschluss
+                  // nicht untergeht (Wunsch Daniel 07.08.2026, Chleina Pub).
+                  if (gruende.contains(AbschlussDialogGrund.serviceHinweis)) ...[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withAlpha(30),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.warning.withAlpha(120),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            betrieb!.serviceHinweis!.trim(),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.campaign,
+                            color: AppColors.warning,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              serviceHinweis!,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (gruende.contains(AbschlussDialogGrund.schalterHinweis)) ...[
+                    _hinweisBox(schalterHinweis!, Icons.power_settings_new),
+                    const SizedBox(height: 12),
+                  ],
+                  // Keine Auswahl mehr — die Art wird im Formular gewählt.
+                  Text(
+                    'Zahlungsart: ${zahlungsartLabel(selected)}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  // Klartext: WAS löst der Abschluss aus? (Die 38 fehlenden
+                  // Rechnungen blieben unsichtbar, weil das nirgends stand.)
+                  Text(
+                    zahlungsartKlartext(selected, kundenEmail: raEmail),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: mailOhneAdresse
+                          ? AppColors.error
+                          : AppColors.textSecondary,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                ],
-                // Gegenstück zum Hinweis beim Beginn: Was vor dem Service
-                // ausgeschaltet wurde, muss jetzt wieder an.
-                if (ServiceSchalter.hinweisEnde(_schalterKomponenten)
-                    case final hinweis?) ...[
-                  _hinweisBox(hinweis, Icons.power_settings_new),
-                  const SizedBox(height: 12),
-                ],
-                const Text('Zahlungsart für DIESE Reinigung:'),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: selected,
-                  decoration: const InputDecoration(
-                    labelText: 'Zahlungsart',
-                    prefixIcon: Icon(Icons.receipt),
-                    isDense: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'rechnung_mail',
-                      child: Text('Per E-Mail'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'rechnung_post',
-                      child: Text('Per Post'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'rechnung_tresen',
-                      child: Text('Rechnung Tresen (EZS)'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'barzahlung',
-                      child: Text('Barzahlung'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'jahresrechnung',
-                      child: Text('Jahresrechnung'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'heineken',
-                      child: Text('Via Heineken (monatlich)'),
+                  // Mail ohne Rechnungsadresse-E-Mail: sofort erfassen können.
+                  if (mailOhneAdresse) ...[
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Rechnungs-E-Mail jetzt erfassen',
+                        prefixIcon: Icon(Icons.alternate_email, size: 18),
+                        isDense: true,
+                      ),
                     ),
                   ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setDialogState(() {
-                        selected = v;
-                        if (v == betriebsDefault) alsStandard = false;
-                      });
-                    }
-                  },
-                ),
-                const SizedBox(height: 8),
-                // Klartext: WAS löst der Abschluss aus? (Die 38 fehlenden
-                // Rechnungen blieben unsichtbar, weil das nirgends stand.)
-                Text(
-                  zahlungsartKlartext(selected, kundenEmail: raEmail),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: selected == 'rechnung_mail' && raEmail == null
-                        ? AppColors.error
-                        : AppColors.textSecondary,
-                  ),
-                ),
-                // Mail ohne Rechnungsadresse-E-Mail: sofort erfassen können.
-                if (selected == 'rechnung_mail' && raEmail == null) ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: emailCtrl,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Rechnungs-E-Mail jetzt erfassen',
-                      prefixIcon: Icon(Icons.alternate_email, size: 18),
-                      isDense: true,
+                  // Standard-Checkbox nur, wenn die Wahl vom Betriebs-Default
+                  // abweicht (Regel Daniel 22.07.). InkWell + Row statt
+                  // CheckboxListTile (CanvasKit-Regel, CLAUDE.md).
+                  if (gruende.contains(AbschlussDialogGrund.abweichung)) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () =>
+                          setDialogState(() => alsStandard = !alsStandard),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: alsStandard,
+                              onChanged: (v) => setDialogState(
+                                () => alsStandard = v ?? false,
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Als Vorgabe für ${betrieb?.name ?? 'diesen Betrieb'} speichern',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
-                if (selected != betriebsDefault) ...[
-                  const SizedBox(height: 8),
-                  CheckboxListTile(
-                    value: alsStandard,
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: const Text(
-                      'Auch als Standard für diesen Betrieb übernehmen',
-                      style: TextStyle(fontSize: 13),
-                    ),
-                    onChanged: (v) =>
-                        setDialogState(() => alsStandard = v ?? false),
-                  ),
-                ],
-              ],
+              ),
             ),
+            actions: [
+              TapKnopf(
+                text: 'Abbrechen',
+                primaer: false,
+                onTap: () => Navigator.pop(ctx, false),
+              ),
+              TapKnopf(
+                text: 'Abschliessen',
+                icon: Icons.check_circle,
+                onTap: () => Navigator.pop(ctx, true),
+              ),
+            ],
           ),
-          actions: [
-            TapKnopf(
-              text: 'Abbrechen',
-              primaer: false,
-              onTap: () => Navigator.pop(ctx, false),
-            ),
-            TapKnopf(
-              text: 'Abschliessen',
-              icon: Icons.check_circle,
-              onTap: () => Navigator.pop(ctx, true),
-            ),
-          ],
         ),
-      ),
-    );
+      );
 
-    if (confirmed != true) return;
+      if (confirmed != true) return;
+    }
 
     // Neu erfasste Rechnungs-E-Mail speichern: Rechnungsadresse anlegen
     // (vorbefüllt aus Betriebsdaten, damit der PDF-Adressblock stimmt) bzw.
@@ -1791,6 +1848,15 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               // === Betrieb-Info ===
               if (_betrieb != null) ...[
                 _buildBetriebCard(),
+                const SizedBox(height: 8),
+              ],
+
+              // Zahlungsart vorbelegt aus dem Betrieb (V6) — Kulanz und
+              // Heineken-Monteur verrechnen nichts, dort keine Zeile.
+              if (!_istKulanz &&
+                  !_istHeinekenMonteur &&
+                  _rechnungsstellung != null) ...[
+                _zahlungsartZeile(),
                 const SizedBox(height: 8),
               ],
 
@@ -2077,6 +2143,122 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         ),
       ),
     );
+  }
+
+  /// Zeile «Zahlungsart · Per E-Mail» (V6). InkWell + Container statt
+  /// Dropdown/ListTile (CanvasKit-Regel, CLAUDE.md). Bei einer schon
+  /// abgeschlossenen Reinigung nur lesend — deren Art ist fixiert.
+  Widget _zahlungsartZeile() {
+    final art = _rechnungsstellung!;
+    final lesend = _warAbgeschlossen;
+    final warnung = art == 'rechnung_mail' && _raEmail == null;
+    final inhalt = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: warnung ? AppColors.error : AppColors.primary.withAlpha(60),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.receipt, size: 20, color: AppColors.primary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Zahlungsart · ${zahlungsartLabel(art)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  zahlungsartKlartext(art, kundenEmail: _raEmail),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: warnung ? AppColors.error : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!lesend)
+            const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+        ],
+      ),
+    );
+    if (lesend) return inhalt;
+    return InkWell(
+      onTap: _isLoading ? null : _zahlungsartWaehlen,
+      borderRadius: BorderRadius.circular(8),
+      child: inhalt,
+    );
+  }
+
+  /// Bottom-Sheet mit den sechs Arten als InkWell-Zeilen (Reihenfolge und
+  /// Texte wie das frühere Dropdown im Abschluss-Dialog).
+  Future<void> _zahlungsartWaehlen() async {
+    final aktuell = _rechnungsstellung;
+    final gewaehlt = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                'Zahlungsart für diese Reinigung',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              ),
+            ),
+            for (final (wert, text) in zahlungsartAuswahl)
+              InkWell(
+                onTap: () => Navigator.pop(ctx, wert),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  color: wert == aktuell
+                      ? AppColors.primary.withAlpha(20)
+                      : null,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          text,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: wert == aktuell
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      if (wert == aktuell)
+                        const Icon(Icons.check, color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (gewaehlt == null || !mounted) return;
+    setState(() {
+      _rechnungsstellung = gewaehlt;
+      _zahlungsartManuellGewaehlt = true;
+    });
+    if (gewaehlt != aktuell) markiereGeaendert();
   }
 
   Widget _buildBetriebCard() {

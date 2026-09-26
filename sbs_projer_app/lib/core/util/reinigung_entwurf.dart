@@ -37,8 +37,8 @@ class ReinigungEntwurf {
   /// übernommen werden, sonst läge das Foto in einem fremden Ordner.
   final String? fotoReinigungId;
 
-  /// Heute noch immer null (die Zahlungsart wird erst im Abschluss-Dialog
-  /// gewählt) — das Feld ist für später vorgesehen.
+  /// Zahlungsart der Formular-Zeile (V6). Beim Fortsetzen gilt sie nur als
+  /// eigene Wahl, wenn sie von der Betriebs-Vorgabe abweicht.
   final String? zahlungsart;
   final DateTime gespeichertAm;
 
