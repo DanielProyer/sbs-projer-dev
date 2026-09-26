@@ -53,6 +53,8 @@ void main() {
         'lib/presentation/screens/betriebe/betriebe_list_screen.dart',
     '/betriebe/saisondaten':
         'lib/presentation/screens/touren/tourenplanung_screen.dart',
+    '/touren/karte':
+        'lib/presentation/screens/touren/tourenplanung_screen.dart',
     '/betriebe/vorschlaege': 'lib/core/util/aufgabe.dart',
     '/anlagen': 'lib/presentation/screens/einstellungen/stammdaten_screen.dart',
     '/heineken/zuweisungen':

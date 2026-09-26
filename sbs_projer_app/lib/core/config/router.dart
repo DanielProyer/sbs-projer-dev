@@ -51,6 +51,7 @@ import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_g
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_rechnung_detail_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/heineken/heineken_raster_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/auswertungen/arbeitstag_auswertung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_bankauszug_screen.dart';
@@ -185,6 +186,16 @@ final router = GoRouter(
       // `?datum=YYYY-MM-DD`: Tag vorwählen (Aufgabe «Arbeitstag ohne Feierabend»).
       builder: (context, state) => TourenplanungScreen(
         startDatum: DateTime.tryParse(state.uri.queryParameters['datum'] ?? ''),
+      ),
+    ),
+
+    // Tages-Karte (T11): vorher nur per `Navigator.push` aus der Tourenplanung
+    // erreichbar — als eigene Route zählt der Nutzungszähler sie mit.
+    GoRoute(
+      path: '/touren/karte',
+      builder: (context, state) => TagesKarteScreen(
+        datum: DateTime.tryParse(state.uri.queryParameters['datum'] ?? '') ??
+            DateTime.now(),
       ),
     ),
 

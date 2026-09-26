@@ -161,6 +161,12 @@ const kBereichMehr = Bereich(
           icon: Icons.festival,
           ziel: '/events',
         ),
+        BereichEintrag(
+          titel: 'Google-Termine',
+          icon: Icons.event_note,
+          ziel: '/google-termine',
+          stichwoerter: ['google', 'kalender', 'termine zuordnen'],
+        ),
       ],
     ),
     BereichGruppe(
@@ -379,6 +385,23 @@ const kSuchZusatzZiele = [
     icon: Icons.nightlight_round,
     ziel: '/einsaetze?typ=pikett',
     stichwoerter: ['pikett', 'bereitschaft', 'wochenenddienst'],
+  ),
+  // Bergkundenpauschalen und Anlagen hatten bis T11 keinen eigenen
+  // Such-Treffer — beide Screens hängen nur über andere Screens ein
+  // (Rechnungs-Reiter bzw. Betrieb-Detail), keine eigene Zeile auf Mehr.
+  BereichEintrag(
+    titel: 'Bergkundenpauschalen',
+    untertitel: 'Pauschale pro Betrieb und Tag',
+    icon: Icons.terrain,
+    ziel: '/bergkundenpauschalen',
+    stichwoerter: ['bergkunde', 'pauschale'],
+  ),
+  BereichEintrag(
+    titel: 'Anlagen',
+    untertitel: 'Alle Anlagen',
+    icon: Icons.local_bar,
+    ziel: '/anlagen',
+    stichwoerter: ['zapfanlage', 'zapfsystem'],
   ),
 ];
 

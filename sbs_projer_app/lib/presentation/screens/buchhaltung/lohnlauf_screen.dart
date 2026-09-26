@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
@@ -39,6 +40,13 @@ class _LohnlaufScreenState extends ConsumerState<LohnlaufScreen> {
       appBar: AppBar(
         title: const Text('Lohnbuchhaltung'),
         actions: [
+          // Umweg-Schluss (T11): die Sätze hingen nur in Stammdaten —
+          // von hier, wo man mit ihnen arbeitet, braucht es einen direkten Weg.
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'Sätze',
+            onPressed: () => context.push('/buchhaltung/lohn/einstellungen'),
+          ),
           PopupMenuButton<int>(
             initialValue: _jahr,
             onSelected: (j) => setState(() => _jahr = j),

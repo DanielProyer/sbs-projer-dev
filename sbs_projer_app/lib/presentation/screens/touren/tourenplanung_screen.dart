@@ -38,7 +38,6 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/core/util/routen_optimierung.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/touren/saison_termine_sektion.dart';
-import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste.dart';
@@ -348,11 +347,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                           _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
                       onOptimieren: _reihenfolgeOptimieren,
-                      onKarte: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              TagesKarteScreen(datum: _selectedDate),
-                        ),
+                      // Route statt Navigator.push (T11): zählt im
+                      // Nutzungszähler mit, Datum als Query-Parameter.
+                      onKarte: () => context.push(
+                        '/touren/karte?datum=${_selectedDate.toIso8601String().substring(0, 10)}',
                       ),
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),

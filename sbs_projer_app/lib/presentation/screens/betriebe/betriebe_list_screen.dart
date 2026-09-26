@@ -10,6 +10,7 @@ import 'package:sbs_projer_app/data/local/anlage_local_export.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/betriebe/betriebe_map.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
@@ -75,6 +76,7 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
   Widget build(BuildContext context) {
     final betriebe = ref.watch(betriebeProvider);
     final regionen = ref.watch(regionenProvider);
+    final vorschlaegeAnzahl = ref.watch(offeneVorschlaegeAnzahlProvider);
 
     // Zombie-Schutz: nur nach Regionen filtern, die aktuell als Option
     // existieren. Fällt eine gewählte Region weg (gelöscht/kurz nicht geladen),
@@ -166,6 +168,39 @@ class _BetriebeListScreenState extends ConsumerState<BetriebeListScreen> {
       ),
       body: Column(
         children: [
+          // Umweg-Schluss (T11): der Vorschlags-Screen hing nur in der
+          // Aufgaben-Liste — hier, wo man ohnehin an den Betrieben arbeitet,
+          // führt der Weg direkt hin. Nur sichtbar, wenn etwas offen ist.
+          if (vorschlaegeAnzahl > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => context.push('/betriebe/vorschlaege'),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withAlpha(20),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.info.withAlpha(60)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_notifications_outlined,
+                          size: 20, color: AppColors.info),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Änderungsvorschläge ($vorschlaegeAnzahl)',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           // Umschalter Liste ↔ Karte
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

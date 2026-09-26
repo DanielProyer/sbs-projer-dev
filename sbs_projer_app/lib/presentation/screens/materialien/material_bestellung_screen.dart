@@ -498,12 +498,6 @@ class _MaterialBestellungScreenState
             color: hasContact ? AppColors.textSecondary : AppColors.error,
           ),
         ),
-        trailing: hasContact
-            ? null
-            : IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: () => context.push('/heineken/zuweisungen'),
-              ),
       ),
     );
   }

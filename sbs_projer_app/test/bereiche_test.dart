@@ -93,7 +93,7 @@ void main() {
       expect(kBereichMehr.gruppen.first.alsKacheln, isTrue);
       expect(
         kBereichMehr.gruppen.first.eintraege.map((e) => e.titel).toList(),
-        ['Spesen', 'Material', 'Aufgaben', 'Events'],
+        ['Spesen', 'Material', 'Aufgaben', 'Events', 'Google-Termine'],
       );
       expect(
         kBereichMehr.gruppen[1].eintraege.map((e) => e.ziel).toList(),
@@ -150,5 +150,16 @@ void main() {
     final pikett = kSuchZusatzZiele.where((e) => e.ziel == '/einsaetze?typ=pikett');
     expect(pikett, hasLength(1));
     expect(pikett.single.stichwoerter, contains('pikett'));
+  });
+
+  test('Suche findet Bergkundenpauschalen und Anlagen als Zusatzziel (T11)', () {
+    final berg =
+        kSuchZusatzZiele.where((e) => e.ziel == '/bergkundenpauschalen');
+    expect(berg, hasLength(1));
+    expect(berg.single.stichwoerter, contains('bergkunde'));
+
+    final anlagen = kSuchZusatzZiele.where((e) => e.ziel == '/anlagen');
+    expect(anlagen, hasLength(1));
+    expect(anlagen.single.stichwoerter, contains('zapfanlage'));
   });
 }

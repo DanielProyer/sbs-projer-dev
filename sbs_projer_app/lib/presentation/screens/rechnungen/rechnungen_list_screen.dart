@@ -572,60 +572,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: _mahnlaufKarte(),
           ),
-          // Zweite Achse auf dieselben Zahlen: Diese Liste gruppiert nach
-          // Monat und Tag, der Screen dahinter nach Betrieb. Vor einem Anruf
-          // beim Wirt zählt «was hat DIESER Betrieb offen», nicht «was lief
-          // im März» (Wunsch Daniel 21.09.2026).
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Card(
-              margin: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: AppColors.divider),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () => context.push('/rechnungen/pro-betrieb'),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.store_mall_directory_outlined,
-                        size: 20,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Rechnungen pro Betrieb',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Je Jahr, mit Zustellung — und Kontoauszug als PDF',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right, color: AppColors.textSecondary),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // Die Karte «Rechnungen pro Betrieb» stand hier zusätzlich zum
+          // Reiter «Pro Betrieb» (BereichReiter oben, dieselbe Route
+          // '/rechnungen/pro-betrieb') — doppelter Einstieg, entfernt (T11).
           // ── Klare Trennung zum Rechnungs-Archiv ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
