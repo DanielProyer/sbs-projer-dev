@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/filter_chrome.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_kontakt_repository.dart';
@@ -41,6 +42,13 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
     try {
       final allBetriebe = await BetriebRepository.getAll();
+      // Ferien aus der Tabelle — sonst liest ferienSlots die eingefrorenen
+      // Altspalten (Analyse R7, Erkundung 26.09.2026).
+      final ferienMap = await ref.read(ferienPeriodenProvider.future);
+      for (final b in allBetriebe) {
+        final id = b.serverId;
+        if (id != null) b.ferienPerioden = ferienMap[id] ?? const [];
+      }
       final meineKunden = allBetriebe.where((b) => b.istMeinKunde).toList();
 
       setState(() => _status = 'Lade Regionen...');

@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb_ferien_liste.dart';
+import 'package:sbs_projer_app/data/repositories/betrieb_ferien_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
@@ -77,10 +79,11 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
   bool _keineHerbstpause = false;
   DateTime? _sommerStartDatum;
   DateTime? _sommerEndeDatum;
-  final List<DateTime?> _ferienStarts = List.filled(5, null);
-  final List<DateTime?> _ferienEnden = List.filled(5, null);
-  int _ferienZeilen = 1;
   bool _keineBetriebsferien = false;
+
+  /// Server-UUID des geladenen Betriebs — Schlüssel für [BetriebFerienListe].
+  /// Null, solange der Betrieb noch nie gespeichert wurde.
+  String? _betriebServerId;
   List<String> _ruhetage = [];
   double? _latitude;
   double? _longitude;
@@ -177,32 +180,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       _winterEndeBeimLaden = betrieb.winterEndeDatum;
       _sommerStartBeimLaden = betrieb.sommerStartDatum;
       _sommerEndeBeimLaden = betrieb.sommerEndeDatum;
-      final geladeneStarts = [
-        betrieb.ferienStart,
-        betrieb.ferien2Start,
-        betrieb.ferien3Start,
-        betrieb.ferien4Start,
-        betrieb.ferien5Start,
-      ];
-      final geladeneEnden = [
-        betrieb.ferienEnde,
-        betrieb.ferien2Ende,
-        betrieb.ferien3Ende,
-        betrieb.ferien4Ende,
-        betrieb.ferien5Ende,
-      ];
-      for (var i = 0; i < 5; i++) {
-        _ferienStarts[i] = geladeneStarts[i];
-        _ferienEnden[i] = geladeneEnden[i];
-      }
-      _ferienZeilen = 1;
-      for (var i = 4; i >= 0; i--) {
-        if (_ferienStarts[i] != null || _ferienEnden[i] != null) {
-          _ferienZeilen = i + 1;
-          break;
-        }
-      }
       _keineBetriebsferien = betrieb.keineBetriebsferien;
+      _betriebServerId = betrieb.serverId;
       _ruhetage = List<String>.from(betrieb.ruhetage);
       _latitude = betrieb.latitude;
       _longitude = betrieb.longitude;
@@ -569,16 +548,8 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
           _winterSaisonAktiv &&
           _sommerSaisonAktiv &&
           _keineHerbstpause;
-      betrieb.ferienStart = _keineBetriebsferien ? null : _ferienStarts[0];
-      betrieb.ferienEnde = _keineBetriebsferien ? null : _ferienEnden[0];
-      betrieb.ferien2Start = _keineBetriebsferien ? null : _ferienStarts[1];
-      betrieb.ferien2Ende = _keineBetriebsferien ? null : _ferienEnden[1];
-      betrieb.ferien3Start = _keineBetriebsferien ? null : _ferienStarts[2];
-      betrieb.ferien3Ende = _keineBetriebsferien ? null : _ferienEnden[2];
-      betrieb.ferien4Start = _keineBetriebsferien ? null : _ferienStarts[3];
-      betrieb.ferien4Ende = _keineBetriebsferien ? null : _ferienEnden[3];
-      betrieb.ferien5Start = _keineBetriebsferien ? null : _ferienStarts[4];
-      betrieb.ferien5Ende = _keineBetriebsferien ? null : _ferienEnden[4];
+      // Ferien-Perioden pflegt BetriebFerienListe direkt in `betrieb_ferien`;
+      // die fünf Altspalten bleiben eingefroren (Analyse R7).
       betrieb.keineBetriebsferien = _keineBetriebsferien;
       betrieb.ruhetage = _ruhetage;
       betrieb.zapfsysteme = _zapfsysteme;
@@ -654,6 +625,20 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).
       final betriebSid = betrieb.serverId;
+      // Ferien aus der Tabelle — sonst schlüge ferienSlots die eingefrorenen
+      // Altspalten für den Kalender vor (Analyse R7).
+      if (betriebSid != null && betriebSid.isNotEmpty) {
+        try {
+          final ferien = await BetriebFerienRepository.getFuerBetrieb(
+            betriebSid,
+          );
+          betrieb.ferienPerioden = [
+            for (final f in ferien) (von: f.von, bis: f.bis),
+          ];
+        } catch (e) {
+          debugPrint('[Betrieb] Ferien nicht geladen: $e');
+        }
+      }
       final reinigungen = betriebReinigungen(betrieb);
       if (mounted &&
           reinigungen.isNotEmpty &&
@@ -1446,7 +1431,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
                 ],
               ),
 
-              // === Betriebsferien (bis 5 Perioden, kompakt) ===
+              // === Betriebsferien (Tabelle betrieb_ferien, Analyse R7) ===
+              // BetriebFerienListe speichert sofort in die Tabelle — deshalb
+              // kein markiereGeaendert() dafür. Der Schalter blendet die
+              // Perioden nur aus; alle Leser prüfen keineBetriebsferien.
               const SizedBox(height: 16),
               Text(
                 'Betriebsferien',
@@ -1461,55 +1449,15 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
                 contentPadding: EdgeInsets.zero,
                 onChanged: (v) {
                   markiereGeaendert();
-                  setState(() {
-                    _keineBetriebsferien = v;
-                    if (v) {
-                      for (var i = 0; i < 5; i++) {
-                        _ferienStarts[i] = null;
-                        _ferienEnden[i] = null;
-                      }
-                      _ferienZeilen = 1;
-                    }
-                  });
+                  setState(() => _keineBetriebsferien = v);
                 },
               ),
               if (!_keineBetriebsferien) ...[
-                for (var i = 0; i < _ferienZeilen; i++) ...[
-                  if (i > 0) const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DatePickerField(
-                          label: 'Ferien ${i + 1} von',
-                          value: _ferienStarts[i],
-                          onChanged: (v) {
-                            markiereGeaendert();
-                            setState(() => _ferienStarts[i] = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _DatePickerField(
-                          label: 'Ferien ${i + 1} bis',
-                          value: _ferienEnden[i],
-                          onChanged: (v) {
-                            markiereGeaendert();
-                            setState(() => _ferienEnden[i] = v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (_ferienZeilen < 5)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: () => setState(() => _ferienZeilen++),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Weitere Ferien'),
-                    ),
+                if (_betriebServerId != null)
+                  BetriebFerienListe(betriebId: _betriebServerId!)
+                else
+                  const Text(
+                    'Ferien lassen sich nach dem ersten Speichern erfassen.',
                   ),
               ],
 

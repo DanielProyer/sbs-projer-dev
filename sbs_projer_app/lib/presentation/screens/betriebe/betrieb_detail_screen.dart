@@ -7,7 +7,7 @@ import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart
 import 'package:sbs_projer_app/presentation/widgets/google_fehler_meldung.dart';
 import 'package:sbs_projer_app/services/google/google_contacts_service.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb_ferien_liste.dart';
 import 'package:sbs_projer_app/core/util/google_maps_route.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -249,9 +249,12 @@ class _BetriebDetailContent extends ConsumerWidget {
             ),
 
           // Ruhetage & Ferien (für alle Betriebe)
+          // Ferien aus der Tabelle `betrieb_ferien` (Analyse R7) — nicht
+          // mehr über ferienSlots, das hier (getById, ohne ferienPerioden)
+          // die eingefrorenen Altspalten las.
           if (betrieb.ruhetage.isNotEmpty ||
-              ferienStarts(betrieb).isNotEmpty ||
-              betrieb.keineBetriebsferien)
+              betrieb.keineBetriebsferien ||
+              betrieb.serverId != null)
             _SectionCard(
               title: 'Ruhetage & Ferien',
               icon: Icons.event_busy,
@@ -265,13 +268,11 @@ class _BetriebDetailContent extends ConsumerWidget {
                   ),
                 if (betrieb.keineBetriebsferien)
                   const _InfoRow('Betriebsferien', 'Keine'),
-                if (!betrieb.keineBetriebsferien)
-                  for (final (i, slot) in ferienSlots(betrieb).indexed)
-                    if (slot.start != null)
-                      _InfoRow(
-                        'Ferien ${i + 1}',
-                        '${_formatDate(slot.start!)} – ${slot.ende != null ? _formatDate(slot.ende!) : '?'}',
-                      ),
+                if (!betrieb.keineBetriebsferien && betrieb.serverId != null)
+                  BetriebFerienListe(
+                    betriebId: betrieb.serverId!,
+                    bearbeitbar: false,
+                  ),
               ],
             ),
 
