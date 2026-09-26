@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.142.0 ZahlungKern: ein Zahlungsweg, atomar (Migration 209)
 - 26.09.2026 — v0.141.0 Betriebsferien aus der Tabelle (R7), Kalender-Schlüssel nach Datum
 - 26.09.2026 — v0.140.0 Analyse-Runde 2 Teil 1: eine Abschlusskette (R1, T1, T5, T6)
 - 25.09.2026 — v0.139.0 Analyse-Runde 1 «Sicherheit der Zahlen» (R2/R3/R4/R6/R11/Q1/Q3/Q5, R9 geklärt)
@@ -27,6 +28,55 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.142.0 ZahlungKern: ein Zahlungsweg, atomar (Migration 209)
+
+Analyse-Runde 3 (`docs/superpowers/plans/2026-09-26-runde3-zahlungkern.md`).
+Migrationen 209 (+ 209b/209d/209e Korrekturen aus den Reviews, 209c View).
+
+- **Ein Zahlungsweg:** `ZahlungKern.erfassen(rechnungen, betrag, datum, weg)`
+  plant in Dart (`zahlungKernPlan` aus `differenzPlan`, rein, getestet) und
+  schreibt atomar per RPC `zahlung_erfassen`: Sperren (bezahlt/abgeschrieben,
+  Status ≠ erwartet, Zahlung im Journal, Zahlungsfelder, Heineken nicht
+  freigegeben, **abgeschlossenes Jahr**), Buchungen mit `zahlung_gruppe_id`,
+  Rechnungen `bezahlt` nur mit erwartetem Status, Vorher-Stand (Status,
+  6 Mahnfelder, Guthaben) in `zahlungsgruppen.vorher`. Umgestellt: Bank
+  (Abgleich-Vorschau, Prüfliste), Bar, Guthaben-voll, Heineken Bank + Hand.
+  Gelöscht: `CamtAutoBooker.run`, `ZahlungsdifferenzService.verbuchen/
+  verbuchenSammel`, Status-Fallback in der Liste, alle drei alten Rückwege.
+  Wächter `zahlung_kern_waechter_test.dart`: `'zahlungsstatus': 'bezahlt'`
+  steht in keiner Dart-Datei mehr.
+- **Rückgängig:** ein Knopf «Zahlung rückgängig» → `zahlung_zuruecknehmen`:
+  ganze Gruppe (Sammelzahlung), Mahnfelder und Guthaben wiederhergestellt,
+  Sperre bei Storno und bei abgeschlossenem Jahr; Altzahlungen ohne Gruppe je
+  Rechnung (Rückfall auf höchste Mahnstufe aus den Datumsfeldern, Heineken →
+  freigegeben).
+- **Entscheide (Annahmen, von Daniel zu bestätigen):** Minderzahlung
+  erlassen = 3805 netto + 2200 MWST-Anteil (beleg_typ `abschreibung`, zählt
+  in Ziff. 235 — View 209c rechnet das Netto aus der 3805-Zeile);
+  Mehrzahlung ≤ CHF 5.00 → 8000, darüber → 2030 Kundenguthaben, beim
+  Zuordnen wählbar (`MehrzahlungWahl` in Prüfliste + drei Vorschau-Dialogen);
+  `zahlung_betrag` = zugeordneter Betrag je Rechnung; Bankbetrag rappengenau
+  (94.03 auf 94.05 → 0.02 Verlust, 1020 stimmt mit dem Auszug).
+- **Aufräumen:** Debitoren-Header (Sammel-Abschreibung ohne Beleg) entfernt;
+  Delkredere-Knopf in der Abschlussprüfung mit Rückfrage; Einzelabschreibung
+  mit `abschreibSperre` + `updateWennStatus` (auch Mahnfall-Vorprüfung);
+  neue Regel «Status und Mahnstufe widersprüchlich».
+- **Reviews fanden:** `geschaeftsjahr_abgeschlossen` zählte 2026 als
+  abgeschlossen (JA2025-Buchungen liegen im Folgejahr → Regel wie
+  `nachbuchGrenze`, 209b); Jahressperre fehlte beim Erfassen (209d); View
+  Ziff. 235 nahm das Rechnungsnetto (209c); Gruppensuche übersah reine
+  3805-Zeilen (209e); Bankbetrag wurde auf 5 Rappen gerundet.
+- **Probe auf der Produktion (reversibel):** Rössli 2026-09-1459 —
+  Altzahlung zurückgenommen (offen, Zeile weg, Bank-Schlüssel frei), per
+  Kern neu erfasst (Gruppe), Gruppe zurückgenommen, erneut erfasst;
+  Endzustand = Ausgangszustand. 2026-04-0186 (Zahlung 31.12.2025): rote
+  Meldung «abgeschlossenes Geschäftsjahr 2025», nichts geändert.
+- Verhaltensänderung: Barzahlung mehrerer Rechnungen ist «alle oder keine»
+  (eine Gruppe). Heineken-Detail hat weiterhin keinen Rückweg.
+- `flutter analyze` 56.
 
 ---
 

@@ -107,7 +107,7 @@ Reihenfolge: R2, R3, R4, R6 (je Minuten bis 1 h) → R1, R11 → R7, R8 → R9 �
 |---|---|---|
 | **1 — Sicherheit der Zahlen** (v0.139) | ✅ **erledigt 25.09.2026, live v0.139.0** — R2, R3, R4, R6, R11, Q1, Q3, Q5 (Regel 1100 + 2030), R9 geklärt (Heineken Juli nachgebucht, Rest −3'674.70 Excel-Altbestand) | 1 Tag |
 | **2 — Eine Kette** (v0.140–0.141) | ✅ **erledigt 26.09.2026, live v0.140.0 + v0.141.0:** R1, Abschlusskette Screen → Service (§3 Zeile 1), T1/T5/T6, R7 Ferien (+ Kalender-Schlüssel nach Datum) | 1 Tag |
-| **3 — ZahlungKern** (v0.142) | ein Zahlungsweg, Rückgängig repariert, `istZahlbar`, Debitoren-Header weg, Wahl 8000/2030 und 3805-MWST | 3 Tage, Plan mit Fable |
+| **3 — ZahlungKern** (v0.142) | ✅ **erledigt 26.09.2026, live v0.142.0:** ein Zahlungsweg (`zahlung_erfassen`, Migration 209), Rückgängig als Gruppe mit Jahressperre, Debitoren-Header weg, Wahl 8000/2030, 3805 netto + MWST; vier Entscheide von Daniel zu bestätigen (ToDo) | 1 Tag |
 | **4 — Bausteine & Aufräumen** (v0.143) | Formular-Bausteine, `zeigeDatumsauswahl`, Detail-Gerüst, toter Code, Firmendaten/MwSt/Rundung zentral, Q2/Q4/Q7, Isar einfrieren | 4–5 Tage, grösstenteils Sonnet |
 | **5 — Tagesbetrieb** (v0.144) | T2, T3, T4, T7–T11, Q6 | 4–5 Tage |
 

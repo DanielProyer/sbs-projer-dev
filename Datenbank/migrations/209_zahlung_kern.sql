@@ -239,7 +239,11 @@ BEGIN
   FROM buchungen b
   WHERE b.beleg_id = p_rechnung AND b.user_id = v_user
     AND coalesce(b.ist_storniert, false) = false AND b.storno_von_id IS NULL
-    AND (b.beleg_typ = 'zahlung' OR (b.soll_konto = 2030 AND b.haben_konto = 1100 AND b.beleg_typ = 'sonstiges'))
+    -- auch reine 3805-Zeilen einer Gruppe (Sammelzahlung, Verlust von hinten
+    -- frisst die letzte Basis) — Review, angewendet als 209e
+    AND (b.zahlung_gruppe_id IS NOT NULL
+         OR b.beleg_typ = 'zahlung'
+         OR (b.soll_konto = 2030 AND b.haben_konto = 1100 AND b.beleg_typ = 'sonstiges'))
   ORDER BY b.zahlung_gruppe_id NULLS LAST LIMIT 1;
 
   IF v_gruppe IS NOT NULL THEN

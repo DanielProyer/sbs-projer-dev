@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.141.0 live** (Analyse-Runde 2 komplett: eine Abschlusskette, Ferien aus der Tabelle) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **208** · **2347 Tests grün**.
+**Stand:** **v0.142.0 live** (Analyse-Runde 3: ZahlungKern — ein Zahlungsweg, atomar) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2375 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,24 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.142.0 — ⚠️ vier Buchhaltungs-Entscheide bestätigen** (im Code als
+  Annahmen gebaut, siehe `docs/chronik.md`): ① Minderzahlung erlassen = 3805
+  netto + MWST-Anteil auf 2200 (Ziff. 235) statt brutto auf 3805;
+  ② Mehrzahlung bis CHF 5.00 → 8000, darüber → Kundenguthaben 2030 (beim
+  Zuordnen wählbar); ③ «Zahlung rückgängig» löscht die ganze Zahlungsgruppe,
+  im abgeschlossenen Jahr gesperrt; ④ `zahlung_betrag` = zugeordneter
+  Betrag. Klicktests: nächste Bankgutschrift zuordnen (Prüfliste oder
+  Vorschau) → bei Mehrzahlung erscheint die Wahl; Rechnungsdetail →
+  «Zahlung rückgängig» → Rechnung wieder offen/gemahnt, Gutschrift beim
+  nächsten Import wieder da → erneut zuordnen; Barzahlung beim Service
+  (gemahnte Rechnung) → Detail → rückgängig → Mahnstufe wieder da.
+  Abschlussprüfung: Regel «Status und Mahnstufe» grün; Delkredere-Knopf
+  fragt nach. **Offen (Folgearbeit):** Abgleich-Vorschau hat noch
+  Material-Buttons (CanvasKit-Risiko); Heineken-Detail ohne Rückweg;
+  Statusmodell entflechten (Analyse §2); SQL 194 gegen Journal prüfen;
+  Mehrzahlung auf 2030 rappengenau, `guthabenAbzug` rundet auf 5 Rappen
+  (Rappenreste auf 2030 möglich).
 
 - **v0.141.0** — Betrieb → Bearbeiten → Betriebsferien: «+ Ferien» anlegen,
   Zeile erscheint, Papierkorb → Rückfrage → weg. Tourenplan zeigt den Betrieb
