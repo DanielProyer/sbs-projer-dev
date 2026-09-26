@@ -1,2 +1,2 @@
 export 'kontakt_picker_stub.dart'
-    if (dart.library.html) 'kontakt_picker_web.dart';
+    if (dart.library.js_interop) 'kontakt_picker_web.dart';
