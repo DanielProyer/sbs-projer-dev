@@ -392,29 +392,18 @@ Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
   Isar-Local + `build_runner`, Web-Stub, `betrieb_ferien.dart`-Rückfall) —
   erst den Rückfall auf die Altspalten abschalten, eine Woche beobachten,
   dann `DROP COLUMN` mit Archiv-Tabelle.
-- **Buchhaltungs-Restfälle (Befund 26.09.2026, Entscheid Daniel):**
-  (a) **Chalet Güggel 2026-04-0249** (Rechnungsdatum 13.01.2026, Excel-Zeit):
-  Rechnung 171.90, Zahlung 15.01. 169.70 gebucht (1020/1100), Status «bezahlt»
-  mit `zahlung_betrag` 171.90 — Minderzahlung **2.20 ohne 3805**. Vorschlag:
-  per heute 2.20 auf 3805/1100 (inkl. MWST-Anteil) abschreiben — NICHT per
-  15.01., Q1/2026 ist eingereicht. (b) **Chleina Pub 2026-08-1386** (Tresen
-  27.08.2026, 74.60): Ertrag 1100/3400 gebucht, aber die «Zahlung» vom
-  17.09. steht als **8000/1100 74.60** ohne Beleg-Verknüpfung — Ausbuchung
-  statt Kasseneingang. Frage: Bar am Tresen erhalten? Dann 1000/1100
-  (Kasse) und die 8000-Buchung stornieren.
-- ✅ **`Projekt.md` abgeglichen (22.09.2026, abends).** Der Befund vom
-  Arbeitsschluss war falsch: Der Kopf mit der Chronik war bis zum **17.09.**
-  (v0.109.2) gepflegt, rund 45 Commits seit Juni. Gefehlt haben die fünf Tage
-  v0.110.0–v0.130.0. Stehen geblieben war nur der strukturierte Teil
-  (Phasentabelle, Arbeitspakete, «Nächste Schritte», «Temporär aktiv»).
-  **Neu aufgeteilt:** `Projekt.md` ist jetzt eine Übersicht (was die App kann,
-  wie sie gebaut ist, Doku-Landkarte) und wird nur bei neuen Modulen oder
-  Architektur-Entscheiden nachgeführt. Die Chronik, der ursprüngliche Plan und
-  die Erledigt-Liste bis Juni stehen **wörtlich** in `docs/chronik.md`, mit
-  einem Nachtrag zu v0.110.0–v0.130.0. **`ToDo.md` bleibt die Arbeitsquelle.**
-- **BACKLOG ohne Zeitdruck:** GIS-Regionen-Polygone, Beta-Testing auf echten
-  Geräten, Beleg-Foto-Optimierung, Bulk-Sync Handy-Kontakte, Termin-Erinnerungen
-  Folge-Tests. Vollständig im Archiv.
+- ✅ **Buchhaltungs-Restfälle erledigt (26.09.2026, Entscheide Daniel):**
+  (a) **Chalet Güggel 2026-04-0249:** Minderzahlung 2.20 per 26.09. erlassen —
+  zwei Zeilen wie im ZahlungKern (3805/1100 2.04 netto + 2200/1100 0.16
+  MWST-Anteil, Belegtyp «abschreibung», Ziff. 235 Q3/2026); `zahlung_betrag`
+  auf 169.70 (tatsächlich bezahlt). Bewusst per Entscheidtag, Q1/2026 ist
+  abgerechnet. Debitoren-Rest aus der Analyse sinkt damit um 2.20.
+  (b) **Chleina Pub 2026-08-1386:** Kulanz — der Kunde hatte die April-Rechnung
+  doppelt bezahlt (30.04., damals auf 8000 gebucht, vor Konto 2030); die
+  Verrechnung 8000/1100 vom 17.09. gleicht das aus (8000 und Kundenkonto
+  beide auf null, kein Ertrags-/MWST-Effekt). Buchung nachträglich mit der
+  Rechnung verknüpft (`beleg_id`, Belegtyp «zahlung»), Zahlungsdatum 17.09.
+  und Betrag 74.60 an der Rechnung ergänzt.
 
 ### 📒 Abschluss 2026 — Entscheide vom 19.09.2026
 
