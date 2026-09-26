@@ -30,6 +30,7 @@ import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
@@ -1094,16 +1095,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                           Expanded(
                             child: SizedBox(
                               height: 56,
-                              child: FilledButton.icon(
-                                onPressed: _fotoUploading ? null : _takePhoto,
-                                icon: const Icon(
-                                  Icons.document_scanner,
-                                  size: 24,
-                                ),
-                                label: const Text(
-                                  'Digitalisieren',
-                                  style: TextStyle(fontSize: 15),
-                                ),
+                              child: TapKnopf(
+                                text: 'Digitalisieren',
+                                icon: Icons.document_scanner,
+                                onTap: _fotoUploading ? null : _takePhoto,
                               ),
                             ),
                           ),
@@ -1111,13 +1106,11 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                           Expanded(
                             child: SizedBox(
                               height: 56,
-                              child: OutlinedButton.icon(
-                                onPressed: _fotoUploading ? null : _pickPhoto,
-                                icon: const Icon(Icons.upload_file, size: 24),
-                                label: const Text(
-                                  'Hochladen',
-                                  style: TextStyle(fontSize: 15),
-                                ),
+                              child: TapKnopf(
+                                text: 'Hochladen',
+                                icon: Icons.upload_file,
+                                primaer: false,
+                                onTap: _fotoUploading ? null : _pickPhoto,
                               ),
                             ),
                           ),
@@ -1286,15 +1279,10 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                   ],
 
                   // === Speichern ===
-                  FilledButton(
-                    onPressed: _isLoading ? null : _save,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(_isEdit ? 'Speichern' : 'Montage erfassen'),
+                  TapKnopf(
+                    text: _isEdit ? 'Speichern' : 'Montage erfassen',
+                    laeuft: _isLoading,
+                    onTap: _save,
                   ),
                   const SizedBox(height: 32),
                 ],
@@ -1426,13 +1414,13 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
                         ),
                         const SizedBox(height: 8),
                         if (snapshot.hasData)
-                          FilledButton.icon(
-                            onPressed: () => launchUrl(
+                          TapKnopf(
+                            text: 'PDF öffnen',
+                            icon: Icons.open_in_new,
+                            onTap: () => launchUrl(
                               Uri.parse(snapshot.data!),
                               mode: LaunchMode.externalApplication,
                             ),
-                            icon: const Icon(Icons.open_in_new, size: 16),
-                            label: const Text('PDF öffnen'),
                           )
                         else
                           const SizedBox(
@@ -1503,21 +1491,21 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
         Row(
           children: [
             Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _fotoUploading ? null : _takePhoto,
-                icon: const Icon(Icons.camera_alt),
-                label: Text(
-                  _fotoBytes != null || _existingFotoPfad != null
-                      ? 'Neues Foto'
-                      : 'Protokoll fotografieren',
-                ),
+              child: TapKnopf(
+                text: _fotoBytes != null || _existingFotoPfad != null
+                    ? 'Neues Foto'
+                    : 'Protokoll fotografieren',
+                icon: Icons.camera_alt,
+                primaer: false,
+                onTap: _fotoUploading ? null : _takePhoto,
               ),
             ),
             const SizedBox(width: 8),
-            OutlinedButton.icon(
-              onPressed: _fotoUploading ? null : _pickPhoto,
-              icon: const Icon(Icons.photo_library),
-              label: const Text('Galerie'),
+            TapKnopf(
+              text: 'Galerie',
+              icon: Icons.photo_library,
+              primaer: false,
+              onTap: _fotoUploading ? null : _pickPhoto,
             ),
           ],
         ),

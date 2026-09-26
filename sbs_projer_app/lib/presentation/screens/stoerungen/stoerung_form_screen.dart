@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/ungespeichert_schutz.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/material_slots.dart';
 import 'package:sbs_projer_app/presentation/widgets/mahn_hinweis_band.dart';
@@ -973,21 +974,14 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
               const SizedBox(height: 24),
 
               // === Aktionen ===
-              FilledButton(
-                onPressed: _isLoading ? null : _save,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(
-                        _isEdit
-                            ? 'Speichern'
-                            : (_istKilometerabrechnung
-                                  ? 'Kilometerabrechnung erfassen'
-                                  : 'Störung erfassen'),
-                      ),
+              TapKnopf(
+                text: _isEdit
+                    ? 'Speichern'
+                    : (_istKilometerabrechnung
+                          ? 'Kilometerabrechnung erfassen'
+                          : 'Störung erfassen'),
+                laeuft: _isLoading,
+                onTap: _save,
               ),
               const SizedBox(height: 32),
             ],
