@@ -273,13 +273,13 @@ class _FerienDialogState extends State<_FerienDialog> {
     _bis = f.bis;
   }
 
-  Future<DateTime?> _waehle(DateTime initial) {
+  Future<DateTime?> _waehle(DateTime initial, {DateTime? erster}) {
     final jetzt = DateTime.now();
     final heute = DateTime(jetzt.year, jetzt.month, jetzt.day);
     return showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: DateTime(2019),
+      firstDate: erster ?? DateTime(2019),
       lastDate: heute.add(const Duration(days: 730)),
     );
   }
@@ -316,7 +316,7 @@ class _FerienDialogState extends State<_FerienDialog> {
           }),
           const SizedBox(height: 12),
           _feld('Bis', _bis, () async {
-            final d = await _waehle(_bis);
+            final d = await _waehle(_bis, erster: _von);
             if (d == null || !mounted) return;
             setState(() => _bis = d);
           }),

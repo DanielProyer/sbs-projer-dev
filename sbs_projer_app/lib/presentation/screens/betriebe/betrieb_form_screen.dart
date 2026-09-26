@@ -626,7 +626,11 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).
       final betriebSid = betrieb.serverId;
       // Ferien aus der Tabelle — sonst schlüge ferienSlots die eingefrorenen
-      // Altspalten für den Kalender vor (Analyse R7).
+      // Altspalten für den Kalender vor (Analyse R7). Schlägt das Laden fehl,
+      // lieber keine Ferien-Termine vorschlagen als eingefrorene — und dann
+      // auch nichts aufräumen lassen (alleFerienKeys = null), sonst löschte
+      // die Edge Function wegen eines Netzfehlers alle Ferien-Termine.
+      Set<String>? alleFerienKeys;
       if (betriebSid != null && betriebSid.isNotEmpty) {
         try {
           final ferien = await BetriebFerienRepository.getFuerBetrieb(
@@ -635,8 +639,10 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
           betrieb.ferienPerioden = [
             for (final f in ferien) (von: f.von, bis: f.bis),
           ];
+          alleFerienKeys = alleFerienSlotKeys(betrieb);
         } catch (e) {
           debugPrint('[Betrieb] Ferien nicht geladen: $e');
+          betrieb.ferienPerioden = const [];
         }
       }
       final reinigungen = betriebReinigungen(betrieb);
@@ -656,6 +662,7 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
                 betriebSid,
                 reinigungen.first.label,
                 items,
+                alleFerienKeys: alleFerienKeys,
               );
             } catch (e) {
               debugPrint('[GCal-Reinigung] fehlgeschlagen: $e');
@@ -1434,7 +1441,9 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
               // === Betriebsferien (Tabelle betrieb_ferien, Analyse R7) ===
               // BetriebFerienListe speichert sofort in die Tabelle — deshalb
               // kein markiereGeaendert() dafür. Der Schalter blendet die
-              // Perioden nur aus; alle Leser prüfen keineBetriebsferien.
+              // Perioden nur aus; ausgewertet werden sie überall über
+              // wirksameFerienSlots() (core/util/betrieb_ferien.dart), das
+              // bei keineBetriebsferien leer liefert.
               const SizedBox(height: 16),
               Text(
                 'Betriebsferien',

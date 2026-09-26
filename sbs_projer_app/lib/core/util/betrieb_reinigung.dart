@@ -3,7 +3,9 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 
 /// Eine berechnete Saison-/Ferien-Reinigung eines Betriebs.
 class BetriebReinigung {
-  final String slotKey; // stabiler Schlüssel, z.B. 'sommer_eroeffnung', 'ferien1_endreinigung'
+  /// Stabiler Schlüssel für die Kalender-Zuordnung, z.B. 'sommer_eroeffnung'
+  /// oder 'ferien_2026-10-11_endreinigung' (siehe [ferienSlotKey]).
+  final String slotKey;
   final String art; // 'endreinigung' | 'eroeffnung'
   final DateTime datum;
   final String label; // "Name, Ort"
@@ -53,19 +55,42 @@ List<BetriebReinigung> betriebReinigungen(BetriebLocal b, {DateTime? heute}) {
     }
   }
 
-  if (!b.keineBetriebsferien) {
-    final slots = ferienSlots(b);
-    for (var i = 0; i < slots.length; i++) {
-      final s = slots[i];
-      if (s.start != null && s.ende != null) {
-        add('ferien${i + 1}_endreinigung', 'endreinigung',
-            s.start!.subtract(const Duration(days: 1)));
-        add('ferien${i + 1}_eroeffnung', 'eroeffnung',
-            s.ende!.add(const Duration(days: 1)));
-      }
+  for (final s in wirksameFerienSlots(b)) {
+    if (s.start != null && s.ende != null) {
+      add(ferienSlotKey(s.start!, 'endreinigung'), 'endreinigung',
+          s.start!.subtract(const Duration(days: 1)));
+      add(ferienSlotKey(s.start!, 'eroeffnung'), 'eroeffnung',
+          s.ende!.add(const Duration(days: 1)));
     }
   }
 
   out.sort((x, y) => x.datum.compareTo(y.datum));
   return out;
 }
+
+/// Kalender-Schlüssel einer Ferien-Reinigung, gebildet aus dem Ferienbeginn:
+/// `ferien_2026-10-11_endreinigung`.
+///
+/// WARUM nicht mehr `ferien1_…` nach Index: Seit die Ferien aus der Tabelle
+/// `betrieb_ferien` kommen (beliebig viele, nach `von` sortiert), verschiebt
+/// jede neu erfasste frühere oder gelöschte Periode den Index — die Edge
+/// Function hätte Einträge doppelt angelegt oder verwaist stehen lassen
+/// (Review R7, 26.09.2026). Migration 208 schreibt die Alt-Schlüssel um.
+String ferienSlotKey(DateTime von, String art) {
+  final y = von.year.toString().padLeft(4, '0');
+  final m = von.month.toString().padLeft(2, '0');
+  final d = von.day.toString().padLeft(2, '0');
+  return 'ferien_$y-$m-${d}_$art';
+}
+
+/// Alle Ferien-Schlüssel des Betriebs — auch vergangener Perioden, beide
+/// Arten. Die Edge Function räumt jede `<betriebId>:ferien…`-Zuordnung weg,
+/// die hier nicht vorkommt (gelöschte oder verschobene Perioden). Leer bei
+/// `keineBetriebsferien`: dann gehören alle Ferien-Termine weg.
+Set<String> alleFerienSlotKeys(BetriebLocal b) => {
+  for (final s in wirksameFerienSlots(b))
+    if (s.start != null && s.ende != null) ...[
+      ferienSlotKey(s.start!, 'endreinigung'),
+      ferienSlotKey(s.start!, 'eroeffnung'),
+    ],
+};

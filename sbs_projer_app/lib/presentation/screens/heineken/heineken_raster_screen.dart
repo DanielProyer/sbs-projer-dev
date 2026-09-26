@@ -151,7 +151,7 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
         // Ferien
         final ferien = <FerienPeriode>[];
         if (!b.keineBetriebsferien) {
-          for (final slot in ferienSlots(b)) {
+          for (final slot in wirksameFerienSlots(b)) {
             if (slot.start != null && slot.ende != null) {
               ferien.add(FerienPeriode(slot.start!, slot.ende!));
             }

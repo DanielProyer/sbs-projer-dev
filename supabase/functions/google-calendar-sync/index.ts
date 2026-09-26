@@ -8,6 +8,7 @@
 // per Migration ergaenzt werden, sonst schlaegt der Insert/Upsert mit einer
 // Constraint-Verletzung fehl.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { veralteteFerienZuordnungen } from "./ferien_keys.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -60,13 +61,18 @@ Deno.serve(async (req: Request) => {
       return json({ ok: true, ...(await reconcile(admin, token, user.id)) });
     }
     if (action === "sync_reinigungen") {
-      const { betrieb_id, label, reinigungen } = body;
+      const { betrieb_id, label, reinigungen, alle_ferien_keys } = body;
       if (!betrieb_id || !Array.isArray(reinigungen)) {
         return json({ error: "missing params" }, 400);
       }
+      // alle_ferien_keys optional: fehlt es (alte App, Ferien nicht geladen),
+      // wird nichts aufgeraeumt.
+      const ferienKeys = Array.isArray(alle_ferien_keys)
+        ? alle_ferien_keys.filter((k: unknown) => typeof k === "string")
+        : null;
       return json({
         ok: true,
-        ...(await syncReinigungen(admin, token, user.id, betrieb_id, label ?? "", reinigungen)),
+        ...(await syncReinigungen(admin, token, user.id, betrieb_id, label ?? "", reinigungen, ferienKeys)),
       });
     }
     if (action === "scan_manual") {
@@ -454,6 +460,7 @@ async function reconcile(admin: Any, token: string, userId: string) {
 // ── Betriebs-Reinigungen (mit Bestaetigung) ────────────────────
 async function syncReinigungen(
   admin: Any, token: string, userId: string, betriebId: string, label: string, items: Any[],
+  alleFerienKeys: string[] | null,
 ) {
   let pushed = 0, deleted = 0;
   for (const it of items) {
@@ -477,6 +484,21 @@ async function syncReinigungen(
     };
     await upsertEvent(admin, token, userId, "betrieb_reinigung", entityId, ev);
     pushed++;
+  }
+  // Ferien-Zuordnungen ohne gueltigen Schluessel wegraeumen (geloeschte oder
+  // verschobene Perioden, Alt-Index-Schluessel) — samt Kalendereintrag, wie
+  // reconcile() es fuer die anderen Typen tut. reconcile selbst kennt
+  // betrieb_reinigung nicht, deshalb geschieht es hier (Review R7).
+  if (alleFerienKeys) {
+    const { data: vorhanden } = await admin.from("google_calendar_events").select("*")
+      .eq("user_id", userId).eq("entity_type", "betrieb_reinigung")
+      .like("entity_id", `${betriebId}:ferien%`);
+    const weg = new Set(veralteteFerienZuordnungen(
+      betriebId, (vorhanden ?? []).map((m: Any) => m.entity_id), alleFerienKeys,
+    ));
+    for (const m of vorhanden ?? []) {
+      if (weg.has(m.entity_id)) { await deleteMapping(admin, token, m); deleted++; }
+    }
   }
   return { pushed, deleted };
 }

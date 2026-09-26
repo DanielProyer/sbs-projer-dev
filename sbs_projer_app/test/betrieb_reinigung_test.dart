@@ -81,8 +81,8 @@ void main() {
       ..ferienStart = DateTime(2026, 7, 10)
       ..ferienEnde = DateTime(2026, 7, 20);
     final r = betriebReinigungen(b, heute: _heute);
-    final end = r.firstWhere((x) => x.slotKey == 'ferien1_endreinigung');
-    final auf = r.firstWhere((x) => x.slotKey == 'ferien1_eroeffnung');
+    final end = r.firstWhere((x) => x.slotKey == 'ferien_2026-07-10_endreinigung');
+    final auf = r.firstWhere((x) => x.slotKey == 'ferien_2026-07-10_eroeffnung');
     expect(end.datum, DateTime(2026, 7, 9));
     expect(auf.datum, DateTime(2026, 7, 21));
   });
@@ -100,7 +100,7 @@ void main() {
       ..ferien2Start = DateTime(2026, 8, 1)
       ..ferien2Ende = DateTime(2026, 8, 10);
     final keys = betriebReinigungen(b, heute: _heute).map((x) => x.slotKey).toSet();
-    expect(keys, {'ferien2_endreinigung', 'ferien2_eroeffnung'});
+    expect(keys, {'ferien_2026-08-01_endreinigung', 'ferien_2026-08-01_eroeffnung'});
   });
 
   test('sortiert nach Datum', () {
@@ -124,5 +124,52 @@ void main() {
       ..sommerStartDatum = DateTime(2026, 5, 1)
       ..sommerEndeDatum = DateTime(2026, 9, 30);
     expect(betriebReinigungen(b, heute: _heute).first.label, 'Calanda');
+  });
+
+  group('Ferien-Schlüssel aus dem Datum (Review R7, 26.09.2026)', () {
+    test('neue frühere Periode verschiebt die Schlüssel NICHT', () {
+      final b = _b()
+        ..ferienPerioden = [
+          (von: DateTime(2026, 10, 11), bis: DateTime(2026, 11, 4)),
+        ];
+      final vorher = betriebReinigungen(b, heute: _heute)
+          .map((x) => x.slotKey)
+          .toSet();
+      b.ferienPerioden = [
+        (von: DateTime(2026, 7, 1), bis: DateTime(2026, 7, 5)),
+        (von: DateTime(2026, 10, 11), bis: DateTime(2026, 11, 4)),
+      ];
+      final nachher = betriebReinigungen(b, heute: _heute)
+          .map((x) => x.slotKey)
+          .toSet();
+      expect(nachher.containsAll(vorher), isTrue);
+      expect(vorher, {
+        'ferien_2026-10-11_endreinigung',
+        'ferien_2026-10-11_eroeffnung',
+      });
+    });
+
+    test('alleFerienSlotKeys: auch vergangene, beide Arten', () {
+      final b = _b()
+        ..ferienPerioden = [
+          (von: DateTime(2024, 2, 3), bis: DateTime(2024, 2, 10)),
+          (von: DateTime(2026, 10, 11), bis: DateTime(2026, 11, 4)),
+        ];
+      expect(alleFerienSlotKeys(b), {
+        'ferien_2024-02-03_endreinigung',
+        'ferien_2024-02-03_eroeffnung',
+        'ferien_2026-10-11_endreinigung',
+        'ferien_2026-10-11_eroeffnung',
+      });
+    });
+
+    test('alleFerienSlotKeys: leer bei keineBetriebsferien', () {
+      final b = _b()
+        ..keineBetriebsferien = true
+        ..ferienPerioden = [
+          (von: DateTime(2026, 10, 11), bis: DateTime(2026, 11, 4)),
+        ];
+      expect(alleFerienSlotKeys(b), isEmpty);
+    });
   });
 }

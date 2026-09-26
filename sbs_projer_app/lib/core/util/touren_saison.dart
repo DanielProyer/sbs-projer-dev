@@ -124,7 +124,7 @@ String? schliessungsGrund(BetriebLocal b, DateTime tag) {
         : 'Betrieb inaktiv';
   }
   if (istInFerien(b, tag)) {
-    for (final s in ferienSlots(b)) {
+    for (final s in wirksameFerienSlots(b)) {
       if (s.start == null || s.ende == null) continue;
       if (!tag.isBefore(s.start!) && !tag.isAfter(s.ende!)) {
         final e = s.ende!;
@@ -247,7 +247,7 @@ DateTime? naechsterOffenerTag(
     }
   }
 
-  for (final s in ferienSlots(b)) {
+  for (final s in wirksameFerienSlots(b)) {
     if (s.start == null || s.ende == null) continue;
     final dauer = s.ende!.difference(s.start!).inDays + 1;
     if (dauer >= langeSchliessungTage && !s.start!.isBefore(ab)) {
@@ -266,7 +266,7 @@ DateTime? naechsterOffenerTag(
 bool istInQualifizierterSchliessung(BetriebLocal b, DateTime tag) {
   final t = DateTime(tag.year, tag.month, tag.day);
   if (!istInAktiverSaison(b, t)) return true;
-  for (final s in ferienSlots(b)) {
+  for (final s in wirksameFerienSlots(b)) {
     if (s.start == null || s.ende == null) continue;
     final dauer = s.ende!.difference(s.start!).inDays + 1;
     if (dauer < langeSchliessungTage) continue;
@@ -294,7 +294,7 @@ DateTime? qualifizierteOeffnungNach(BetriebLocal b, DateTime ab) {
       }
     }
   }
-  for (final s in ferienSlots(b)) {
+  for (final s in wirksameFerienSlots(b)) {
     if (s.start == null || s.ende == null) continue;
     final dauer = s.ende!.difference(s.start!).inDays + 1;
     if (dauer < langeSchliessungTage) continue;

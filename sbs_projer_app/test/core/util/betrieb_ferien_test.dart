@@ -154,4 +154,29 @@ void main() {
       expect(istInFerien(b, DateTime(2026, 7, 1)), isFalse);
     });
   });
+
+  // Review R7 (26.09.2026): Der Schalter «Keine Betriebsferien» blendet die
+  // Perioden nur aus — alle auswertenden Leser muessen ihn beachten.
+  group('wirksameFerienSlots / keineBetriebsferien', () {
+    BetriebLocal mitFerien() => _betrieb()
+      ..ferienPerioden = [
+        (von: DateTime(2026, 10, 11), bis: DateTime(2026, 11, 4)),
+      ];
+
+    test('ohne Schalter: Perioden gelten', () {
+      final b = mitFerien();
+      expect(wirksameFerienSlots(b).length, 1);
+      expect(istInFerien(b, DateTime(2026, 10, 20)), isTrue);
+      expect(ferienStarts(b), [DateTime(2026, 10, 11)]);
+    });
+
+    test('mit Schalter: nichts gilt, Rohbestand bleibt', () {
+      final b = mitFerien()..keineBetriebsferien = true;
+      expect(wirksameFerienSlots(b), isEmpty);
+      expect(istInFerien(b, DateTime(2026, 10, 20)), isFalse);
+      expect(ferienStarts(b), isEmpty);
+      expect(ferienEnden(b), isEmpty);
+      expect(ferienSlots(b).length, 1);
+    });
+  });
 }

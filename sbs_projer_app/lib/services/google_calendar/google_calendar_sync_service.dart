@@ -45,11 +45,18 @@ class GoogleCalendarSyncService {
 
   /// Betriebs-Reinigungen (Saison/Ferien) synchronisieren. [reinigungen] =
   /// Liste von {slot_key, art, datum (yyyy-MM-dd), aktiv}. Wirft bei Fehler.
+  ///
+  /// [alleFerienKeys] = alle Ferien-Schlüssel des Betriebs (auch vergangene,
+  /// siehe `alleFerienSlotKeys`). Ist es gesetzt, räumt die Edge Function
+  /// jede `<betriebId>:ferien…`-Zuordnung samt Kalendereintrag weg, die nicht
+  /// darin vorkommt (gelöschte/verschobene Perioden). `null` = nicht
+  /// aufräumen (z.B. wenn die Ferien nicht geladen werden konnten).
   static Future<Map<String, dynamic>> syncBetriebReinigungen(
     String betriebId,
     String label,
-    List<Map<String, dynamic>> reinigungen,
-  ) async {
+    List<Map<String, dynamic>> reinigungen, {
+    Set<String>? alleFerienKeys,
+  }) async {
     final res = await SupabaseService.client.functions.invoke(
       'google-calendar-sync',
       body: {
@@ -57,6 +64,8 @@ class GoogleCalendarSyncService {
         'betrieb_id': betriebId,
         'label': label,
         'reinigungen': reinigungen,
+        if (alleFerienKeys != null)
+          'alle_ferien_keys': alleFerienKeys.toList(),
       },
     );
     final d = res.data;
