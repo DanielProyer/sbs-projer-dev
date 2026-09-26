@@ -90,20 +90,4 @@ void main() {
       );
     });
   });
-
-  group('heigenieFehlerMeldung', () {
-    test('erfindet keinen Nachhol-Weg', () {
-      final t = heigenieFehlerMeldung(netzfehler);
-      expect(t, contains('NICHT gemailt'));
-      expect(t, contains('keine Verbindung'));
-      expect(t, contains('Beat'));
-      for (final erfunden in ['Reinigungs-Detail', 'Rechnungs-Detail']) {
-        expect(
-          t,
-          isNot(contains(erfunden)),
-          reason: 'die HeiGenie-Mail laesst sich nirgends erneut senden',
-        );
-      }
-    });
-  });
 }

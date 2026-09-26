@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_abschluss_service.dart';
+import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/saison_luecke.dart';
 import 'package:sbs_projer_app/core/util/reinigung_korrektur_regel.dart';
 import 'package:sbs_projer_app/presentation/widgets/saison_abmachung_sheet.dart';
@@ -25,25 +26,13 @@ import 'package:sbs_projer_app/data/repositories/bierleitung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
-import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
 import 'package:sbs_projer_app/core/util/service_schalter.dart';
-import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
-import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
-import 'package:sbs_projer_app/core/config/mail_config.dart';
-import 'package:sbs_projer_app/core/util/zahlungsart.dart';
-import 'package:sbs_projer_app/core/util/versand_meldung.dart';
-import 'package:sbs_projer_app/data/repositories/kontakt_repository.dart';
-import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
-import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
-import 'package:sbs_projer_app/services/buchhaltung/buchung_nachhol_service.dart';
-import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
-import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/presentation/screens/reinigungen/reinigung_qr_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
@@ -71,25 +60,6 @@ class ReinigungFormScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<ReinigungFormScreen> createState() =>
       _ReinigungFormScreenState();
-}
-
-String _monatName(int monat) {
-  const namen = [
-    '',
-    'Januar',
-    'Februar',
-    'März',
-    'April',
-    'Mai',
-    'Juni',
-    'Juli',
-    'August',
-    'September',
-    'Oktober',
-    'November',
-    'Dezember',
-  ];
-  return namen[monat];
 }
 
 class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
@@ -767,6 +737,85 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
 
       await ReinigungRepository.save(r);
 
+      // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
+      // (R1: nur bei preisrelevanter Änderung, Sperre oben schon geprüft).
+      // Kein Kulanz-/Monteur-Guard mehr: ein Wechsel auf Kulanz ist
+      // preisrelevant — `korrigieren` storniert die alte Buchung, und
+      // `createFromReinigung` legt bei Kulanz bewusst nichts Neues an.
+      bool buchungKorrigiert = false;
+      String? korrekturTypLabel;
+      if (korrekturNoetig) {
+        try {
+          final betrieb =
+              _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
+          if (betrieb == null) throw StateError('Betrieb nicht geladen');
+          final erg = await ReinigungKorrekturService.korrigieren(r, betrieb);
+          buchungKorrigiert = erg.buchungVerbucht;
+          korrekturTypLabel = erg.buchungTypLabel;
+        } catch (e) {
+          debugPrint('[Korrektur] Fehler: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text(
+                  'Reinigung gespeichert, aber Rechnung/Buchung NICHT korrigiert: '
+                  '${korrekturMeldung(e)}'
+                  '\nBitte im Rechnungsbereich prüfen.',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                duration: const Duration(seconds: 12),
+              ),
+            );
+          }
+        }
+      }
+
+      // Die Abschlusskette (Rechnung → Versand → Buchung → Nachholen →
+      // Bergkundenpauschale → Kulanz-Merker) lebt EINMAL im
+      // ReinigungAbschlussService — das Formular zeigt nur die Meldungen.
+      // Bis v0.139.0 stand sie hier ein zweites Mal (Analyse 25.09.2026 §3).
+      AbschlussErgebnis? abschluss;
+      if (abschliessen && kIsWeb) {
+        final betrieb =
+            _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
+        if (betrieb == null) {
+          // Ohne Betrieb entstehen WEDER Rechnung NOCH Buchung — bis Juli
+          // völlig lautlos und damit Hauptverdächtiger für die 38 fehlenden
+          // Rechnungen vom 26.06.–13.07. Ab jetzt sichtbar.
+          debugPrint(
+            '[Rechnung] BETRIEB NULL — betriebId="${r.betriebId}", '
+            '_betrieb=${_betrieb?.serverId}, widget.betriebId=${widget.betriebId}',
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                backgroundColor: AppColors.error,
+                content: Text(
+                  'BETRIEB NICHT GELADEN — KEINE RECHNUNG, KEINE BUCHUNG!\n'
+                  'Reinigung ist gespeichert. Bitte Daniel melden.\n'
+                  'betriebId="${r.betriebId}"',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                duration: const Duration(seconds: 30),
+              ),
+            );
+          }
+        } else {
+          abschluss = await ReinigungAbschlussService.abschliessen(r, betrieb);
+          if (abschluss.nachgeholt > 0) {
+            ref.invalidate(reinigungenOhneRechnungProvider);
+          }
+          if (r.istBergkunde) ref.invalidate(bergkundenpauschaleStreamProvider);
+          if (mounted) _zeigeMeldungen(abschluss.meldungen);
+        }
+      }
+
+      // T5 (Analyse 25.09.2026): Fahrzeit, Wegpunkt und vor allem die
+      // Pausen-Prüfung laufen NACH der Abschlusskette. Vorher stand das
+      // Pausen-Sheet davor und hielt Rechnung und Buchung an, bis es
+      // beantwortet war — wer das Handy dann wegsteckte, verlor die Kette.
+      //
       // Fahrzeit-Nachfuehrung (Spec 2026-07-29 §3.1, Task 4): NUR beim
       // Uebergang zu 'abgeschlossen' (nicht bei jedem Save), sonst wuerde
       // jede spaetere Notiz-Korrektur einer bereits abgeschlossenen Reinigung
@@ -876,546 +925,21 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         }
       }
 
-      // Buchhaltung korrigieren bei Bearbeitung einer abgeschlossenen Reinigung
-      // (R1: nur bei preisrelevanter Änderung, Sperre oben schon geprüft).
-      // Kein Kulanz-/Monteur-Guard mehr: ein Wechsel auf Kulanz ist
-      // preisrelevant — `korrigieren` storniert die alte Buchung, und
-      // `createFromReinigung` legt bei Kulanz bewusst nichts Neues an.
-      bool buchungKorrigiert = false;
-      String? korrekturTypLabel;
-      if (korrekturNoetig) {
-        try {
-          final betrieb =
-              _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
-          if (betrieb == null) throw StateError('Betrieb nicht geladen');
-          final erg = await ReinigungKorrekturService.korrigieren(r, betrieb);
-          buchungKorrigiert = erg.buchungVerbucht;
-          korrekturTypLabel = erg.buchungTypLabel;
-        } catch (e) {
-          debugPrint('[Korrektur] Fehler: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: AppColors.error,
-                content: Text(
-                  'Reinigung gespeichert, aber Rechnung/Buchung NICHT korrigiert: '
-                  '${korrekturMeldung(e)}'
-                  '\nBitte im Rechnungsbereich prüfen.',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                duration: const Duration(seconds: 12),
-              ),
-            );
-          }
-        }
-      }
-
-      // HeiGenie-Mail an Heineken senden
-      if (abschliessen && kIsWeb && _serviceTyp == 'heigenie') {
-        try {
-          final betrieb =
-              _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
-          if (betrieb != null) {
-            final kontakt = await KontaktRepository.getHeinekenZuweisung(
-              'heigenie_service',
-            );
-            final empfaenger = MailConfig.empfaenger(
-              kontakt?.email,
-              bereich: 'heigenie',
-            );
-            debugPrint(
-              '[HeiGenie-Mail] Kontakt: ${kontakt?.vorname} ${kontakt?.nachname}, Email: ${kontakt?.email}',
-            );
-            debugPrint(
-              '[HeiGenie-Mail] testModus=${MailConfig.testModus}, heigenieScharf=${MailConfig.heigenieScharf}',
-            );
-            debugPrint('[HeiGenie-Mail] Empfänger: $empfaenger');
-            final datumStr =
-                '${r.datum.day.toString().padLeft(2, '0')}.${r.datum.month.toString().padLeft(2, '0')}.${r.datum.year}';
-            final betriebLabel = betrieb.ort != null && betrieb.ort!.isNotEmpty
-                ? '${betrieb.name} ${betrieb.ort}'
-                : betrieb.name;
-
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'HeiGenie-Mail → $empfaenger (Kontakt: ${kontakt?.email ?? "KEIN KONTAKT"})',
-                  ),
-                  duration: const Duration(seconds: 6),
-                ),
-              );
-            }
-
-            await SupabaseService.client.functions.invoke(
-              'send-rechnung-mail',
-              body: {
-                'to': empfaenger,
-                'subject': 'Higenie Service - $betriebLabel - $datumStr',
-                'bodyText':
-                    'Hallo Beat\n\n'
-                    'Beiliegend das Reinigungsprotokoll für den Higenie Service im $betriebLabel vom $datumStr.\n\n'
-                    'Gruass Dani',
-                'userId': SupabaseService.dataUserId,
-                if (r.protokollFotoPfad != null)
-                  'protokollFotoPfad': r.protokollFotoPfad,
-              },
-            );
-            debugPrint('[HeiGenie-Mail] Versendet an $empfaenger');
-          }
-        } catch (e) {
-          debugPrint('[HeiGenie-Mail] Fehler: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: AppColors.error,
-                content: Text(
-                  heigenieFehlerMeldung(e),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                duration: const Duration(seconds: 8),
-              ),
-            );
-          }
-        }
-      }
-
-      // Kulanz eingelöst → Merker am Betrieb loeschen. Er ist EINMALIG: Beim
-      // Chleina Pub blieb der blosse Hinweis 40 Tage stehen, nachdem der Fall
-      // laengst anders geloest war. Ein stehender Merker wuerde die naechste
-      // Reinigung ungefragt verschenken.
-      //
-      // Scheitert das Loeschen (Funkloch), bleibt der Merker stehen und die
-      // naechste Reinigung ist wieder vorgewaehlt — sichtbar im Formular, also
-      // korrigierbar. Deshalb nur ins Debug-Protokoll, ohne die Kette zu
-      // stoppen.
-      if (abschliessen &&
-          _istKulanz &&
-          (_betrieb?.naechsteReinigungKulanz ?? false)) {
-        try {
-          _betrieb!.naechsteReinigungKulanz = false;
-          await BetriebRepository.save(_betrieb!);
-        } catch (e) {
-          debugPrint('[Kulanz-Merker] Zuruecksetzen fehlgeschlagen: $e');
-        }
-      }
-
-      // Kundenrechnung + Buchung erstellen bei Abschluss (nicht bei Kulanz/Heineken)
-      bool buchungVerbucht = false;
-      String? buchungTypLabel;
-      int nachgeholt = 0;
-      if (abschliessen && kIsWeb && !_istKulanz && !_istHeinekenMonteur) {
-        final betrieb =
-            _betrieb ?? await BetriebRepository.getByServerId(r.betriebId);
-        if (betrieb != null) {
-          final zahlungsart = resolveZahlungsart(
-            r.zahlungsart,
-            betrieb.rechnungsstellung,
-          );
-          // 1. Rechnung + Mail — eigener try/catch; ein Fehler hier darf die
-          //    Buchung (Schritt 2) NICHT verhindern.
-          try {
-            final rechnung = await RechnungService.createFromReinigung(
-              r,
-              betrieb,
-            );
-
-            // Die PDF-Ablage wirft bewusst nicht (Vorfall 01.09.2026: ein
-            // abgebrochener Upload liess Übergabevermerk und Mailversand
-            // ausfallen, obwohl Rechnung und Buchung standen). Sie darf aber
-            // auch nicht stillschweigend fehlen — deshalb hier gemeldet.
-            if (rechnung != null &&
-                !await RechnungPdfStorage.existiert(rechnung.id)) {
-              debugPrint(
-                '[Rechnung-PDF] fehlt nach dem Erstellen: ${rechnung.id}',
-              );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.warning,
-                    content: Text(
-                      RechnungNachholPlan.pdfFehltMeldung(
-                        'Rechnung ${rechnung.rechnungsnummer} erstellt.',
-                      ),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    duration: const Duration(seconds: 10),
-                  ),
-                );
-              }
-            }
-
-            // Mail versenden wenn rechnung_mail
-            if (rechnung != null && zahlungsart == 'rechnung_mail') {
-              try {
-                // Kunden-Email NUR aus betrieb_rechnungsadressen — betriebe.email
-                // ist reine Info.
-                String? kundenEmail;
-                try {
-                  final adrRows = await SupabaseService.client
-                      .from('betrieb_rechnungsadressen')
-                      .select('email')
-                      .eq('betrieb_id', betrieb.serverId!)
-                      .limit(1);
-                  if (adrRows.isNotEmpty) {
-                    final mail = (adrRows.first as Map)['email'];
-                    if (mail is String && mail.isNotEmpty) kundenEmail = mail;
-                  }
-                } catch (e) {
-                  debugPrint(
-                    '[ServiceMail] Rechnungsadresse-Query fehlgeschlagen: $e',
-                  );
-                }
-                final keineKundenadresse = kundenEmail == null;
-                final empfaenger = MailConfig.empfaenger(
-                  kundenEmail,
-                  bereich: 'reinigung',
-                );
-                final datumStr =
-                    '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
-                final betriebLabel =
-                    betrieb.ort != null && betrieb.ort!.isNotEmpty
-                    ? '${betrieb.name} ${betrieb.ort}'
-                    : betrieb.name;
-                final response = await SupabaseService.client.functions.invoke(
-                  'send-rechnung-mail',
-                  body: {
-                    'to': empfaenger,
-                    'subject':
-                        'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
-                    'bodyText':
-                        'Guten Tag\n\n'
-                        'Im Anhang sende ich Ihnen die Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr, '
-                        'die Details entnehmen Sie bitte der Rechnung und dem Lieferschein im Anhang.\n\n'
-                        '${zahlungsSatzMail(rechnung)}\n\n'
-                        'Mit freundlichen Grüssen\n\n'
-                        'Daniel Projer\n\n'
-                        'SBS Projer GmbH\nVia Rezia 8\n7013 Domat/Ems\n076 / 566 58 06',
-                    'rechnungId': rechnung.id,
-                    'userId': SupabaseService.dataUserId,
-                    // Die Function vermerkt den Versand selbst, solange sie
-                    // noch läuft. Ohne dieses Flag überspringt sie das, und
-                    // der Vermerk hängt allein an der Antwort unten — kommt
-                    // die nicht an, liegt die Rechnung beim Kunden und steht
-                    // in der App auf «offen». Genau das passierte am
-                    // 14.09.2026 zweimal (Blue Cinema 14:03, Alpina Resort
-                    // 16:08): Die Function war fertig und meldete 200, das
-                    // Handy bekam es nicht mehr mit. Der Serverfix dafür
-                    // existiert seit v15/v16, wurde hier aber nie
-                    // eingeschaltet.
-                    'markiereVersandt': MailConfig.istScharf('reinigung'),
-                    if (r.protokollFotoPfad != null)
-                      'protokollFotoPfad': r.protokollFotoPfad,
-                  },
-                );
-                debugPrint(
-                  '[ServiceMail] Response: ${response.status} ${response.data}',
-                );
-                // Status/versendet_am NUR bei scharfem Versand setzen — im
-                // Testmodus ging die Mail an den Test-Empfänger, nicht an den Kunden.
-                if (MailConfig.istScharf('reinigung')) {
-                  // Status nur offen → gesendet; bezahlt/gemahnt bleibt (R4).
-                  await ReinigungRechnungVersand.vermerkeVersand(rechnung);
-                }
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    keineKundenadresse
-                        ? SnackBar(
-                            backgroundColor: AppColors.warning,
-                            content: Text(
-                              'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
-                              'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            duration: const Duration(seconds: 8),
-                          )
-                        : SnackBar(
-                            content: Text(
-                              'Rechnung per Mail versendet an $empfaenger',
-                            ),
-                          ),
-                  );
-                }
-              } catch (e) {
-                debugPrint('[ServiceMail] Fehler: $e');
-                // Nicht behaupten, sondern nachfragen — der Vermerk steht auf
-                // dem Server, auch wenn die Antwort nie ankam.
-                final meldung = versandMeldung(
-                  versandStandAus(
-                    await RechnungRepository.istVersandVermerkt(rechnung.id),
-                  ),
-                  e,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: meldung.istFehler
-                          ? AppColors.error
-                          : AppColors.warning,
-                      content: Text(
-                        meldung.text,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      duration: const Duration(seconds: 10),
-                    ),
-                  );
-                }
-              }
-            }
-            // Bei "Per Post": Rechnung per Mail an Daniel selbst (zum Ausdrucken
-            // und Versand per Post). Geht immer an dani.proyer@gmail.com.
-            // Versanddatum = Abschlusstag (Annahme: Postversand erfolgt zeitnah).
-            else if (rechnung != null && zahlungsart == 'rechnung_post') {
-              try {
-                final datumStr =
-                    '${r.datum.day}. ${_monatName(r.datum.month)} ${r.datum.year}';
-                final betriebLabel =
-                    betrieb.ort != null && betrieb.ort!.isNotEmpty
-                    ? '${betrieb.name} ${betrieb.ort}'
-                    : betrieb.name;
-                await SupabaseService.client.functions.invoke(
-                  'send-rechnung-mail',
-                  body: {
-                    'to': MailConfig
-                        .testEmpfaenger, // dani.proyer@gmail.com (intern)
-                    'subject':
-                        'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
-                    'bodyText':
-                        'Rechnung für die Bierleitungsreinigung im $betriebLabel vom $datumStr '
-                        'zum Ausdrucken und Versand per Post (Anhang: Rechnung + Lieferschein).',
-                    'rechnungId': rechnung.id,
-                    'userId': SupabaseService.dataUserId,
-                    // Wie beim Mail-Versand oben: Die Function setzt den
-                    // Vermerk selbst, damit er einen Verbindungsabbruch
-                    // überlebt. Hier immer `true` — die Mail geht an Daniel
-                    // selbst, der Vermerk hält den Postversand fest.
-                    'markiereVersandt': true,
-                    if (r.protokollFotoPfad != null)
-                      'protokollFotoPfad': r.protokollFotoPfad,
-                  },
-                );
-                // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
-                // Status nur offen → gesendet; bezahlt/gemahnt bleibt (R4).
-                await ReinigungRechnungVersand.vermerkeVersand(rechnung);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Rechnung zum Postversand an dich gemailt'),
-                    ),
-                  );
-                }
-              } catch (e) {
-                debugPrint('[Post-Mail] Fehler: $e');
-                // Wie beim Mailversand: der Server weiss es besser als die
-                // gefangene Ausnahme.
-                final meldung = versandMeldung(
-                  versandStandAus(
-                    await RechnungRepository.istVersandVermerkt(rechnung.id),
-                  ),
-                  e,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: meldung.istFehler
-                          ? AppColors.error
-                          : AppColors.warning,
-                      content: Text(
-                        meldung.text,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                      duration: const Duration(seconds: 10),
-                    ),
-                  );
-                }
-              }
-            }
-            // Bei "Rechnung Tresen": kein Mailversand — die Rechnung wird
-            // persönlich am Tresen übergeben. Das Datum gehört in
-            // uebergeben_am, NICHT in versendet_am (das bleibt echtem
-            // Mail-/Postversand vorbehalten).
-            else if (rechnung != null && zahlungsart == 'rechnung_tresen') {
-              try {
-                await RechnungRepository.update(rechnung.id, {
-                  'uebergeben_am': DateTime.now()
-                      .toIso8601String()
-                      .split('T')
-                      .first,
-                });
-              } catch (e) {
-                debugPrint('[Tresen-Übergabe] Fehler: $e');
-              }
-            }
-          } catch (e) {
-            debugPrint('Rechnungs-/Mailerstellung fehlgeschlagen: $e');
-            // Fehler NICHT verschlucken: der Nutzer muss sehen, dass Rechnung/
-            // Mail nicht erstellt wurden (sonst steht nur "abgeschlossen" da).
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: AppColors.error,
-                  content: Text(
-                    'Reinigung ist abgeschlossen. ${kettenFehlerMeldung(e)}',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  duration: const Duration(seconds: 12),
-                ),
-              );
-            }
-          }
-
-          // 2. Automatische Buchung — UNABHÄNGIG vom Rechnungs-/Mailversand,
-          //    damit eine gescheiterte Rechnung NIE die Buchhaltung verhindert.
-          try {
-            final buchung = await ReinigungBuchungService.createFromReinigung(
-              r,
-              betrieb,
-            );
-            if (buchung != null) {
-              buchungVerbucht = true;
-              buchungTypLabel = zahlungsart == 'barzahlung'
-                  ? 'Barzahlung'
-                  : 'Rechnung';
-            }
-          } catch (e) {
-            debugPrint('[Buchung] Fehler: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  backgroundColor: AppColors.error,
-                  content: Text(
-                    buchungFehlerMeldung(e),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  duration: const Duration(seconds: 10),
-                ),
-              );
-            }
-          }
-
-          // 3. Frühere Abschlüsse nachziehen, deren Buchung nie ankam.
-          //    Am 03./04.09.2026 brach die Abschluss-Kette zweimal ab, weil
-          //    das Handy weggesteckt wurde — einmal ganz ohne Fehlermeldung.
-          //    Hier ist die Verbindung nachweislich in Ordnung (die eigene
-          //    Buchung ist eben durchgelaufen), also der beste Moment dafür.
-          //    Nur die letzten zwei Wochen: ein Nachlauf über die ganze
-          //    Historie darf nie unbemerkt aus einem Formular heraus starten.
-          //    Mit Timeout: der Nachlauf darf die Kette, um die es hier geht,
-          //    nicht selbst verlängern. Läuft er ins Leere, ist nichts
-          //    verloren — der nächste Abschluss und der Knopf in den
-          //    Forderungen holen ihn nach.
-          if (buchungVerbucht) {
-            try {
-              final erg = await BuchungNachholService.nachholen(
-                ab: DateTime.now().subtract(const Duration(days: 14)),
-              ).timeout(const Duration(seconds: 20));
-              nachgeholt = erg.gebucht;
-              if (nachgeholt > 0) {
-                ref.invalidate(reinigungenOhneRechnungProvider);
-              }
-              // Scheitert das Nachbuchen, war das bis zum 10.09.2026 nur im
-              // Debug-Protokoll zu sehen. Zwei Ertragsbuchungen (Signina
-              // 07.09., Mountain Plaza 09.09.) blieben deshalb tagelang
-              // liegen, obwohl der Nachlauf bei jedem Abschluss lief — und
-              // niemand konnte wissen, warum.
-              if (erg.fehler.isNotEmpty && mounted) {
-                // Die Details (mit Server-URL) gehören ins Protokoll, nicht
-                // auf den Handybildschirm (16.09.2026: bildschirmfüllende
-                // URL im Funkloch am Berghaus Sartons).
-                debugPrint('[Nachbuchung] ${erg.fehler.join(' | ')}');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.error,
-                    content: Text(
-                      'NACHBUCHEN FEHLGESCHLAGEN (${erg.fehler.length}): '
-                      '${kurzeFehlermeldung(erg.fehler.first)}\n'
-                      'Über Buchhaltung → Forderungen erneut versuchen.',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    duration: const Duration(seconds: 12),
-                  ),
-                );
-              }
-            } catch (e) {
-              debugPrint('[Nachbuchung] Fehler: $e');
-              // Auch der Abbruch selbst (Timeout, Verbindung weg) gehört
-              // gemeldet — sonst bleibt offen, ob überhaupt etwas lief.
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: AppColors.warning,
-                    content: Text(
-                      'Nachbuchen älterer Reinigungen abgebrochen '
-                      '(${kurzeFehlermeldung(e)}).\n'
-                      'Die eigene Buchung ist gespeichert.',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    duration: const Duration(seconds: 10),
-                  ),
-                );
-              }
-            }
-          }
-        } else {
-          // Ohne Betrieb entstehen WEDER Rechnung NOCH Buchung — bisher völlig
-          // lautlos. Das ist der letzte Zweig hier, der ohne Ausnahme und ohne
-          // Spur aussteigt, und damit der Hauptverdächtige für die 38 fehlenden
-          // Rechnungen vom 26.06.–13.07.: kein Insert (Sequenz unberührt), kein
-          // Fehler, keine Meldung. Ab jetzt sichtbar.
-          debugPrint(
-            '[Rechnung] BETRIEB NULL — betriebId="${r.betriebId}", '
-            '_betrieb=${_betrieb?.serverId}, widget.betriebId=${widget.betriebId}',
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                backgroundColor: AppColors.error,
-                content: Text(
-                  'BETRIEB NICHT GELADEN — KEINE RECHNUNG, KEINE BUCHUNG!\n'
-                  'Reinigung ist gespeichert. Bitte Daniel melden.\n'
-                  'betriebId="${r.betriebId}"',
-                  style: const TextStyle(color: Colors.white),
-                ),
-                duration: const Duration(seconds: 30),
-              ),
-            );
-          }
-        }
-      }
-
-      // Bergkundenpauschale erstellen (wird Heineken verrechnet, nicht dem Kunden)
-      if (abschliessen && kIsWeb && _istBergkunde && !_istHeinekenMonteur) {
-        try {
-          final reinigungId = r.serverId;
-          if (reinigungId != null) {
-            final betrag =
-                (_preisliste?['bergkunden_zuschlag'] as num?)?.toDouble() ??
-                180.0;
-            await BergkundenpauschaleRepository.create({
-              'betrieb_id': r.betriebId,
-              'reinigung_id': reinigungId,
-              'datum': r.datum.toIso8601String().split('T').first,
-              'betrag': betrag,
-            });
-            ref.invalidate(bergkundenpauschaleStreamProvider);
-            debugPrint(
-              '[Bergkundenpauschale] Erstellt: $betrag CHF für ${r.betriebId}',
-            );
-          }
-        } catch (e) {
-          debugPrint('[Bergkundenpauschale] Fehler: $e');
-        }
-      }
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               abschliessen
-                  ? (buchungVerbucht
-                        ? 'Reinigung abgeschlossen – $buchungTypLabel verbucht'
-                              '${nachgeholt > 0 ? ' · $nachgeholt frühere Buchung${nachgeholt == 1 ? '' : 'en'} nachgeholt' : ''}'
-                        : 'Reinigung abgeschlossen')
+                  ? abschlussSnackbarText(
+                      abschluss ??
+                          const AbschlussErgebnis(
+                            rechnungErstellt: false,
+                            buchungVerbucht: false,
+                            buchungTypLabel: null,
+                            nachgeholt: 0,
+                            meldungen: [],
+                          ),
+                    )
                   : buchungKorrigiert
                   ? 'Reinigung aktualisiert – Buchhaltung korrigiert ($korrekturTypLabel)'
                   : _isEdit
@@ -1457,10 +981,34 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     }
   }
 
+  /// Meldungen der Abschlusskette als Snackbars (Stufe → Farbe/Dauer).
+  void _zeigeMeldungen(List<AbschlussMeldung> meldungen) {
+    for (final m in meldungen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: switch (m.stufe) {
+            AbschlussStufe.info => null,
+            AbschlussStufe.warnung => AppColors.warning,
+            AbschlussStufe.fehler => AppColors.error,
+          },
+          content: Text(
+            m.text,
+            style: m.stufe == AbschlussStufe.info
+                ? null
+                : const TextStyle(color: Colors.white),
+          ),
+          duration: m.dauer,
+        ),
+      );
+    }
+  }
+
   Future<void> _showAbschlussDialog() async {
-    // Heineken-Monteur/Kulanz: direkt abschliessen ohne Rechnungsdialog
+    // Heineken-Monteur/Kulanz: direkt abschliessen ohne Rechnungsdialog.
+    // Guard gegen Doppeltap: ohne ihn liefen zwei _save parallel.
     if (_istHeinekenMonteur || _istKulanz) {
-      _save(abschliessen: true);
+      if (_isLoading) return;
+      await _save(abschliessen: true);
       return;
     }
 
@@ -2532,21 +2080,30 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
               prefixIcon: Icon(Icons.cleaning_services),
               isDense: true,
             ),
-            items: const [
-              DropdownMenuItem(
+            items: [
+              const DropdownMenuItem(
                 value: 'reinigung_bier',
                 child: Text('Reinigung Bier'),
               ),
-              DropdownMenuItem(
+              const DropdownMenuItem(
                 value: 'reinigung_orion',
                 child: Text('Reinigung Orion'),
               ),
-              DropdownMenuItem(value: 'heigenie', child: Text('Heigenie')),
-              DropdownMenuItem(
+              // Heigenie ist nicht mehr wählbar (0 Nutzungen; HeiGenie-
+              // Betriebe sind ist_mein_kunde = false, die HeiGenie-Mail ist
+              // mit der eigenen Abschlusskette entfallen). Der Eintrag bleibt
+              // NUR für Altdaten/erkannte Heigenie-Anlagen stehen — ein
+              // Dropdown-Wert ohne passenden Eintrag bricht das Formular ab.
+              if (_serviceTyp == 'heigenie')
+                const DropdownMenuItem(
+                  value: 'heigenie',
+                  child: Text('Heigenie (alt)'),
+                ),
+              const DropdownMenuItem(
                 value: 'reinigung_fremd',
                 child: Text('Reinigung Fremd'),
               ),
-              DropdownMenuItem(value: 'wein', child: Text('Wein')),
+              const DropdownMenuItem(value: 'wein', child: Text('Wein')),
             ],
             onChanged: (v) => _updatePositionAndPreis(() => _serviceTyp = v),
           ),

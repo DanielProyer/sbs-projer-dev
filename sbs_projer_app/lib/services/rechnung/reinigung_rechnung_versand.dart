@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
+import 'package:sbs_projer_app/core/util/versand_meldung.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -40,6 +41,11 @@ class ReinigungVersandErgebnis {
   /// trotzdem erfasst — aber der Beleg fehlt und muss nachgezogen werden.
   final bool pdfFehlt;
 
+  /// Die Antwort des Mailversands kam nicht an, der Server hat den Versand
+  /// aber vermerkt (oder die Nachfrage blieb unklar): Die Meldung ist ein
+  /// Hinweis (Warnung), kein Erfolg im Normalton.
+  final bool hinweis;
+
   const ReinigungVersandErgebnis({
     required this.rechnungErstellt,
     required this.warVorhanden,
@@ -48,6 +54,7 @@ class ReinigungVersandErgebnis {
     required this.keineKundenadresse,
     required this.meldung,
     this.pdfFehlt = false,
+    this.hinweis = false,
   });
 
   /// Dasselbe Ergebnis, aber mit dem Hinweis auf das fehlende PDF in der
@@ -60,6 +67,7 @@ class ReinigungVersandErgebnis {
         keineKundenadresse: keineKundenadresse,
         meldung: RechnungNachholPlan.pdfFehltMeldung(meldung),
         pdfFehlt: true,
+        hinweis: hinweis,
       );
 }
 
@@ -70,7 +78,9 @@ class ReinigungVersandErgebnis {
 ///
 /// Wirft bei Fehlern (Rechnungserstellung, Mailversand) — der Aufrufer MUSS die
 /// Exception abfangen und dem Nutzer sichtbar melden. Es wird bewusst NICHT
-/// still verschluckt.
+/// still verschluckt. Ausnahme: Scheitert nur die ANTWORT des Mailversands
+/// und der Server hat den Versand vermerkt, ist die Mail raus — dann kein
+/// Wurf, sondern ein Ergebnis mit `hinweis: true` (siehe [_sendeMail]).
 class ReinigungRechnungVersand {
   /// Hängt den Hinweis auf ein fehlendes PDF an, sonst unverändert.
   static ReinigungVersandErgebnis _mitPdfStand(
@@ -182,9 +192,7 @@ class ReinigungRechnungVersand {
         bereich: 'reinigung',
       );
 
-      await SupabaseService.client.functions.invoke(
-        'send-rechnung-mail',
-        body: {
+      final versandHinweis = await _sendeMail(rechnung.id, {
           'to': empfaenger,
           'subject':
               'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
@@ -206,8 +214,7 @@ class ReinigungRechnungVersand {
           'markiereVersandt': MailConfig.istScharf('reinigung'),
           if (r.protokollFotoPfad != null)
             'protokollFotoPfad': r.protokollFotoPfad,
-        },
-      );
+      });
 
       // Status/versendet_am NUR bei scharfem Versand setzen (im Testmodus ging
       // die Mail an den Testempfänger, nicht an den Kunden).
@@ -227,10 +234,12 @@ class ReinigungRechnungVersand {
           mailGesendet: true,
           empfaenger: empfaenger,
           keineKundenadresse: keineKundenadresse,
-          meldung: keineKundenadresse
-              ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
-                    'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
-              : 'Rechnung per Mail versendet an $empfaenger',
+          meldung: versandHinweis ??
+              (keineKundenadresse
+                  ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
+                        'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
+                  : 'Rechnung per Mail versendet an $empfaenger'),
+          hinweis: versandHinweis != null,
         ),
         pdfFehlt,
       );
@@ -238,9 +247,7 @@ class ReinigungRechnungVersand {
 
     if (rs == 'rechnung_post') {
       // Rechnung per Mail an Daniel selbst (zum Ausdrucken + Postversand).
-      await SupabaseService.client.functions.invoke(
-        'send-rechnung-mail',
-        body: {
+      final versandHinweis = await _sendeMail(rechnung.id, {
           'to': MailConfig.testEmpfaenger, // dani.proyer@gmail.com (intern)
           'subject':
               'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
@@ -255,8 +262,7 @@ class ReinigungRechnungVersand {
           'markiereVersandt': true,
           if (r.protokollFotoPfad != null)
             'protokollFotoPfad': r.protokollFotoPfad,
-        },
-      );
+      });
 
       // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
       await vermerkeVersand(rechnung);
@@ -268,8 +274,9 @@ class ReinigungRechnungVersand {
           mailGesendet: true,
           empfaenger: MailConfig.testEmpfaenger,
           keineKundenadresse: false,
-          meldung:
+          meldung: versandHinweis ??
               'Rechnung zum Postversand an ${MailConfig.testEmpfaenger} gemailt',
+          hinweis: versandHinweis != null,
         ),
         pdfFehlt,
       );
@@ -309,6 +316,38 @@ class ReinigungRechnungVersand {
       ),
       pdfFehlt,
     );
+  }
+
+  /// Ruft `send-rechnung-mail`. Liefert null bei Erfolg, einen Hinweistext,
+  /// wenn die Antwort ausblieb, der Server den Versand aber vermerkt hat (oder
+  /// die Nachfrage selbst unklar blieb), und wirft, wenn die Mail laut Server
+  /// NICHT raus ist.
+  ///
+  /// WARUM nachfragen statt werfen: Am 14.09.2026 (Blue Cinema 14:03, Alpina
+  /// Resort 16:08) war die Function fertig und meldete 200, das Handy bekam
+  /// die Antwort nicht mehr mit. Ein Wurf hätte «nicht versendet» behauptet —
+  /// ein zweiter Klick hätte die Rechnung doppelt verschickt. Der Server weiss
+  /// es besser als die gefangene Ausnahme. Bis v0.139.0 stand diese Nachfrage
+  /// nur im Formular; der Nachhol-Weg im Detail-Screen warf blind.
+  static Future<String?> _sendeMail(
+    String rechnungId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      await SupabaseService.client.functions.invoke(
+        'send-rechnung-mail',
+        body: body,
+      );
+      return null;
+    } catch (e) {
+      debugPrint('[ReinigungVersand] Mail-Fehler: $e');
+      final m = versandMeldung(
+        versandStandAus(await RechnungRepository.istVersandVermerkt(rechnungId)),
+        e,
+      );
+      if (m.istFehler) rethrow;
+      return m.text; // Server hat den Vermerk: Mail ist raus
+    }
   }
 
   /// Versand IMMER via betrieb_rechnungsadressen.email — betriebe.email ist

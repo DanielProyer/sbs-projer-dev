@@ -87,14 +87,3 @@ String kettenFehlerMeldung(Object fehler) =>
 String buchungFehlerMeldung(Object fehler) =>
     'BUCHUNG FEHLGESCHLAGEN (${kurzeFehlermeldung(fehler)}) — '
     'in der Rechnungsliste oben «tippen zum Nachbuchen».';
-
-/// Meldung, wenn das HeiGenie-Protokoll nicht rausging.
-///
-/// WARUM hier kein Weg steht: Es gibt keinen. Die HeiGenie-Mail hängt allein
-/// am Abschluss-Formular, kein Screen kann sie erneut senden, und ohne
-/// Rechnung gibt es auch keinen Versandvermerk, bei dem sich nachfragen
-/// liesse. Einen Weg zu nennen, den es nicht gibt, kostet Daniel eine
-/// Suche und am Ende das Vertrauen in die Meldung.
-String heigenieFehlerMeldung(Object fehler) =>
-    'HeiGenie-Protokoll NICHT gemailt (${kurzeFehlermeldung(fehler)}) — '
-    'die App kann es nicht nachholen, bitte Beat direkt schreiben.';

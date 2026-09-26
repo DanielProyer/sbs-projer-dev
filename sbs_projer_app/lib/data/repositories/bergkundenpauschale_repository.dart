@@ -70,6 +70,22 @@ class BergkundenpauschaleRepository {
     throw UnimplementedError('Native nicht implementiert');
   }
 
+  /// Gibt es zur Reinigung schon eine Pauschale? Die Abschlusskette läuft
+  /// auch als Nachhol-Weg (Reinigungs-Detail) und beim erneuten Abschliessen —
+  /// ohne diese Prüfung entstünde die Pauschale jedes Mal neu und würde
+  /// Heineken doppelt verrechnet.
+  static Future<bool> existiertFuerReinigung(String reinigungId) async {
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from(_table)
+          .select('id')
+          .eq('reinigung_id', reinigungId)
+          .limit(1);
+      return rows.isNotEmpty;
+    }
+    throw UnimplementedError('Native nicht implementiert');
+  }
+
   static Future<BergkundenpauschaleLocal> create(
       Map<String, dynamic> data) async {
     data['user_id'] = _userId;

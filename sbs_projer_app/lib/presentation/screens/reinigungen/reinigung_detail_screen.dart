@@ -23,8 +23,7 @@ import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_korrektur_service.dart';
-import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
-import 'package:sbs_projer_app/services/buchhaltung/reinigung_buchung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_abschluss_service.dart';
 import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
@@ -512,30 +511,46 @@ class _ReinigungDetailContent extends ConsumerWidget {
     );
 
     try {
-      final erg = await ReinigungRechnungVersand.erstelleUndSende(
+      // Dieselbe Kette wie beim Abschluss im Formular (eine Quelle, T5):
+      // Rechnung/Versand, Buchung (idempotent — Duplikat-Check via Beleg),
+      // Bergkundenpauschale (nur wenn noch keine existiert). Ohne
+      // Nachholen: das bleibt dem Abschluss vorbehalten.
+      final erg = await ReinigungAbschlussService.abschliessen(
         reinigung,
         betrieb,
+        nachholen: false,
       );
-      // Automatische Buchung nachziehen (idempotent — Duplikat-Check via Beleg).
-      try {
-        await ReinigungBuchungService.createFromReinigung(reinigung, betrieb);
-      } catch (e) {
-        debugPrint('[Detail-Versand] Buchung fehlgeschlagen: $e');
-      }
       ref.invalidate(rechnungenStreamProvider);
       ref.invalidate(buchungenStreamProvider);
+      if (reinigung.istBergkunde) {
+        ref.invalidate(bergkundenpauschaleStreamProvider);
+      }
       if (!context.mounted) return;
       Navigator.of(
         context,
         rootNavigator: true,
       ).pop(); // Fortschritt schliessen
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: erg.keineKundenadresse ? AppColors.warning : null,
-          content: Text(erg.meldung),
-          duration: Duration(seconds: erg.keineKundenadresse ? 8 : 4),
-        ),
-      );
+      final meldungen = erg.meldungen.isEmpty
+          ? [AbschlussMeldung(abschlussSnackbarText(erg), AbschlussStufe.info)]
+          : erg.meldungen;
+      for (final m in meldungen) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: switch (m.stufe) {
+              AbschlussStufe.info => null,
+              AbschlussStufe.warnung => AppColors.warning,
+              AbschlussStufe.fehler => AppColors.error,
+            },
+            content: Text(
+              m.text,
+              style: m.stufe == AbschlussStufe.info
+                  ? null
+                  : const TextStyle(color: Colors.white),
+            ),
+            duration: m.dauer,
+          ),
+        );
+      }
     } catch (e) {
       if (!context.mounted) return;
       Navigator.of(
