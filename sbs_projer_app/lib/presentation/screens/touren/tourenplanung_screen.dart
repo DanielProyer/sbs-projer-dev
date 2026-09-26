@@ -346,6 +346,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                       datum: _selectedDate,
                       readOnly: istVergangenTag,
                       onLeeren: _tagesplanLeeren,
+                      onTagVerschieben: _ganzenTagVerschieben,
                       onAusFaelligBefuellen: () =>
                           _faelligeAlleUebernehmen(angezeigtFaellig),
                       onPlanUebernehmen: _planVonDatumUebernehmen,
@@ -970,6 +971,67 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     await _aufTagVerschieben(plantag, [eintrag], ziel);
   }
 
+  /// Kopfzeilen-Menü «Ganzen Tag verschieben…»: alle offenen Stopps auf
+  /// einen anderen Tag. Erledigte (dieselbe Ermittlung wie die Zeitachse)
+  /// bleiben hier; der Arbeitstag-Rahmen (Beginn/Ende/km) bleibt unberührt.
+  Future<void> _ganzenTagVerschieben() async {
+    final plantag = _selectedDate;
+    final plan = ref.read(tagesplanProvider);
+
+    final j = DateTime.now();
+    final heute = DateTime(j.year, j.month, j.day);
+    final erledigtePruefen = !plantag.isAfter(heute);
+    var wegpunkte = const <WegpunktTag>[];
+    if (erledigtePruefen) {
+      try {
+        wegpunkte = await ref.read(wegpunkteFuerTagProvider(plantag).future);
+      } catch (_) {
+        // Ohne Stempel gelten Störungen/Montagen als offen — sie gehen dann
+        // mit, was sich zurückschieben lässt.
+      }
+      if (!mounted) return;
+    }
+    final historie = ref.read(besuchHistorieProvider);
+    final erledigt = ermittleIstZeiten(
+      eintraege: plan,
+      datum: plantag,
+      erledigtePruefen: erledigtePruefen,
+      reinigungen: erledigtePruefen
+          ? ref.read(reinigungenProvider)
+          : const <ReinigungLocal>[],
+      wegpunkte: wegpunkte,
+      dauerFuer: (e) => _dauerFuer(e, historie),
+    ).keys.toSet();
+    final verschiebbar = verschiebbareEintraege(plan, erledigt);
+    if (verschiebbar.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nichts zu verschieben')),
+      );
+      return;
+    }
+
+    final ziel = await _zieltagWaehlen(plantag);
+    if (ziel == null || !mounted) return;
+    final schonDort =
+        (await ref.read(gespeicherterTagesplanProvider(ziel).future))
+            ?.eintraege
+            .length ??
+        0;
+    if (!mounted) return;
+    final ok = await _verschiebenBestaetigen(
+      titel: 'Tag verschieben?',
+      text: verschiebenRueckfrageText(
+        anzahl: verschiebbar.length,
+        ziel: ziel,
+        schonDort: schonDort,
+        ruhetag: ruhetagBetriebe(verschiebbar, ziel),
+        erledigt: plan.length - verschiebbar.length,
+      ),
+    );
+    if (!ok || !mounted) return;
+    await _aufTagVerschieben(plantag, verschiebbar, ziel);
+  }
+
   /// Gemeinsamer Ablauf für Stopp und ganzen Tag. Reihenfolge bewusst:
   /// Einsätze umplanen, **dann** am Zieltag anhängen, **erst danach** hier
   /// entfernen — bricht ein Schritt ab, steht nichts verloren da.
@@ -1153,6 +1215,7 @@ class _TagesplanHeader extends StatelessWidget {
   /// (Übernehmen/Leeren) sind dort sinnlos und ausgeblendet.
   final bool readOnly;
   final VoidCallback onLeeren;
+  final VoidCallback onTagVerschieben;
   final VoidCallback onAusFaelligBefuellen;
   final VoidCallback onPlanUebernehmen;
   final VoidCallback onKarte;
@@ -1162,6 +1225,7 @@ class _TagesplanHeader extends StatelessWidget {
     required this.datum,
     required this.readOnly,
     required this.onLeeren,
+    required this.onTagVerschieben,
     required this.onAusFaelligBefuellen,
     required this.onPlanUebernehmen,
     required this.onKarte,
@@ -1231,15 +1295,43 @@ class _TagesplanHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
-            // Nur ein Symbol: der Klick fragt erst nach (_tagesplanLeeren),
-            // die rote Bestätigung sitzt im Dialog als TapKnopf(gefahr).
-            IconButton(
-              onPressed: onLeeren,
-              icon: const Icon(Icons.clear_all, size: 20),
-              color: AppColors.error,
-              tooltip: 'Tagesplan leeren',
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
+            // Menü statt zweier Symbole — die Kopfzeile muss auf 360 px
+            // passen. Beide Punkte fragen erst nach (_ganzenTagVerschieben,
+            // _tagesplanLeeren); die rote Bestätigung fürs Leeren sitzt im
+            // Dialog als TapKnopf(gefahr).
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              tooltip: 'Weitere Aktionen',
+              padding: EdgeInsets.zero,
+              onSelected: (v) {
+                if (v == 'verschieben') onTagVerschieben();
+                if (v == 'leeren') onLeeren();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'verschieben',
+                  child: Row(
+                    children: [
+                      Icon(Icons.event_repeat, size: 18),
+                      SizedBox(width: 10),
+                      Text('Ganzen Tag verschieben…'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'leeren',
+                  child: Row(
+                    children: [
+                      Icon(Icons.clear_all, size: 18, color: AppColors.error),
+                      SizedBox(width: 10),
+                      Text(
+                        'Tagesplan leeren…',
+                        style: TextStyle(color: AppColors.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ],
