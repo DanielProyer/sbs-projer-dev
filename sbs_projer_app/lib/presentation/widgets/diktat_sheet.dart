@@ -17,6 +17,7 @@ import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/core/util/einsatz_start.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart'
     show tagHeute;
@@ -35,12 +36,15 @@ import 'package:sbs_projer_app/core/util/telefon.dart';
 /// Netz), geht der Rohtext NIE verloren, sondern landet als Entwurf in der
 /// lokalen Warteschlange (siehe `einsatz_diktat_entwurf_speicher.dart`).
 Future<void> zeigeDiktatSheet(BuildContext context) {
-  return showModalBottomSheet(
+  final container = ProviderScope.containerOf(context, listen: false);
+  return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => const DiktatSheet(),
-  );
+    // Die Warteschlange kann sich geändert haben — die Aufgabe
+    // «N Diktate warten» neu zählen (V9).
+  ).whenComplete(() => container.invalidate(draussenAufgabenProvider));
 }
 
 enum _View { diktieren, einsatz, neuerBetrieb }

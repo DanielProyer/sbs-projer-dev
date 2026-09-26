@@ -182,7 +182,10 @@ final router = GoRouter(
     // Tourenplanung
     GoRoute(
       path: '/touren',
-      builder: (context, state) => const TourenplanungScreen(),
+      // `?datum=YYYY-MM-DD`: Tag vorwählen (Aufgabe «Arbeitstag ohne Feierabend»).
+      builder: (context, state) => TourenplanungScreen(
+        startDatum: DateTime.tryParse(state.uri.queryParameters['datum'] ?? ''),
+      ),
     ),
 
     // Auswertung der erfassten Arbeitstage (Zeit, km, Besuche)
@@ -318,6 +321,8 @@ final router = GoRouter(
       path: '/einsaetze',
       builder: (context, state) => EinsaetzeScreen(
         vorgewaehlterTyp: einsatzTypAusQuery(state.uri.queryParameters['typ']),
+        // Aus der Betriebsseite: nur dieser Betrieb (Akte, T10).
+        betriebId: state.uri.queryParameters['betrieb'],
       ),
     ),
 

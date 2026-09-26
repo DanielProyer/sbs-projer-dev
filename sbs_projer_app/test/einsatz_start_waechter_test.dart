@@ -26,6 +26,9 @@ void main() {
     'lib/presentation/screens/betriebe/betrieb_detail_screen.dart',
     // Betriebsauswahl, wenn `/reinigungen/neu` ohne Betrieb aufgerufen wird.
     'lib/presentation/screens/reinigungen/reinigung_betrieb_auswahl_screen.dart',
+    // Aufgabe «Reinigung X angefangen» (V9): führt zurück ins Formular, das
+    // den lokalen Entwurf dieses Betriebs anbietet — kein Stopp aus dem Plan.
+    'lib/core/util/aufgaben_regeln.dart',
   };
 
   test('Start-Routen nur in einsatz_start.dart (plus Ausnahmen)', () {

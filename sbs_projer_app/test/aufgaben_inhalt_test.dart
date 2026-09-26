@@ -95,4 +95,29 @@ void main() {
     await tester.tap(find.byKey(const Key('aufgabe_neu')));
     expect(neu, isTrue);
   });
+
+  testWidgets('Aufgaben-Screen zeigt auch Buero-Fristen (nur die Heute-Karte filtert)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      rahmen([
+        const AufgabenEintrag(
+          quelle: AufgabenQuelle.detektor,
+          key: 'mwst:2026-Q3',
+          titel: 'MWST Q3 2026 abrechnen',
+          route: '/buchhaltung/mwst',
+        ),
+        AufgabenEintrag(
+          quelle: AufgabenQuelle.detektor,
+          key: 'entwurf:b1',
+          titel: 'Reinigung Hirschen angefangen (09:12)',
+          faellig: heute,
+          route: '/reinigungen/neu?betriebId=b1',
+          draussen: true,
+        ),
+      ]),
+    );
+    expect(find.text('MWST Q3 2026 abrechnen'), findsOneWidget);
+    expect(find.text('Reinigung Hirschen angefangen (09:12)'), findsOneWidget);
+  });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/connectivity_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/sync_provider.dart';
@@ -130,7 +131,9 @@ class _AufgabenKarte extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final jetzt = ref.watch(aufgabenJetztProvider);
+    // Nur was draussen zu tun ist (V8). Büro-Fristen bleiben in der Glocke
+    // und im Aufgaben-Screen; das Sheet hinter der Karte zeigt weiter alles.
+    final jetzt = fuerHeuteKarte(ref.watch(aufgabenJetztProvider));
     if (jetzt.isEmpty) return const SizedBox.shrink();
     final titel = jetzt.map((a) => a.titel).take(3).toList();
     final dringend = jetzt.any((a) => a.dringend);

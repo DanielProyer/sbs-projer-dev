@@ -81,6 +81,9 @@ class AufgabenEintrag {
   /// Siehe `Aufgabe.istVorrat` — ein Stapel ohne Stichtag (B3).
   final bool istVorrat;
 
+  /// Siehe `Aufgabe.draussen` — gehört auf die Heute-Karte (V8).
+  final bool draussen;
+
   const AufgabenEintrag({
     required this.quelle,
     required this.key,
@@ -95,6 +98,7 @@ class AufgabenEintrag {
     this.saison,
     this.manuellErledigbar = false,
     this.istVorrat = false,
+    this.draussen = false,
   });
 
   bool get erledigbar =>
@@ -141,6 +145,13 @@ bool jetztFaellig(AufgabenEintrag a, DateTime heute) {
       a.faellig != null && !_tag(a.faellig!).isAfter(_tag(heute)),
   };
 }
+
+/// Die Heute-Karte (V8): vom Ausschnitt «jetzt fällig» nur, was draussen zu
+/// tun ist. MWST, Heineken, Mahnlauf und Vorschläge stehen weiter in der
+/// Glocke und im Aufgaben-Screen — über dem Tagesplan schoben sie am Handy
+/// die Stopps nach unten und wurden überlesen.
+List<AufgabenEintrag> fuerHeuteKarte(Iterable<AufgabenEintrag> jetzt) =>
+    jetzt.where((a) => a.draussen).toList();
 
 const _wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
@@ -194,6 +205,7 @@ List<AufgabenEintrag> baueAufgabenListe({
         route: a.route,
         manuellErledigbar: a.manuellErledigbar,
         istVorrat: a.istVorrat,
+        draussen: a.draussen,
       ),
     );
   }
@@ -224,6 +236,7 @@ List<AufgabenEintrag> baueAufgabenListe({
         faellig: faellig,
         dringend: faellig != null && !_tag(faellig).isAfter(heuteTag),
         eigeneId: id,
+        draussen: true,
       ),
     );
   }
@@ -250,6 +263,7 @@ List<AufgabenEintrag> baueAufgabenListe({
             e.status == EinsatzStatus.offen || _tag(faellig).isBefore(heuteTag),
         route: e.detailRoute,
         einsatz: e,
+        draussen: true,
       ),
     );
   }
@@ -288,6 +302,7 @@ List<AufgabenEintrag> baueAufgabenListe({
           titel: titel,
           anlass: v.typ == 'endreinigung' ? 'saisonende' : 'saisonstart',
         ),
+        draussen: true,
       ),
     );
   }
@@ -306,6 +321,7 @@ List<AufgabenEintrag> baueAufgabenListe({
         dringend: _tag(t.datum).isBefore(heuteTag),
         route: '/betriebe/${t.betriebId}',
         terminId: t.id,
+        draussen: true,
       ),
     );
   }

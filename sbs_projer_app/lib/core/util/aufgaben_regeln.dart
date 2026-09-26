@@ -30,6 +30,12 @@ class Aufgabe {
   /// fehlende Buchungen). Steht im Büro und im Aufgaben-Screen, aber nicht
   /// in der Glocke — dort gehört nur hin, was eine Frist hat (B3).
   final bool istVorrat;
+
+  /// Gehört auf die Heute-Karte: etwas, das draussen zu tun oder abzuschliessen
+  /// ist (angefangene Reinigung, laufende Arbeit, offener Arbeitstag, wartende
+  /// Diktate). Büro-Fristen (MWST, Heineken, Mahnlauf) stehen weiter in der
+  /// Glocke und im Aufgaben-Screen, aber nicht über dem Tagesplan (V8).
+  final bool draussen;
   const Aufgabe({
     required this.key,
     required this.titel,
@@ -37,7 +43,143 @@ class Aufgabe {
     this.route,
     this.manuellErledigbar = false,
     this.istVorrat = false,
+    this.draussen = false,
   });
+}
+
+/// «Dorthin»-Ziel, das keine Route ist, sondern das Diktat-Sheet öffnet
+/// (das Sheet ist ein Modal ohne eigene Adresse).
+const kDiktatAktion = 'aktion:diktat';
+
+String _zwei(int n) => n.toString().padLeft(2, '0');
+
+/// Eine lokal gesicherte, nicht abgeschlossene Reinigung
+/// (`ReinigungEntwurfSpeicher.alleOffen()`).
+typedef OffenerReinigungEntwurf = ({String betriebId, DateTime gespeichertAm});
+
+/// Angefangene Reinigungen (V9): Der Tab ging verloren (Kamera, Wegstecken),
+/// der Entwurf liegt noch im Gerät. Ohne Hinweis öffnet Daniel das Formular
+/// neu und merkt nichts vom Entwurf. [namen]: Betrieb-ID → Name.
+List<Aufgabe> angefangeneReinigungAufgaben(
+  List<OffenerReinigungEntwurf> entwuerfe,
+  Map<String, String> namen,
+) => [
+  for (final e in entwuerfe)
+    Aufgabe(
+      key: 'entwurf:${e.betriebId}',
+      titel:
+          'Reinigung ${namen[e.betriebId] ?? '(unbekannter Betrieb)'} '
+          'angefangen (${_zwei(e.gespeichertAm.hour)}:${_zwei(e.gespeichertAm.minute)})',
+      dringend: true,
+      route: '/reinigungen/neu?betriebId=${e.betriebId}',
+      draussen: true,
+    ),
+];
+
+/// Störung oder Montage mit «Arbeit beginnen», aber ohne «Beenden».
+/// [typ]: 'stoerung' | 'montage'; [datum]: Tag des Einsatzes.
+typedef OffeneArbeit = ({
+  String typ,
+  String id,
+  String betriebName,
+  DateTime datum,
+});
+
+/// Laufende Arbeit von gestern (V9): `arbeit_von` gesetzt, `arbeit_bis`
+/// leer, Tag vor heute. Die Zeiterfassung dieses Einsatzes bleibt sonst
+/// für immer halb.
+List<Aufgabe> laufendeArbeitAufgaben(List<OffeneArbeit> offen, DateTime heute) {
+  final heuteTag = DateTime(heute.year, heute.month, heute.day);
+  return [
+    for (final o in offen)
+      if (DateTime(o.datum.year, o.datum.month, o.datum.day).isBefore(heuteTag))
+        Aufgabe(
+          key: 'arbeit_laeuft:${o.typ}:${o.id}',
+          titel: 'Arbeit läuft seit gestern: ${o.betriebName}',
+          dringend: true,
+          route: o.typ == 'montage'
+              ? '/montagen/${o.id}/bearbeiten'
+              : '/stoerungen/${o.id}/bearbeiten',
+          draussen: true,
+        ),
+  ];
+}
+
+/// Eine Zeile aus `tagesplaene` (Ist-Werte der Arbeitstag-Karte).
+typedef ArbeitstagStand = ({
+  DateTime datum,
+  String? beginn,
+  String? ende,
+  int? km,
+});
+
+/// Arbeitstag vor heute mit erfasstem Beginn, aber ohne Feierabend oder
+/// km-Stand (V9). Gemeldet wird nur der jüngste solche Tag — ältere Lücken
+/// sind Sache der Auswertung. Die Arbeitstag-Karte kennt nur heute; der
+/// Tourenplan erfasst Ende und km für jeden Tag (`/touren?datum=`).
+Aufgabe? arbeitstagOffenAufgabe(List<ArbeitstagStand> tage, DateTime heute) {
+  final heuteTag = DateTime(heute.year, heute.month, heute.day);
+  ArbeitstagStand? juengster;
+  for (final t in tage) {
+    final tag = DateTime(t.datum.year, t.datum.month, t.datum.day);
+    if (!tag.isBefore(heuteTag)) continue;
+    if (t.beginn == null || t.beginn!.isEmpty) continue;
+    final ohneEnde = t.ende == null || t.ende!.isEmpty;
+    if (!ohneEnde && t.km != null) continue;
+    if (juengster == null || tag.isAfter(juengster.datum)) juengster = t;
+  }
+  if (juengster == null) return null;
+  final d = juengster.datum;
+  final ohneEnde = juengster.ende == null || juengster.ende!.isEmpty;
+  final ohneKm = juengster.km == null;
+  final fehlt = [
+    if (ohneEnde) 'Feierabend',
+    if (ohneKm) 'km-Stand',
+  ].join(' und ');
+  final iso = '${d.year}-${_zwei(d.month)}-${_zwei(d.day)}';
+  return Aufgabe(
+    key: 'arbeitstag_offen:$iso',
+    titel: 'Arbeitstag ${_zwei(d.day)}.${_zwei(d.month)}. ohne $fehlt',
+    dringend: true,
+    route: '/touren?datum=$iso',
+    draussen: true,
+  );
+}
+
+/// Diktate, deren Auswertung im Funkloch scheiterte (lokale Warteschlange,
+/// `EinsatzDiktatEntwurfSpeicher`). Bisher nur im Diktat-Sheet sichtbar.
+Aufgabe? diktateWartenAufgabe(int anzahl) => anzahl <= 0
+    ? null
+    : Aufgabe(
+        key: 'diktate',
+        titel: anzahl == 1
+            ? '1 Diktat wartet auf Auswertung'
+            : '$anzahl Diktate warten auf Auswertung',
+        route: kDiktatAktion,
+        draussen: true,
+      );
+
+/// Versandvermerk-Abgleich in Dart (statt je Rechnung eine Abfrage): Eine
+/// offene Rechnung ist verdächtig, wenn am Tag ihres `created_at` für
+/// denselben Betrieb eine Reinigung mit `zahlungsart = 'rechnung_mail'`
+/// stattfand. [mailReinigungen]: Zeilen mit `betrieb_id`, `datum`.
+int zaehleVersandvermerke({
+  required List<Map<String, dynamic>> rechnungen,
+  required List<Map<String, dynamic>> mailReinigungen,
+}) {
+  final tage = <String>{
+    for (final r in mailReinigungen)
+      if (r['betrieb_id'] != null && r['datum'] != null)
+        '${r['betrieb_id']}|${r['datum'].toString().split('T').first}',
+  };
+  var n = 0;
+  for (final r in rechnungen) {
+    final betriebId = r['betrieb_id']?.toString();
+    final erstellt = r['created_at']?.toString();
+    if (betriebId == null || erstellt == null) continue;
+    if (tage.contains('$betriebId|${erstellt.split('T').first}')) n++;
+  }
+  return n;
 }
 
 /// Heineken-Monatsrechnung für den Vormonat. null = erledigt/nicht fällig.
@@ -146,6 +288,9 @@ Aufgabe? saisondatenAufgabe(int anzahl) => anzahl <= 0
         key: 'saisondaten',
         titel: 'Saisondaten fehlen bei $anzahl Betrieben',
         route: '/touren',
+        // Seit V8 ein Vorrat: Band im Formular und Warnung im Tourenplan
+        // sind die richtigen Orte, rot auf Heute war er nur Gewohnheit.
+        istVorrat: true,
       );
 
 /// Saisonbetriebe, deren Saison-Angabe sie dauerhaft aus dem Tourenplan
@@ -161,6 +306,7 @@ Aufgabe? saisonLueckeAufgabe(int anzahl) => anzahl <= 0
         key: 'saison_luecke',
         titel: '$anzahl Saisonbetriebe fallen aus dem Tourenplan',
         route: '/touren',
+        istVorrat: true, // V8, wie saisondatenAufgabe
       );
 
 /// Reinigungen, deren Ertragsbuchung fehlt.

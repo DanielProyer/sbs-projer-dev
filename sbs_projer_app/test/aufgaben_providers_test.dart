@@ -48,6 +48,7 @@ void main() {
     offeneVorschlaegeAnzahlProvider.overrideWithValue(vorschlaege),
     aufgabenDetektorenProvider.overrideWith((ref) async => detektoren),
     mahnlaufAufgabeProvider.overrideWith((ref) async => const []),
+    draussenAufgabenProvider.overrideWith((ref) async => const []),
     mahnfallAufgabenProvider.overrideWith((ref) async => mahnfaelle),
     aufgabenZeilenProvider.overrideWith((ref) async => zeilen),
   ];

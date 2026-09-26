@@ -45,7 +45,11 @@ import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 class TourenplanungScreen extends ConsumerStatefulWidget {
-  const TourenplanungScreen({super.key});
+  /// Startet auf diesem Tag statt auf heute — die Aufgabe «Arbeitstag ohne
+  /// Feierabend» führt so direkt zum Tag, dessen Ende/km fehlt (V9).
+  final DateTime? startDatum;
+
+  const TourenplanungScreen({super.key, this.startDatum});
 
   @override
   ConsumerState<TourenplanungScreen> createState() =>
@@ -94,8 +98,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
+    final start = widget.startDatum ?? DateTime.now();
+    _selectedDate = DateTime(start.year, start.month, start.day);
     _tabController = TabController(length: 2, vsync: this);
   }
 

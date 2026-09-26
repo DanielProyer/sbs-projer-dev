@@ -463,4 +463,74 @@ void main() {
       expect(liste.where((e) => jetztFaellig(e, heute)), hasLength(1));
     });
   });
+
+  group('draussen (V8)', () {
+    List<AufgabenEintrag> liste() => baueAufgabenListe(
+      detektoren: [
+        const Aufgabe(key: 'mwst:2026-Q3', titel: 'MWST Q3'),
+        const Aufgabe(
+          key: 'entwurf:b1',
+          titel: 'Reinigung Hirschen angefangen (09:12)',
+          dringend: true,
+          draussen: true,
+        ),
+      ],
+      aufgabenZeilen: const [
+        {'typ': 'eigene', 'id': 'e1', 'titel': 'Schlauch kaufen'},
+      ],
+      anstehend: [einsatz(datum: heuteTag)],
+      saisonVorschlaege: [
+        (
+          betriebId: 'b2',
+          betriebName: 'Sonne',
+          betriebOrt: null,
+          typ: 'endreinigung',
+          zielDatum: heuteTag,
+          beschreibung: '',
+        ),
+      ],
+      saisonTermine: [
+        (
+          id: 't1',
+          betriebId: 'b3',
+          betriebName: 'Post',
+          betriebOrt: null,
+          typ: 'eroeffnungsreinigung',
+          datum: heuteTag,
+          titel: '',
+        ),
+      ],
+      aenderungsVorschlaege: 2,
+      heute: heute,
+    );
+
+    test('Einsaetze, Saison, Termine, eigene und Draussen-Detektoren sind draussen', () {
+      final draussen = {
+        for (final a in liste()) a.key: a.draussen,
+      };
+      expect(draussen['entwurf:b1'], isTrue);
+      expect(draussen['eigene:e1'], isTrue);
+      expect(draussen['einsatz:stoerung:x1'], isTrue);
+      expect(draussen['saison:b2:endreinigung'], isTrue);
+      expect(draussen['termin:t1'], isTrue);
+    });
+
+    test('Buero-Fristen und Aenderungsvorschlaege sind nicht draussen', () {
+      final draussen = {
+        for (final a in liste()) a.key: a.draussen,
+      };
+      expect(draussen['mwst:2026-Q3'], isFalse);
+      expect(draussen['vorschlaege'], isFalse);
+    });
+
+    test('Heute-Karte: jetzt faellig UND draussen; Glocke behaelt alles', () {
+      final jetzt = liste().where((a) => jetztFaellig(a, heute)).toList();
+      final karte = fuerHeuteKarte(jetzt);
+      expect(jetzt.map((a) => a.key), contains('mwst:2026-Q3'));
+      expect(karte.map((a) => a.key), isNot(contains('mwst:2026-Q3')));
+      expect(karte.map((a) => a.key), isNot(contains('vorschlaege')));
+      expect(karte.map((a) => a.key), contains('entwurf:b1'));
+      expect(karte.every((a) => a.draussen), isTrue);
+    });
+  });
 }

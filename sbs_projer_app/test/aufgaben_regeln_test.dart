@@ -5,6 +5,7 @@ void main() {
   _buchungsTests();
   _versandvermerkTests();
   _protokollFehltTests();
+  _draussenTests();
 
   group('heinekenAufgabe', () {
     // heute 05.08.2026 -> Vormonat Juli 2026
@@ -276,7 +277,10 @@ void main() {
     });
     test('Fristen bleiben Fristen', () {
       expect(mahnlaufAufgabe(3)!.istVorrat, isFalse);
-      expect(saisondatenAufgabe(3)!.istVorrat, isFalse);
+    });
+    test('Saison-Zaehler sind seit V8 Vorraete (Band + Tourenplan bleiben)', () {
+      expect(saisondatenAufgabe(3)!.istVorrat, isTrue);
+      expect(saisonLueckeAufgabe(3)!.istVorrat, isTrue);
     });
   });
 
@@ -378,6 +382,180 @@ void _protokollFehltTests() {
     });
     test('3 -> Plural', () {
       expect(protokollFehltAufgabe(3)!.titel, '3 Reinigungen ohne Protokollfoto');
+    });
+  });
+}
+
+/// V8/V9 (Analyse-Runde 5): Was auf der Heute-Karte steht, ist «draussen».
+void _draussenTests() {
+  group('draussen-Kennzeichen', () {
+    test('Vorgabe ist Buero', () {
+      expect(const Aufgabe(key: 'x', titel: 'X').draussen, isFalse);
+    });
+    test('Buero-Fristen und Vorraete sind nicht draussen', () {
+      final heute = DateTime(2026, 9, 26);
+      expect(
+        heinekenAufgabe(
+          heute: heute,
+          rechnungExistiert: false,
+          rechnungOffen: false,
+        )!.draussen,
+        isFalse,
+      );
+      expect(
+        mwstAufgaben(heute: heute, markerKeys: const {}).first.draussen,
+        isFalse,
+      );
+      expect(mahnlaufAufgabe(2)!.draussen, isFalse);
+      expect(eskalationAufgabe(2)!.draussen, isFalse);
+      expect(saisondatenAufgabe(2)!.draussen, isFalse);
+      expect(saisonLueckeAufgabe(2)!.draussen, isFalse);
+      expect(versandvermerkAufgabe(2)!.draussen, isFalse);
+      expect(fehlendeBuchungenAufgabe(2)!.draussen, isFalse);
+    });
+  });
+
+  group('angefangeneReinigungAufgaben', () {
+    test('je Entwurf eine dringende Aufgabe mit Name, Uhrzeit, Route', () {
+      final l = angefangeneReinigungAufgaben(
+        [(betriebId: 'b1', gespeichertAm: DateTime(2026, 9, 26, 9, 12))],
+        {'b1': 'Hirschen'},
+      );
+      expect(l, hasLength(1));
+      final a = l.single;
+      expect(a.key, 'entwurf:b1');
+      expect(a.titel, 'Reinigung Hirschen angefangen (09:12)');
+      expect(a.route, '/reinigungen/neu?betriebId=b1');
+      expect(a.dringend, isTrue);
+      expect(a.draussen, isTrue);
+      expect(a.istVorrat, isFalse);
+    });
+    test('unbekannter Betrieb bleibt sichtbar', () {
+      final a = angefangeneReinigungAufgaben(
+        [(betriebId: 'b9', gespeichertAm: DateTime(2026, 9, 26, 14, 5))],
+        const {},
+      ).single;
+      expect(a.titel, 'Reinigung (unbekannter Betrieb) angefangen (14:05)');
+    });
+    test('keine Entwuerfe -> leer', () {
+      expect(angefangeneReinigungAufgaben(const [], const {}), isEmpty);
+    });
+  });
+
+  group('laufendeArbeitAufgaben', () {
+    final heute = DateTime(2026, 9, 26, 8);
+    test('Stoerung und Montage vom Vortag -> Aufgabe mit Bearbeiten-Route', () {
+      final l = laufendeArbeitAufgaben([
+        (typ: 'stoerung', id: 's1', betriebName: 'Calanda', datum: DateTime(2026, 9, 25)),
+        (typ: 'montage', id: 'm1', betriebName: 'Post', datum: DateTime(2026, 9, 20)),
+      ], heute);
+      expect(l.map((a) => a.route), [
+        '/stoerungen/s1/bearbeiten',
+        '/montagen/m1/bearbeiten',
+      ]);
+      expect(l.first.key, 'arbeit_laeuft:stoerung:s1');
+      expect(l.first.titel, 'Arbeit läuft seit gestern: Calanda');
+      expect(l.every((a) => a.dringend && a.draussen), isTrue);
+    });
+    test('heute begonnene Arbeit ist kein Fall', () {
+      expect(
+        laufendeArbeitAufgaben([
+          (typ: 'stoerung', id: 's1', betriebName: 'X', datum: DateTime(2026, 9, 26)),
+        ], heute),
+        isEmpty,
+      );
+    });
+  });
+
+  group('arbeitstagOffenAufgabe', () {
+    final heute = DateTime(2026, 9, 26, 7);
+    test('Beginn ohne Ende -> Aufgabe zum Tourenplan jenes Tages', () {
+      final a = arbeitstagOffenAufgabe(
+        [
+          (datum: DateTime(2026, 9, 25), beginn: '06:39', ende: null, km: 86284),
+        ],
+        heute,
+      )!;
+      expect(a.key, 'arbeitstag_offen:2026-09-25');
+      expect(a.titel, 'Arbeitstag 25.09. ohne Feierabend');
+      expect(a.route, '/touren?datum=2026-09-25');
+      expect(a.draussen, isTrue);
+      expect(a.dringend, isTrue);
+    });
+    test('fehlender km-Stand allein reicht', () {
+      final a = arbeitstagOffenAufgabe(
+        [(datum: DateTime(2026, 9, 25), beginn: '06:39', ende: '17:00', km: null)],
+        heute,
+      )!;
+      expect(a.titel, 'Arbeitstag 25.09. ohne km-Stand');
+    });
+    test('beides fehlt', () {
+      final a = arbeitstagOffenAufgabe(
+        [(datum: DateTime(2026, 9, 25), beginn: '06:39', ende: null, km: null)],
+        heute,
+      )!;
+      expect(a.titel, 'Arbeitstag 25.09. ohne Feierabend und km-Stand');
+    });
+    test('vollstaendig, ohne Beginn oder heute -> nichts', () {
+      expect(
+        arbeitstagOffenAufgabe([
+          (datum: DateTime(2026, 9, 25), beginn: '06:39', ende: '17:00', km: 1),
+          (datum: DateTime(2026, 9, 24), beginn: null, ende: null, km: null),
+          (datum: DateTime(2026, 9, 26), beginn: '06:00', ende: null, km: null),
+        ], heute),
+        isNull,
+      );
+    });
+    test('mehrere offene Tage -> der juengste', () {
+      final a = arbeitstagOffenAufgabe([
+        (datum: DateTime(2026, 9, 22), beginn: '06:00', ende: null, km: null),
+        (datum: DateTime(2026, 9, 24), beginn: '06:00', ende: null, km: null),
+      ], heute)!;
+      expect(a.key, 'arbeitstag_offen:2026-09-24');
+    });
+  });
+
+  group('diktateWartenAufgabe', () {
+    test('0 -> null, sonst Zahl und Diktat-Aktion', () {
+      expect(diktateWartenAufgabe(0), isNull);
+      expect(diktateWartenAufgabe(1)!.titel, '1 Diktat wartet auf Auswertung');
+      final a = diktateWartenAufgabe(3)!;
+      expect(a.titel, '3 Diktate warten auf Auswertung');
+      expect(a.route, kDiktatAktion);
+      expect(a.draussen, isTrue);
+      expect(a.key, 'diktate');
+    });
+  });
+
+  group('zaehleVersandvermerke (eine Abfrage statt N+1)', () {
+    test('zaehlt Rechnungen mit Mail-Reinigung am created_at-Tag', () {
+      final n = zaehleVersandvermerke(
+        rechnungen: [
+          {'betrieb_id': 'b1', 'created_at': '2026-09-20T15:02:11+00:00'},
+          {'betrieb_id': 'b2', 'created_at': '2026-09-20T15:02:11+00:00'},
+          {'betrieb_id': 'b1', 'created_at': '2026-09-21T08:00:00+00:00'},
+          {'betrieb_id': null, 'created_at': '2026-09-20T15:02:11+00:00'},
+        ],
+        mailReinigungen: [
+          {'betrieb_id': 'b1', 'datum': '2026-09-20'},
+          {'betrieb_id': 'b2', 'datum': '2026-09-19'},
+        ],
+      );
+      expect(n, 1);
+    });
+    test('zwei Rechnungen am selben Tag zaehlen beide', () {
+      expect(
+        zaehleVersandvermerke(
+          rechnungen: [
+            {'betrieb_id': 'b1', 'created_at': '2026-09-20T10:00:00'},
+            {'betrieb_id': 'b1', 'created_at': '2026-09-20T11:00:00'},
+          ],
+          mailReinigungen: [
+            {'betrieb_id': 'b1', 'datum': '2026-09-20'},
+          ],
+        ),
+        2,
+      );
     });
   });
 }

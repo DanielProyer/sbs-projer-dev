@@ -7,6 +7,8 @@ import 'package:sbs_projer_app/presentation/providers/eingangsrechnung_providers
 import 'package:sbs_projer_app/presentation/providers/monats_pruef_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/monats_pruef_service.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -14,6 +16,8 @@ import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
+import 'package:sbs_projer_app/services/einsatz/einsatz_diktat_entwurf_speicher.dart';
+import 'package:sbs_projer_app/services/storage/reinigung_entwurf_speicher.dart';
 
 /// Ist ein Nutzer angemeldet? Im VM-Test ohne `Supabase.initialize()` wirft
 /// `SupabaseService.currentUser` selbst — dort gilt: eingeloggt, die Provider
@@ -117,34 +121,46 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
   // f) Versandvermerk — Mail-Rechnungen, die auf «offen» stehen geblieben
   //    sind. Erst ab dem Folgetag: am Tag selbst kann der Versand noch
   //    ausstehen (Funkloch, Nachversand), das wäre nur Rauschen.
+  //    Seit V9 zwei Abfragen statt bis zu 500: Mail-Reinigungen des Fensters
+  //    einmal laden, der Abgleich Betrieb + Tag läuft in Dart
+  //    (`zaehleVersandvermerke`).
   try {
     final grenze = heute.subtract(const Duration(days: 1));
+    final ab = heute.subtract(const Duration(days: 60));
     final rows = await client
         .from('rechnungen')
         .select('id, betrieb_id, created_at')
         .eq('zahlungsstatus', 'offen')
         .neq('rechnungstyp', 'heineken_monat')
         .lt('created_at', grenze.toIso8601String())
-        .gte(
-          'created_at',
-          heute.subtract(const Duration(days: 60)).toIso8601String(),
-        )
+        .gte('created_at', ab.toIso8601String())
         .limit(500);
 
-    // Nur solche, deren Reinigung wirklich per Mail abgerechnet wird —
-    // «Tresen» und «bar» stehen zu Recht auf offen.
     var verdaechtig = 0;
-    for (final r in rows) {
-      final betriebId = r['betrieb_id']?.toString();
-      if (betriebId == null) continue;
-      final rein = await client
+    if (rows.isNotEmpty) {
+      // Nur solche, deren Reinigung wirklich per Mail abgerechnet wird —
+      // «Tresen» und «bar» stehen zu Recht auf offen. Ein Tag Puffer vor
+      // dem Fenster: created_at ist UTC, das Reinigungsdatum lokal.
+      final reinigungen = await client
           .from('reinigungen')
-          .select('id')
-          .eq('betrieb_id', betriebId)
+          .select('betrieb_id, datum')
           .eq('zahlungsart', 'rechnung_mail')
-          .eq('datum', (r['created_at'] as String).split('T').first)
-          .limit(1);
-      if (rein.isNotEmpty) verdaechtig++;
+          .gte(
+            'datum',
+            ab
+                .subtract(const Duration(days: 1))
+                .toIso8601String()
+                .split('T')
+                .first,
+          )
+          .order('datum')
+          .order('id')
+          // ~60 Zeilen im Fenster (26.09.2026); 1000 ist die PostgREST-Decke.
+          .limit(1000);
+      verdaechtig = zaehleVersandvermerke(
+        rechnungen: rows,
+        mailReinigungen: reinigungen,
+      );
     }
     final a = versandvermerkAufgabe(verdaechtig);
     if (a != null) detektoren.add(a);
@@ -275,4 +291,118 @@ final mahnfallAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     debugPrint('[Aufgaben] Mahnfall-Detektor: $e');
     return const [];
   }
+});
+
+/// Halbe Zustände von draussen (V9): angefangene Reinigungen im Gerät,
+/// Arbeit ohne «Beenden», Arbeitstag ohne Feierabend/km, Diktate in der
+/// Warteschlange. Alles `draussen: true` — sie stehen auf der Heute-Karte.
+/// Eigener Provider wie die Mahnlauf-Aufgaben: lokale Speicher und eigene
+/// Abfragen, die das Neuladen der Büro-Detektoren nicht mitziehen soll.
+/// Jeder Block einzeln abgesichert.
+final draussenAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
+  if (!_eingeloggt()) return const [];
+  final heute = DateTime.now();
+  final aufgaben = <Aufgabe>[];
+  // Neu rechnen, sobald eine Störung oder Montage sich ändert («Beenden»).
+  // Entwürfe und Diktate liegen lokal: Wer sie ändert, invalidiert diesen
+  // Provider (Reinigungsformular, Diktat-Sheet, Aufgaben-Aktionen).
+  ref.watch(stoerungenProvider);
+  ref.watch(montagenProvider);
+  final namen = {
+    for (final b in ref.watch(betriebeProvider))
+      if (b.serverId != null) b.serverId!: b.name,
+  };
+
+  // a) Angefangene Reinigungen — lokal gesicherte Entwürfe (V2).
+  try {
+    final offen = await ReinigungEntwurfSpeicher.alleOffen();
+    aufgaben.addAll(angefangeneReinigungAufgaben(offen, namen));
+  } catch (e) {
+    debugPrint('[Aufgaben] Entwurf-Detektor: $e');
+  }
+
+  // b) Laufende Arbeit von gestern — «Beginn» gedrückt, «Beenden» nie.
+  //    `arbeit_bis` leer per isFilter (NULL-Falle: nie neq). Der Tag des
+  //    Einsatzes ist der geplante, sonst das Datum; «vor heute» in Dart.
+  try {
+    final client = SupabaseService.client;
+    final ab = heute
+        .subtract(const Duration(days: 14))
+        .toIso8601String()
+        .split('T')
+        .first;
+    final offen = <OffeneArbeit>[];
+    for (final (tabelle, typ) in [
+      ('stoerungen', 'stoerung'),
+      ('montagen', 'montage'),
+    ]) {
+      final rows = await client
+          .from(tabelle)
+          .select('id, betrieb_id, datum, geplant_am')
+          .not('arbeit_von', 'is', null)
+          .isFilter('arbeit_bis', null)
+          .gte('datum', ab)
+          .order('datum')
+          .order('id')
+          .limit(100);
+      for (final r in rows) {
+        final tag = DateTime.tryParse(
+          (r['geplant_am'] ?? r['datum'] ?? '').toString(),
+        );
+        if (tag == null) continue;
+        offen.add((
+          typ: typ,
+          id: r['id'].toString(),
+          betriebName: namen[r['betrieb_id']?.toString()] ?? 'Unbekannter Betrieb',
+          datum: tag,
+        ));
+      }
+    }
+    aufgaben.addAll(laufendeArbeitAufgaben(offen, heute));
+  } catch (e) {
+    debugPrint('[Aufgaben] Laufende-Arbeit-Detektor: $e');
+  }
+
+  // c) Arbeitstag vor heute mit Beginn, aber ohne Feierabend oder km-Stand
+  //    (`tagesplaene`, dieselben Felder wie die Arbeitstag-Karte).
+  try {
+    final ab = heute
+        .subtract(const Duration(days: 7))
+        .toIso8601String()
+        .split('T')
+        .first;
+    final rows = await SupabaseService.client
+        .from('tagesplaene')
+        .select('datum, arbeitsbeginn, arbeitsende, km_stand')
+        .gte('datum', ab)
+        .not('arbeitsbeginn', 'is', null)
+        .order('datum')
+        .order('id')
+        .limit(50);
+    final a = arbeitstagOffenAufgabe([
+      for (final r in rows)
+        if (DateTime.tryParse(r['datum']?.toString() ?? '') case final d?)
+          (
+            datum: d,
+            beginn: r['arbeitsbeginn'] as String?,
+            ende: r['arbeitsende'] as String?,
+            km: (r['km_stand'] as num?)?.toInt(),
+          ),
+    ], heute);
+    if (a != null) aufgaben.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Arbeitstag-Detektor: $e');
+  }
+
+  // d) Diktate, deren Auswertung im Funkloch scheiterte (lokal).
+  try {
+    final a = diktateWartenAufgabe(
+      (await EinsatzDiktatEntwurfSpeicher.laden()).length,
+    );
+    if (a != null) aufgaben.add(a);
+  } catch (e) {
+    debugPrint('[Aufgaben] Diktat-Detektor: $e');
+  }
+
+  return aufgaben;
 });

@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
+import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
+import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
@@ -27,6 +29,7 @@ class AufgabenAktionen {
 
   void _neuLaden() {
     ref.invalidate(aufgabenZeilenProvider);
+    ref.invalidate(draussenAufgabenProvider);
     ref.invalidate(aufgabenListeProvider);
   }
 
@@ -54,6 +57,14 @@ class AufgabenAktionen {
     final route = a.route;
     if (route == null) return;
     if (imSheet) Navigator.pop(context);
+    // Wartende Diktate: das Sheet hat keine Adresse, es wird geöffnet.
+    if (route == kDiktatAktion) {
+      final ziel = imSheet
+          ? router.routerDelegate.navigatorKey.currentContext
+          : context;
+      if (ziel != null && ziel.mounted) zeigeDiktatSheet(ziel);
+      return;
+    }
     router.push(route);
   }
 
