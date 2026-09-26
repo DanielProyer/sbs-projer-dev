@@ -34,7 +34,13 @@ const kPufferVorStichtagTage = 3;
 enum MahnStufe { erinnerung, mahnung1, letzte }
 
 extension MahnStufeX on MahnStufe {
-  int get wert => index;
+  /// Wert für `rechnungen.mahnung_stufe` (CHECK BETWEEN 0 AND 3):
+  /// 0 = ungemahnt, 1 = erinnert, 2 = Mahnung 1, 3 = Mahnung 2 — NICHT der
+  /// Enum-`index` (der bei 0 beginnt und «erinnerung» wie ungemahnt aussehen
+  /// liesse). Für `mahnschreiben.stufe` (eigene Spalte, CHECK BETWEEN 0 AND 2,
+  /// deckungsgleich mit dem Enum) wird bewusst `index` verwendet, nicht `wert`
+  /// — siehe `MahnlaufService`.
+  int get wert => index + 1;
 
   /// Wert von `rechnungen.zahlungsstatus` nach dieser Stufe.
   String get status => switch (this) {

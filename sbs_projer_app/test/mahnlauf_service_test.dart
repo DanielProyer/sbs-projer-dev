@@ -41,7 +41,7 @@ void main() {
         DateTime.utc(2026, 9, 23),
       );
       expect(m['zahlungsstatus'], 'mahnung_1');
-      expect(m['mahnung_stufe'], 1);
+      expect(m['mahnung_stufe'], 2);
       expect(m['letzte_mahnung_am'], '2026-09-23');
       expect(m['mahnung_1_am'], '2026-09-23');
       expect(m['mahn_frist_bis'], '2026-10-03');
@@ -57,7 +57,7 @@ void main() {
         DateTime.utc(2026, 9, 23),
       );
       expect(m['zahlungsstatus'], 'erinnert');
-      expect(m['mahnung_stufe'], 0);
+      expect(m['mahnung_stufe'], 1);
       expect(m['erinnerung_am'], '2026-09-23');
       expect(m.containsKey('mahnung_1_am'), isFalse);
       expect(m.containsKey('mahnung_2_am'), isFalse);
@@ -69,7 +69,7 @@ void main() {
         DateTime.utc(2026, 9, 23),
       );
       expect(m['zahlungsstatus'], 'mahnung_2');
-      expect(m['mahnung_stufe'], 2);
+      expect(m['mahnung_stufe'], 3);
       expect(m['mahnung_2_am'], '2026-09-23');
       expect(m.containsKey('erinnerung_am'), isFalse);
       expect(m.containsKey('mahnung_1_am'), isFalse);
@@ -80,7 +80,7 @@ void main() {
     test('enthält genau die sieben Felder im DB-Format (yyyy-MM-dd oder null)', () {
       final r = rechnung(
         zahlungsstatus: 'mahnung_1',
-        mahnungStufe: 1,
+        mahnungStufe: 2,
         letzteMahnungAm: DateTime.utc(2026, 9, 10),
         erinnerungAm: DateTime.utc(2026, 8, 20),
         mahnung1Am: DateTime.utc(2026, 9, 10),
@@ -97,7 +97,7 @@ void main() {
         'mahn_frist_bis',
       });
       expect(v['zahlungsstatus'], 'mahnung_1');
-      expect(v['mahnung_stufe'], 1);
+      expect(v['mahnung_stufe'], 2);
       expect(v['letzte_mahnung_am'], '2026-09-10');
       expect(v['erinnerung_am'], '2026-08-20');
       expect(v['mahnung_1_am'], '2026-09-10');
@@ -174,7 +174,10 @@ void main() {
     test('seither weiter gemahnt (höhere Stufe) -> nein', () {
       final aktuell = {
         'zahlungsstatus': 'mahnung_1',
-        'mahnung_stufe': 1,
+        // nachher (Erinnerung) hat mahnung_stufe 1 — 2 (Mahnung 1) muss sich
+        // davon unterscheiden, sonst prüft der Test nichts (Fix 26.09.2026:
+        // wert ist jetzt index+1, Erinnerung also nicht mehr 0).
+        'mahnung_stufe': 2,
         'letzte_mahnung_am': nachher['letzte_mahnung_am'],
       };
       final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);

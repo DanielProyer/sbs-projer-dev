@@ -271,7 +271,7 @@ class MahnlaufService {
           'id': mahnschreibenId,
           'user_id': userId,
           'betrieb_id': betriebId,
-          'stufe': stufe.wert,
+          'stufe': stufe.index, // mahnschreiben.stufe: eigene Spalte, deckt sich mit dem Enum-index (CHECK 0-2)
           'rechnung_ids': rechnungIds,
           'kanal': kanal,
           'empfaenger': mailadresse,
@@ -342,7 +342,7 @@ class MahnlaufService {
           'id': mahnschreibenId,
           'user_id': SupabaseService.dataUserId,
           'betrieb_id': betriebId,
-          'stufe': stufe.wert,
+          'stufe': stufe.index, // mahnschreiben.stufe: eigene Spalte, deckt sich mit dem Enum-index (CHECK 0-2)
           'rechnung_ids': rechnungIds,
           'kanal': kanal,
           'empfaenger': null,

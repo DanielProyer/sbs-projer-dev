@@ -19,9 +19,11 @@ class BetriebGeldStand {
   /// Höchste Mahnstufe unter den offenen Rechnungen: 0 = ungemahnt,
   /// 1 = Erinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung ([mahnstufeLabel]).
   ///
-  /// Aus dem `zahlungsstatus` abgeleitet, NICHT aus `mahnung_stufe`: der
-  /// Mahnlauf schreibt dort `MahnStufe.index`, die Erinnerung ist also 0 und
-  /// sähe wie ungemahnt aus.
+  /// Aus dem `zahlungsstatus` abgeleitet, nicht aus `mahnung_stufe` — auch
+  /// wenn der Mahnlauf dort seit dem Fix (26.09.2026, `MahnStufeX.wert`)
+  /// korrekt 1–3 schreibt: `zahlungsstatus` ist der Wert, mit dem der Rest
+  /// der App (Mahnregeln, Korrektur-Sperre) ohnehin schon rechnet, eine
+  /// zweite Quelle für dieselbe Information bräuchte es hier nicht.
   final int hoechsteMahnstufe;
 
   /// Verfügbares Kundenguthaben (Konto 2030), nie negativ.

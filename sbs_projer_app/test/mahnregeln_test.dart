@@ -420,7 +420,9 @@ void main() {
       expect(mahnFrist(d(2026, 9, 23)), d(2026, 10, 3));
     });
     test('Stufen-Eigenschaften', () {
-      expect(MahnStufe.erinnerung.wert, 0);
+      expect(MahnStufe.erinnerung.wert, 1);
+      expect(MahnStufe.mahnung1.wert, 2);
+      expect(MahnStufe.letzte.wert, 3);
       expect(MahnStufe.letzte.status, 'mahnung_2');
       expect(MahnStufe.mahnung1.titel, '1. Mahnung');
       expect(MahnStufe.letzte.titel, 'Letzte Mahnung');

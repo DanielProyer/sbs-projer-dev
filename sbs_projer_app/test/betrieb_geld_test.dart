@@ -69,8 +69,8 @@ void main() {
   });
 
   test('Mahnstufe kommt aus dem Status, nicht aus mahnung_stufe', () {
-    // Der Mahnlauf schreibt für die Erinnerung mahnung_stufe = 0
-    // (MahnStufe.erinnerung.index) — die Stufe darf daran nicht hängen.
+    // Bewusst zwei unabhängige Quellen: Selbst wenn mahnung_stufe (hier 0)
+    // vom Status abweicht, zählt für die Anzeige nur zahlungsstatus.
     final g = betriebGeldStand([
       rechnung(status: 'erinnert', mahnstufe: 0),
     ], 0, heute: heute);
