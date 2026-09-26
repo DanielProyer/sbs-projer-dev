@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/zahlungsweg_frei_buchen.dart';
 import 'package:sbs_projer_app/data/models/buchungs_vorlage.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
@@ -52,6 +53,13 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
     'privat': 'Privat bezahlt',
     'kreditor': 'Kreditor (offene Rechnung)',
     'debitor': 'Debitor (Kundenrechnung)',
+  };
+
+  // Kurze Labels im Modus «Frei buchen» (Werte: kZahlungswegeFreiBuchen).
+  static const Map<String, String> _zahlungswegFreiLabels = {
+    'kasse': 'Kasse',
+    'bank': 'Bank',
+    'privat': 'Privat',
   };
 
   // Beleg (wird nach Buchungs-Erstellung hochgeladen)
@@ -133,7 +141,13 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                               markiereGeaendert();
                               setState(() {
                                 _freiBuchen = !_freiBuchen;
-                                if (_freiBuchen) _selectedVorlage = null;
+                                if (_freiBuchen) {
+                                  _selectedVorlage = null;
+                                  // kreditor/debitor einer Vorlage gibt es
+                                  // hier nicht → leer, Nutzer wählt selbst.
+                                  _zahlungsweg =
+                                      zahlungswegFuerFreiBuchen(_zahlungsweg);
+                                }
                               });
                             },
                             child: Text(
@@ -320,24 +334,21 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: _zahlungsweg,
+                          // Nie einen Wert ausserhalb der Einträge
+                          // übergeben (kreditor/debitor einer Vorlage).
+                          initialValue: zahlungswegFuerFreiBuchen(_zahlungsweg),
                           decoration: const InputDecoration(
                             labelText: 'Zahlungsweg',
                           ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'kasse',
-                              child: Text('Kasse'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'bank',
-                              child: Text('Bank'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'privat',
-                              child: Text('Privat'),
-                            ),
+                          items: [
+                            for (final z in kZahlungswegeFreiBuchen)
+                              DropdownMenuItem(
+                                value: z,
+                                child: Text(_zahlungswegFreiLabels[z] ?? z),
+                              ),
                           ],
+                          validator: (v) =>
+                              v == null ? 'Zahlungsweg wählen' : null,
                           onChanged: (v) => setState(() => _zahlungsweg = v),
                         ),
                       ],
@@ -659,6 +670,15 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_freiBuchen && _selectedVorlage == null) return;
+    // «Frei buchen» speichert nur kasse/bank/privat — nie ein kreditor/
+    // debitor, das von einer vorher gewählten Vorlage übrig blieb.
+    final zahlungswegFrei = zahlungswegFuerFreiBuchen(_zahlungsweg);
+    if (_freiBuchen && zahlungswegFrei == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Zahlungsweg wählen')),
+      );
+      return;
+    }
 
     setState(() => _saving = true);
 
@@ -691,7 +711,7 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
           'mwst_betrag': mwstBetrag,
           'betrag_brutto': netto + mwstBetrag,
           'beschreibung': _beschreibungController.text,
-          'zahlungsweg': _zahlungsweg,
+          'zahlungsweg': zahlungswegFrei,
           'belegordner': null,
           'beleg_typ': 'sonstiges',
           'geschaeftsjahr': _datum.year,

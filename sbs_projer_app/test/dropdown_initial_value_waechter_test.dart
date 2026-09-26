@@ -44,12 +44,9 @@ void main() {
     expect(find.text('Alpha').hitTestable(), findsNothing);
   });
 
-  testWidgets('Rücksetzen nach Nutzerwahl (Muster Heineken-Zuweisungen)', (
+  testWidgets('geändertes initialValue gilt auch nach einer Nutzerwahl', (
     tester,
   ) async {
-    // heineken_zuweisungen_screen.dart setzt beim Speichern erst den neuen
-    // Wert (b) und nach einem Fehlschlag wieder den alten (a) — das Feld
-    // muss danach den alten zeigen, obwohl der Nutzer b gewählt hatte.
     await tester.pumpWidget(feld('a'));
     await tester.tap(find.text('Alpha'));
     await tester.pumpAndSettle();
@@ -62,5 +59,22 @@ void main() {
 
     await tester.pumpWidget(feld('a'));
     expect(angezeigt(tester), 'a');
+  });
+
+  testWidgets('UNVERÄNDERTES initialValue setzt eine Nutzerwahl nicht zurück', (
+    tester,
+  ) async {
+    // Die Grenze des Verhaltens: Wer nach einer Nutzerwahl «den alten Wert
+    // wieder setzt», ändert initialValue nicht — das Feld behält die Wahl.
+    // Zurücksetzen geht dann nur über einen neuen Key (Vorbild:
+    // heineken_zuweisungen_screen.dart nach fehlgeschlagenem Speichern).
+    await tester.pumpWidget(feld('a'));
+    await tester.tap(find.text('Alpha'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bravo').last);
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(feld('a'));
+    expect(angezeigt(tester), 'b');
   });
 }

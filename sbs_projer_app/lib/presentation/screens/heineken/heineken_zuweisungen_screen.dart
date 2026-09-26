@@ -20,6 +20,11 @@ class _HeinekenZuweisungenScreenState
   Map<String, KontaktLocal?>? _zuweisungen;
   bool _saving = false;
 
+  /// Rücksetzungen je Funktion — Teil des Card-Keys, damit ein
+  /// fehlgeschlagenes Speichern das Dropdown auf den gespeicherten Kontakt
+  /// zurückstellt.
+  final _ruecksetzer = <String, int>{};
+
   static const _funktionen = [
     ('monatsrechnung', 'Monatsrechnung', Icons.receipt_long),
     ('raster', 'Raster', Icons.grid_on),
@@ -92,6 +97,9 @@ class _HeinekenZuweisungenScreenState
                     final (funktion, label, icon) = f;
                     final current = _zuweisungen![funktion];
                     return _ZuweisungCard(
+                      key: ValueKey(
+                        'zuweisung-$funktion-${_ruecksetzer[funktion] ?? 0}',
+                      ),
                       funktion: funktion,
                       label: label,
                       icon: icon,
@@ -114,30 +122,38 @@ class _HeinekenZuweisungenScreenState
     setState(() => _saving = true);
     try {
       await KontaktRepository.setHeinekenZuweisung(funktion, kontakt?.routeId);
+      if (!mounted) return;
       setState(() {
         _zuweisungen![funktion] = kontakt;
         _saving = false;
       });
       ref.invalidate(heinekenZuweisungenProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              kontakt != null
-                  ? '${kontakt.vorname} ${kontakt.nachname ?? ''} zugewiesen'
-                  : 'Zuweisung entfernt',
-            ),
-            duration: const Duration(seconds: 2),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            kontakt != null
+                ? '${kontakt.vorname} ${kontakt.nachname ?? ''} zugewiesen'
+                : 'Zuweisung entfernt',
           ),
-        );
-      }
+          duration: const Duration(seconds: 2),
+        ),
+      );
     } catch (e) {
-      setState(() => _saving = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
+      if (!mounted) return;
+      // Das Dropdown zeigt noch die nie gespeicherte Wahl. Den gespeicherten
+      // Wert nur erneut zu setzen, reicht nicht: initialValue ändert sich
+      // dabei nicht, das Feld behielte die Wahl. Ein neuer Key baut es
+      // frisch aus _zuweisungen auf — unabhängig davon, ob der Fehler sofort
+      // oder erst nach Sekunden kommt.
+      setState(() {
+        _ruecksetzer[funktion] = (_ruecksetzer[funktion] ?? 0) + 1;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Nicht gespeichert: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
     }
   }
 }
@@ -152,6 +168,7 @@ class _ZuweisungCard extends StatelessWidget {
   final ValueChanged<KontaktLocal?> onChanged;
 
   const _ZuweisungCard({
+    super.key,
     required this.funktion,
     required this.label,
     required this.icon,
