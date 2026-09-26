@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.145.0 Touren auf einen anderen Tag verschieben (Stopp und ganzer Tag)
 - 26.09.2026 — v0.144.0 Analyse-Runde 5: Tagesbetrieb (Start-Weg, Entwurf, Heute-Karte, Betriebs-Akte, Zahlungsart)
 - 26.09.2026 — v0.143.0 Analyse-Runde 4: Bausteine & Aufräumen (−3700 Zeilen netto)
 - 26.09.2026 — v0.142.0 ZahlungKern: ein Zahlungsweg, atomar (Migration 209)
@@ -30,6 +31,45 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.145.0 Touren auf einen anderen Tag verschieben
+
+Plan `docs/superpowers/plans/2026-09-26-touren-verschieben.md`. Keine
+Migration. Auftrag Daniel: «ein einfacher Weg, um geplante Touren auf einen
+anderen Tag zu verschieben».
+
+- **Einzelner Stopp:** Block-Sheet → «Auf anderen Tag verschieben» →
+  Datumsauswahl (ab heute, vorbelegt Folgetag). Hat der Betrieb am Zieltag
+  Ruhetag, fragt ein Hinweis nach. Störung, Montage und HeiGenie ziehen ihr
+  `geplant_am` mit (`umplanenAufTag`, schreibt NUR das Datum — Zeit und Dauer
+  bleiben; Wächter `test/tagesplan_verschieben_waechter_test.dart`).
+- **Ganzer Tag:** Kopfzeile ⋮ → «Ganzen Tag verschieben…» → Rückfrage
+  «6 Stopps auf Di 17.11. verschieben? Dort stehen schon N Stopps. Ruhetag am
+  Zieltag: …». Erledigte Stopps (gleiche Ermittlung wie die Zeitachse, neu
+  geteilt in `tagesplan_ist_zeiten.dart`, plus abgeschlossene Einsätze) und
+  **abgemachte Saison-Termine bleiben am alten Tag** (Entscheid Daniel
+  26.09.: «die sind ja fix abgemacht») und werden in der Rückfrage genannt.
+  Arbeitstag-Rahmen bleibt unberührt. Meldung mit «Anzeigen» wechselt den Tag
+  im selben Screen.
+- **Speichersicher:** erst am Zieltag anhängen (Zieltag frisch aus der DB,
+  keine doppelten ids, bestehende Reihenfolge bleibt), dann am alten Tag
+  entfernen und sofort speichern; während des Ablaufs ist der Screen
+  gesperrt; Teilfehler werden ehrlich gemeldet («am Zieltag angehängt, aber
+  hier nicht entfernt»).
+- **Nebenbei behoben (alter Fehler):** Ein Tagwechsel innerhalb von 600 ms
+  nach einer Plan-Änderung verwarf das ausstehende Speichern — jetzt wird es
+  mit dem alten Tag sofort ausgeführt.
+- **Kopfzeile auf 360 px:** «Reihenfolge optimieren», «Reinigungen eines
+  Tages übernehmen», «Ganzen Tag verschieben…» und «Tagesplan leeren…» liegen
+  im ⋮-Menü; sichtbar bleiben Datum, Karte und «Fällige übernehmen».
+- Review (Opus) mit Nachbesserungen (Sperre, Sofort-Speichern, Dauer bleibt,
+  Termine/abgeschlossene Einsätze ausgeschlossen, ehrliche Meldungen).
+- Browser geprüft (360 px, Wegwerf-Plan 16.11.): Menü, Datumsauswahl,
+  Rückfrage mit Ruhetag-Hinweis, ganzer Tag verschoben (DB: 0/6), «Anzeigen»,
+  Einzel-Stopp per Block-Sheet (5/1). Testtage danach gelöscht.
+- 2559 Tests grün, `flutter analyze` 14 (unverändert).
 
 ---
 

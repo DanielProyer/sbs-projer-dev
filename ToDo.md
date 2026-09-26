@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.144.0 live** (Analyse-Runde 5: Tagesbetrieb — alle fünf Runden der App-Analyse erledigt) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2515 Tests grün**.
+**Stand:** **v0.145.0 live** (Touren auf anderen Tag verschieben; davor v0.144.0 Analyse-Runde 5 — alle fünf Runden erledigt) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2559 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -200,17 +200,13 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
-- **Touren verschieben (gebaut 26.09.2026, auf `main`, NOCH NICHT deployt — Browser-Prüfung
-  stand aus, weil der Auto-Modus den Test auf der Produktions-DB blockiert hat):**
-  Tourenplan → Stopp antippen → «Auf anderen Tag verschieben» (Datum wählen,
-  Ruhetag-Hinweis) · Kopfzeile ⋮ → «Ganzen Tag verschieben…» (Rückfrage mit
-  «Dort stehen schon N», Ruhetag-Betriebe, erledigte Stopps und abgemachte
-  Termine bleiben) → Meldung «Anzeigen» wechselt den Tag. Kopfzeile ⋮ enthält
-  jetzt auch «Reihenfolge optimieren» und «Reinigungen eines Tages übernehmen»
-  (Platz auf 360 px). Vor dem Deploy: Kopfzeile bei 360 px, Sperr-Dialog,
-  ausgeblendete Aktion bei Termin-Einträgen prüfen; dann Version 0.145.0.
-  **Offener Entscheid:** Sollen abgemachte Saison-Termine beim Tag-Verschieben
-  mitwandern (Termin-Datum + Kalender) statt liegen zu bleiben?
+- **v0.145.0 Touren verschieben** — Tourenplan → Stopp antippen → «Auf anderen
+  Tag verschieben» (Datum, Ruhetag-Hinweis) · Kopfzeile ⋮ → «Ganzen Tag
+  verschieben…» (Rückfrage; erledigte Stopps und abgemachte Termine bleiben)
+  → «Anzeigen» wechselt den Tag · ⋮ enthält jetzt auch «Reihenfolge
+  optimieren» und «Reinigungen eines Tages übernehmen». Am Handy prüfen:
+  Sperr-Dialog beim Verschieben, Menü-Breite. **Entschieden 26.09.:**
+  abgemachte Saison-Termine bleiben liegen (fix abgemacht).
 
 - **v0.144.0** — Reinigung aus dem Tourenplan starten, Handy weglegen,
   Formular neu öffnen → Band «Angefangene Reinigung» → Fortsetzen (Felder
