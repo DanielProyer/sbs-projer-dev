@@ -200,6 +200,18 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **Touren verschieben (gebaut 26.09.2026, auf `main`, NOCH NICHT deployt — Browser-Prüfung
+  stand aus, weil der Auto-Modus den Test auf der Produktions-DB blockiert hat):**
+  Tourenplan → Stopp antippen → «Auf anderen Tag verschieben» (Datum wählen,
+  Ruhetag-Hinweis) · Kopfzeile ⋮ → «Ganzen Tag verschieben…» (Rückfrage mit
+  «Dort stehen schon N», Ruhetag-Betriebe, erledigte Stopps und abgemachte
+  Termine bleiben) → Meldung «Anzeigen» wechselt den Tag. Kopfzeile ⋮ enthält
+  jetzt auch «Reihenfolge optimieren» und «Reinigungen eines Tages übernehmen»
+  (Platz auf 360 px). Vor dem Deploy: Kopfzeile bei 360 px, Sperr-Dialog,
+  ausgeblendete Aktion bei Termin-Einträgen prüfen; dann Version 0.145.0.
+  **Offener Entscheid:** Sollen abgemachte Saison-Termine beim Tag-Verschieben
+  mitwandern (Termin-Datum + Kalender) statt liegen zu bleiben?
+
 - **v0.144.0** — Reinigung aus dem Tourenplan starten, Handy weglegen,
   Formular neu öffnen → Band «Angefangene Reinigung» → Fortsetzen (Felder
   da?); Diktat mit Notiz → Formular zeigt Notiz; Zahlungsart-Zeile antippen

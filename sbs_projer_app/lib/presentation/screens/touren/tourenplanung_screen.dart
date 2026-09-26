@@ -1360,20 +1360,6 @@ class _TagesplanHeader extends StatelessWidget {
               ),
             )
           else ...[
-            IconButton(
-              onPressed: onOptimieren,
-              icon: const Icon(Icons.auto_fix_high, size: 20),
-              tooltip: 'Reihenfolge optimieren (Anker bleiben)',
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-            ),
-            IconButton(
-              onPressed: onPlanUebernehmen,
-              icon: const Icon(Icons.history, size: 20),
-              tooltip: 'Reinigungen eines Tages übernehmen',
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-            ),
             TextButton.icon(
               onPressed: onAusFaelligBefuellen,
               icon: const Icon(Icons.playlist_add, size: 18),
@@ -1386,23 +1372,44 @@ class _TagesplanHeader extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
               ),
             ),
-            // Menü statt zweier Symbole — die Kopfzeile muss auf 360 px
-            // passen. Beide Punkte fragen erst nach (_ganzenTagVerschieben,
+            // Ein Menü statt vier Symbolen — die Kopfzeile muss auf 360 px
+            // passen (mit vier Symbolen waren es rund 420 px, 26.09.2026).
+            // Verschieben und Leeren fragen erst nach (_ganzenTagVerschieben,
             // _tagesplanLeeren); die rote Bestätigung fürs Leeren sitzt im
             // Dialog als TapKnopf(gefahr).
-            // Kompakt wie die IconButtons daneben: 40 statt 48 px — so breit
-            // wie der frühere Leeren-Knopf. Die Zeile ist knapp (26.09.2026
-            // mit Roboto gemessen: rund 420 px).
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
               tooltip: 'Weitere Aktionen',
               padding: EdgeInsets.zero,
               style: const ButtonStyle(visualDensity: VisualDensity.compact),
               onSelected: (v) {
+                if (v == 'optimieren') onOptimieren();
+                if (v == 'uebernehmen') onPlanUebernehmen();
                 if (v == 'verschieben') onTagVerschieben();
                 if (v == 'leeren') onLeeren();
               },
               itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'optimieren',
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_fix_high, size: 18),
+                      SizedBox(width: 10),
+                      Text('Reihenfolge optimieren'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'uebernehmen',
+                  child: Row(
+                    children: [
+                      Icon(Icons.history, size: 18),
+                      SizedBox(width: 10),
+                      Text('Reinigungen eines Tages übernehmen…'),
+                    ],
+                  ),
+                ),
+                PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'verschieben',
                   child: Row(
