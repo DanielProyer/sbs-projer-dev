@@ -24,7 +24,8 @@ import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_reposi
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
-import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart';
+import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
+import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -126,99 +127,59 @@ class _RechnungDetailContentState
     }
   }
 
-  /// Halber Zustand (Review Teil 3, I-2): Kassenbuchung steht, Rechnung ist
-  /// aber nicht bezahlt. Entfernt nur die Buchung, der Status bleibt.
-  Future<void> _kassenbuchungEntfernen() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Kassenbuchung entfernen?'),
-        content: const Text(
-          'Die Barzahlungs-Buchung (Kasse 1000 an Debitoren 1100) wird '
-          'gelöscht. Der Rechnungsstatus bleibt, wie er ist.',
-        ),
-        actions: [
-          TapKnopf(
-            text: 'Abbrechen',
-            primaer: false,
-            onTap: () => Navigator.pop(ctx, false),
-          ),
-          TapKnopf(
-            text: 'Entfernen',
-            gefahr: true,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await BarzahlungService.kassenbuchungEntfernen(_rechnung);
-      ref.invalidate(buchungenStreamProvider);
-      ref.invalidate(rechnungenStreamProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kassenbuchung entfernt.')),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${BarzahlungService.meldungFuer(e)}')),
-        );
-      }
-    }
-    await _reloadRechnung();
-  }
-
-  /// «Barzahlung rückgängig»: löscht die Kassen-Buchung und setzt die
-  /// Rechnung auf den Mahn-Stand vor der Zahlung zurück.
-  Future<void> _barzahlungRueckgaengig() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Barzahlung rückgängig machen?'),
-        content: Text(
-          'Die Kassen-Buchung wird gelöscht und die Rechnung wieder auf den '
-          'Stand vor der Barzahlung gesetzt (inkl. Mahnstufe).'
+  /// «Zahlung rückgängig» (Runde 3): EIN Weg für Bank- und Barzahlungen.
+  /// Die DB (`zahlung_zuruecknehmen`) nimmt die ganze Zahlungsgruppe zurück,
+  /// stellt Status, Mahnfelder und Guthaben aus dem Vorher-Stand wieder her
+  /// und sperrt abgeschlossene Geschäftsjahre und stornierte Buchungen.
+  Future<void> _zahlungZuruecknehmen() async {
+    final bar = _barzahlung != null;
+    final ok = await gefahrRueckfrage(
+      context,
+      titel: 'Zahlung rückgängig machen?',
+      text: '${bar ? 'Die Kassen-Buchung wird gelöscht und die Rechnung auf '
+              'den Stand vor der Barzahlung gesetzt (inkl. Mahnstufe). Gehört '
+              'die Zahlung zu mehreren Rechnungen, werden alle zurückgesetzt.' : 'Die Zahlungs-Buchungen werden gelöscht und die Rechnung auf den '
+              'Stand vor der Zahlung gesetzt (inkl. Mahnstufe). Gehört die '
+              'Gutschrift zu mehreren Rechnungen (Sammelzahlung), werden alle '
+              'zurückgesetzt; die Bank-Gutschrift erscheint beim nächsten '
+              'Import erneut zum Zuordnen.\n\nNur für falsch zugeordnete '
+              'Zahlungen. In einem abgeschlossenen Geschäftsjahr ist das '
+              'gesperrt.'}'
           '${_mahnfallErledigt ? '\n\nMahnfall ist bereits abgeschlossen — '
               'die Rechnung taucht danach nicht automatisch wieder darin auf.' : ''}',
-        ),
-        actions: [
-          TapKnopf(
-            text: 'Abbrechen',
-            primaer: false,
-            onTap: () => Navigator.pop(ctx, false),
-          ),
-          TapKnopf(
-            text: 'Rückgängig machen',
-            gefahr: true,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
+      bestaetigen: 'Rückgängig machen',
     );
-    if (ok != true) return;
+    if (!ok) return;
     try {
-      await BarzahlungService.rueckgaengig(_rechnung);
+      final anzahl = await ZahlungKern.zuruecknehmen(_rechnung.id);
       final frisch = await RechnungRepository.getById(_rechnung.id);
       ref.invalidate(rechnungenStreamProvider);
+      // Auch Buchungs-Sichten auffrischen — Kontensaldi/Journal zeigen die
+      // gelöschten Zahlungszeilen sonst bis zum Neuladen weiter an.
       ref.invalidate(buchungenStreamProvider);
       if (!mounted) return;
       setState(() {
         if (frisch != null) _rechnung = frisch;
         _barzahlung = null;
       });
+      await _reloadRechnung();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Barzahlung rückgängig — Rechnung wieder ${_rechnung.zahlungsstatus}.',
+            '$anzahl Buchung(en) gelöscht — Rechnung wieder '
+            '${_rechnung.zahlungsstatus}.',
           ),
         ),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${BarzahlungService.meldungFuer(e)}')),
+          SnackBar(
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 10),
+            content: Text(ZahlungKern.meldung(e)),
+          ),
         );
       }
       await _reloadRechnung();
@@ -257,78 +218,6 @@ class _RechnungDetailContentState
     }
   }
 
-  /// «Zahlung rückgängig (Bankabgleich)»: Korrektur eines Fehlgriffs im
-  /// camt-Abgleich. Löscht die Zahlungs-Buchung(en) mit camt-Schlüssel,
-  /// setzt die Rechnung zurück (gesendet/offen) — die Bank-Gutschrift wird
-  /// beim nächsten Import wieder zum Zuordnen angeboten.
-  Future<void> _zahlungRueckgaengig() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Zahlung rückgängig machen?'),
-        content: const Text(
-          'Die Zahlungs-Buchung aus dem Bankabgleich wird gelöscht und die '
-          'Rechnung wieder auf offen/gesendet gesetzt. Die Bank-Gutschrift '
-          'erscheint beim nächsten Import erneut zum Zuordnen.\n\n'
-          'Nur für falsch zugeordnete Zahlungen gedacht.',
-        ),
-        actions: [
-          TapKnopf(
-            text: 'Abbrechen',
-            primaer: false,
-            onTap: () => Navigator.pop(ctx, false),
-          ),
-          TapKnopf(
-            text: 'Rückgängig machen',
-            gefahr: true,
-            onTap: () => Navigator.pop(ctx, true),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      final anzahl = await ForderungsAbgleichService.zahlungRueckgaengig(
-        _rechnung,
-      );
-      if (!mounted) return;
-      if (anzahl == 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Keine Bankabgleich-Zahlung gefunden — nichts geändert. '
-              '(Diese Rechnung wurde nicht über den camt-Abgleich bezahlt.)',
-            ),
-          ),
-        );
-        return;
-      }
-      final frisch = await RechnungRepository.getById(_rechnung.id);
-      ref.invalidate(rechnungenStreamProvider);
-      // Auch Buchungs-Sichten auffrischen — Kontensaldi/Journal zeigen die
-      // gelöschten Zahlungszeilen sonst bis zum Neuladen weiter an.
-      ref.invalidate(buchungenStreamProvider);
-      if (!mounted) return;
-      setState(() {
-        if (frisch != null) _rechnung = frisch;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$anzahl Buchung(en) gelöscht — Rechnung wieder '
-            '${_rechnung.zahlungsstatus}. Gutschrift ist beim nächsten '
-            'Import erneut zuordenbar.',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,9 +287,10 @@ class _RechnungDetailContentState
                 const SizedBox(height: 8),
                 _InfoRow('Versandart', _versandartLabel(_rechnung.versandart!)),
               ],
-              // Korrektur-Weg für Fehlgriffe im Bankabgleich: löscht die
-              // camt-Zahlungsbuchung(en), setzt die Rechnung zurück und macht
-              // die Bank-Gutschrift wieder importier-/zuordenbar.
+              // «Zahlung rückgängig»: EIN Weg für Bank, Kasse und Guthaben —
+              // ZahlungKern.zuruecknehmen nimmt die ganze Zahlungsgruppe
+              // zurück (Sammelzahlung), stellt Status + Mahnstufe wieder her
+              // und sperrt abgeschlossene Geschäftsjahre (Runde 3).
               if (_rechnung.zahlungsstatus == 'bezahlt' &&
                   _rechnung.rechnungstyp != 'heineken_monat') ...[
                 if (_rechnung.zahlungEingegangenAm != null)
@@ -408,35 +298,23 @@ class _RechnungDetailContentState
                     'Zahlung eingegangen',
                     _formatDate(_rechnung.zahlungEingegangenAm!),
                   ),
-                // Barzahlung vor Ort: eigener Rückweg (Kassen-Buchung,
-                // Mahn-Stand zurück) statt des Bankabgleich-Knopfs.
-                if (_barzahlung != null) ...[
+                if (_barzahlung != null)
                   _InfoRow('Bar bezahlt am', _formatDate(_barzahlung!.datum)),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TapKnopf(
-                      text: 'Barzahlung rückgängig',
-                      icon: Icons.undo,
-                      gefahr: true,
-                      onTap: _barzahlungRueckgaengig,
-                    ),
-                  ),
-                ] else
+                const SizedBox(height: 8),
                 Align(
                   alignment: Alignment.centerRight,
-                  // Löscht Buchungen: roter TapKnopf (CanvasKit-sicher), nicht
-                  // TextButton — wie «Barzahlung rückgängig» daneben.
+                  // Löscht Buchungen: roter TapKnopf (CanvasKit-sicher).
                   child: TapKnopf(
-                    text: 'Zahlung rückgängig (Bankabgleich)',
+                    text: 'Zahlung rückgängig',
                     icon: Icons.undo,
                     gefahr: true,
-                    onTap: _zahlungRueckgaengig,
+                    onTap: _zahlungZuruecknehmen,
                   ),
                 ),
               ],
-              // Halber Zustand (Review Teil 3, I-2): Kassenbuchung ohne
-              // bezahlten Status — z. B. nach einem Abbruch beim Kassieren.
+              // Halber Zustand: Kassenbuchung ohne bezahlten Status. Seit dem
+              // atomaren ZahlungKern nur noch aus Altdaten möglich — Hinweis,
+              // kein eigener Löschweg mehr.
               if (_barzahlung != null && _rechnung.zahlungsstatus != 'bezahlt') ...[
                 const SizedBox(height: 8),
                 Container(
@@ -446,21 +324,9 @@ class _RechnungDetailContentState
                     border: Border.all(color: AppColors.warning.withAlpha(100)),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    'Kassenbuchung ohne bezahlten Status (Barzahlung vom '
-                    '${_formatDate(_barzahlung!.datum)}, CHF '
-                    '${_barzahlung!.betragBrutto.toStringAsFixed(2)}).',
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TapKnopf(
-                    text: 'Kassenbuchung entfernen',
-                    icon: Icons.delete_outline,
-                    gefahr: true,
-                    onTap: _kassenbuchungEntfernen,
+                  child: const Text(
+                    'Zahlung gebucht, Status nicht bezahlt — im Journal prüfen',
+                    style: TextStyle(fontSize: 13),
                   ),
                 ),
               ],

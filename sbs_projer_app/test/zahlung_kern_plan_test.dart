@@ -42,7 +42,7 @@ void main() {
         rechnungen: [_r('a', 94.05)], betrag: 94.05, datum: tag, weg: ZahlungWeg.kasse);
     expect(p.buchungen.single['soll_konto'], 1000);
     expect(p.buchungen.single['zahlungsweg'], 'kasse');
-    // Mahn-Stand in der Notiz (BarzahlungService.vorherAusNotiz liest ihn).
+    // Mahn-Stand zusätzlich in der Notiz (Journal; Rücknahme nutzt zahlungsgruppen.vorher).
     expect(p.buchungen.single['notizen'], contains('"zahlungsstatus":"gesendet"'));
   });
 

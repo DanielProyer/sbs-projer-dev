@@ -188,8 +188,9 @@ ZahlungKernPlan zahlungKernPlan({
         'geschaeftsjahr': d.year,
         if (z.guthabenVorher > 0)
           'notizen': guthabenNotiz(z.guthabenVorher)
-        // Barzahlung: Mahn-Stand vor der Zahlung in der Notiz — «Barzahlung
-        // rückgängig» (BarzahlungService.rueckgaengig) liest ihn dort.
+        // Barzahlung: Mahn-Stand vor der Zahlung zusätzlich in der Notiz (nur
+        // zur Nachvollziehbarkeit im Journal). Die Rücknahme liest ihn NICHT
+        // hier, sondern aus `zahlungsgruppen.vorher` (zahlung_zuruecknehmen).
         else if (weg == ZahlungWeg.kasse)
           'notizen': jsonEncode(MahnlaufService.vorherStand(r)),
         if (key != null) 'camt_tx_key': key,

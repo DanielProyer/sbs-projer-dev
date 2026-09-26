@@ -28,4 +28,11 @@ void main() {
       expect(File(p).readAsStringSync().contains('ZahlungKern.erfassen('), isTrue, reason: p);
     }
   });
+  test('Ruecknahme nur ueber ZahlungKern.zuruecknehmen', () {
+    final d = File('lib/presentation/screens/rechnungen/rechnung_detail_screen.dart').readAsStringSync();
+    expect(d.contains('ZahlungKern.zuruecknehmen('), isTrue);
+    expect(d.contains('zahlungRueckgaengig('), isFalse);
+    expect(d.contains('BarzahlungService.rueckgaengig('), isFalse);
+    expect(File('lib/services/camt/forderungs_abgleich_service.dart').readAsStringSync().contains('zahlungRueckgaengig'), isFalse);
+  });
 }

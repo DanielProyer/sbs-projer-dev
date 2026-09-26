@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -58,37 +56,6 @@ Buchung _b({
 void main() {
   _meldungTests();
   _nachbesserungTests();
-  group('vorherAusNotiz', () {
-    test('gueltiges JSON aus vorherStand', () {
-      final notiz = jsonEncode({
-        'zahlungsstatus': 'mahnung_1',
-        'mahnung_stufe': 1,
-        'letzte_mahnung_am': '2026-07-20',
-        'erinnerung_am': '2026-07-01',
-        'mahnung_1_am': '2026-07-20',
-        'mahnung_2_am': null,
-        'mahn_frist_bis': '2026-07-30',
-      });
-      final v = BarzahlungService.vorherAusNotiz(notiz)!;
-      expect(v['zahlungsstatus'], 'mahnung_1');
-      expect(v['mahnung_1_am'], '2026-07-20');
-      expect(v.containsKey('mahnung_2_am'), isTrue);
-    });
-    test('null, leer, kaputt, kein Objekt, ohne Status -> null', () {
-      expect(BarzahlungService.vorherAusNotiz(null), isNull);
-      expect(BarzahlungService.vorherAusNotiz(''), isNull);
-      expect(BarzahlungService.vorherAusNotiz('{kaputt'), isNull);
-      expect(BarzahlungService.vorherAusNotiz('[1,2]'), isNull);
-      expect(BarzahlungService.vorherAusNotiz('{"mahnung_stufe":1}'), isNull);
-      expect(BarzahlungService.vorherAusNotiz('{"zahlungsstatus":"bezahlt"}'), isNull);
-    });
-    test('fremde Schluessel werden verworfen', () {
-      final v = BarzahlungService.vorherAusNotiz(
-          '{"zahlungsstatus":"offen","betrag_brutto":0,"id":"x"}')!;
-      expect(v.keys, ['zahlungsstatus']);
-    });
-  });
-
   group('darfKassieren', () {
     test('gemahnte offene Rechnung ohne Zahlung: ja', () {
       expect(BarzahlungService.darfKassieren(_r(), hatZahlung: false), isTrue);
@@ -198,68 +165,6 @@ void _nachbesserungTests() {
       final r = mitGuthaben(0);
       expect(BarzahlungService.kassierBetragFuer(r), 143.75);
       expect(BarzahlungService.verrechnungFuer(r), 0);
-    });
-  });
-
-  group('rueckgaengigSperre (Minor a/b)', () {
-    final heute = DateTime(2026, 9, 24);
-    test('nur die Barzahlung, laufendes Jahr, bezahlt -> null', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar, buchungen: [bar], status: 'bezahlt', heute: heute),
-          isNull);
-    });
-    test('weitere aktive Zahlung -> Sperre', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar,
-              buchungen: [bar, _b(id: 'bank', soll: 1020, weg: 'bank')],
-              status: 'bezahlt',
-              heute: heute),
-          contains('weitere Zahlung'));
-    });
-    test('stornierte weitere Zahlung und Abschreibung sperren nicht', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar,
-              buchungen: [
-                bar,
-                _b(id: 's', soll: 1020, weg: 'bank', storniert: true),
-                _b(id: 'a', soll: 3805, typ: 'abschreibung', weg: 'intern'),
-              ],
-              status: 'bezahlt',
-              heute: heute),
-          isNull);
-    });
-    test('Vorjahr -> Storno von Hand', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar, buchungen: [bar], status: 'bezahlt', heute: DateTime(2027, 1, 3)),
-          'Barzahlung aus abgeschlossenem Jahr — Storno von Hand in der Buchhaltung');
-    });
-    test('Guthaben-Verrechnung (2030/1100) sperrt nicht', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar,
-              buchungen: [
-                bar,
-                _b(id: 'v', soll: 2030, typ: 'sonstiges', weg: 'intern'),
-              ],
-              status: 'bezahlt',
-              heute: heute),
-          isNull);
-    });
-    test('nicht mehr bezahlt -> Sperre', () {
-      final bar = _b();
-      expect(
-          BarzahlungService.rueckgaengigSperre(
-              bar: bar, buchungen: [bar], status: 'mahnung_1', heute: heute),
-          contains('nicht mehr bezahlt'));
     });
   });
 }
