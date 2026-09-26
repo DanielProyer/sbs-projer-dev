@@ -47,6 +47,11 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
   // Material
   List<Lager> _lagerItems = [];
   final _materialControllers = List.generate(3, (_) => TextEditingController());
+  // Controller der Autocomplete-Felder — gehören dem Autocomplete-Widget und
+  // werden dort freigegeben. Getrennt von [_materialControllers], sonst
+  // würden deren Originale ersetzt (Leck) und die fremden doppelt disposed.
+  final List<TextEditingController?> _autoCompleteControllers =
+      List.filled(3, null);
   final _materialMengenControllers = List.generate(
     3,
     (_) => TextEditingController(text: '1'),
@@ -116,6 +121,10 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
       (_) => geaendertZuruecksetzen(),
     );
   }
+
+  /// Getippter Materialtext: aus dem Autocomplete-Feld, sonst dem Vorwert.
+  String _materialText(int i) =>
+      (_autoCompleteControllers[i] ?? _materialControllers[i]).text;
 
   @override
   void dispose() {
@@ -263,9 +272,8 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
                 ids: _materialIds,
                 namen: _materialControllers,
                 mengenController: _materialMengenControllers,
-                // Bisheriges Verhalten: Der Autocomplete-Controller ersetzt
-                // den Namen-Controller — _save liest den getippten Text dort.
-                feldController: _materialControllers,
+                // _save liest den getippten Text aus dem Autocomplete-Feld.
+                feldController: _autoCompleteControllers,
                 mengenBreite: 60,
                 einfach: true,
                 onGeaendert: markiereGeaendert,
@@ -361,7 +369,7 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
       // Fallback: Text-Matching wenn User getippt aber nicht aus Dropdown gewählt hat
       for (int i = 0; i < 3; i++) {
         if (_materialIds[i] == null) {
-          final text = _materialControllers[i].text.trim();
+          final text = _materialText(i).trim();
           if (text.isNotEmpty && _lagerItems.isNotEmpty) {
             final match = _lagerItems
                 .where((l) => l.name.toLowerCase() == text.toLowerCase())
@@ -381,7 +389,7 @@ class _EigenauftragFormScreenState extends ConsumerState<EigenauftragFormScreen>
           matIds[i] = _materialIds[i];
           matMengen[i] =
               double.tryParse(_materialMengenControllers[i].text) ?? 1;
-        } else if (_materialControllers[i].text.isNotEmpty) {
+        } else if (_materialText(i).isNotEmpty) {
           // Freitext — kein Lager-Link
           matMengen[i] =
               double.tryParse(_materialMengenControllers[i].text) ?? 1;
