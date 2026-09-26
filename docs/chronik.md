@@ -53,7 +53,7 @@ Migrationen 209 (+ 209b/209d/209e Korrekturen aus den Reviews, 209c View).
   Sperre bei Storno und bei abgeschlossenem Jahr; Altzahlungen ohne Gruppe je
   Rechnung (Rückfall auf höchste Mahnstufe aus den Datumsfeldern, Heineken →
   freigegeben).
-- **Entscheide (Annahmen, von Daniel zu bestätigen):** Minderzahlung
+- **Entscheide (von Daniel am 26.09.2026 bestätigt):** Minderzahlung
   erlassen = 3805 netto + 2200 MWST-Anteil (beleg_typ `abschreibung`, zählt
   in Ziff. 235 — View 209c rechnet das Netto aus der 3805-Zeile);
   Mehrzahlung ≤ CHF 5.00 → 8000, darüber → 2030 Kundenguthaben, beim

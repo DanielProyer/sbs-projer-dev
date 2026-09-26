@@ -200,8 +200,8 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
-- **v0.142.0 — ⚠️ vier Buchhaltungs-Entscheide bestätigen** (im Code als
-  Annahmen gebaut, siehe `docs/chronik.md`): ① Minderzahlung erlassen = 3805
+- **v0.142.0 — ✅ vier Buchhaltungs-Entscheide von Daniel bestätigt
+  (26.09.2026)**, so gebaut: ① Minderzahlung erlassen = 3805
   netto + MWST-Anteil auf 2200 (Ziff. 235) statt brutto auf 3805;
   ② Mehrzahlung bis CHF 5.00 → 8000, darüber → Kundenguthaben 2030 (beim
   Zuordnen wählbar); ③ «Zahlung rückgängig» löscht die ganze Zahlungsgruppe,
