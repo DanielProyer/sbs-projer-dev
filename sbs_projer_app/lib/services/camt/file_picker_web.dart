@@ -1,46 +1,55 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
 
-/// Web: Nutzt dart:html direkt, liest XML als Text (umgeht ByteBuffer-Probleme).
+import 'package:web/web.dart' as web;
+
+/// Web: Nutzt ein verstecktes `<input type=file>` direkt und liest die XML
+/// per FileReader als Text (umgeht ByteBuffer-Probleme).
 Future<({String name, String content})?> pickXmlFile() async {
   final completer = Completer<({String name, String content})?>();
 
-  final input = html.FileUploadInputElement()
+  final input = web.HTMLInputElement()
+    ..type = 'file'
     ..accept = '.xml'
     ..style.display = 'none';
 
-  html.document.body?.append(input);
+  web.document.body?.appendChild(input);
 
-  input.onChange.listen((event) {
+  void fertig(({String name, String content})? ergebnis) {
+    if (!completer.isCompleted) completer.complete(ergebnis);
+    input.remove();
+  }
+
+  // Dialog abgebrochen: Ohne dieses Ereignis bliebe der Future offen und
+  // der Import-Reiter hinge im Ladezustand.
+  web.EventStreamProviders.cancelEvent
+      .forTarget(input)
+      .listen((_) => fertig(null));
+
+  input.onChange.listen((_) {
     final files = input.files;
-    if (files == null || files.isEmpty) {
-      if (!completer.isCompleted) completer.complete(null);
-      input.remove();
+    final file = (files == null || files.length == 0) ? null : files.item(0);
+    if (file == null) {
+      fertig(null);
       return;
     }
 
-    final file = files[0];
-    final reader = html.FileReader();
+    final reader = web.FileReader();
 
+    // loadend feuert nach Erfolg UND nach Fehler — bei einem Fehler ist
+    // result null, das ergibt null wie bisher über onError.
     reader.onLoadEnd.listen((_) {
       try {
         final result = reader.result;
-        if (result is String && result.isNotEmpty) {
-          if (!completer.isCompleted) {
-            completer.complete((name: file.name, content: result));
-          }
+        if (result.isA<JSString>()) {
+          final text = (result as JSString).toDart;
+          fertig(text.isNotEmpty ? (name: file.name, content: text) : null);
         } else {
-          if (!completer.isCompleted) completer.complete(null);
+          fertig(null);
         }
-      } catch (e) {
-        if (!completer.isCompleted) completer.complete(null);
+      } catch (_) {
+        fertig(null);
       }
-      input.remove();
-    });
-
-    reader.onError.listen((_) {
-      if (!completer.isCompleted) completer.complete(null);
-      input.remove();
     });
 
     reader.readAsText(file);
