@@ -23,16 +23,6 @@ class BetriebKontaktRepository {
     return IsarService.betriebKontaktWatchByBetrieb(betriebId);
   }
 
-  static Future<BetriebKontaktLocal?> getById(String id) async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('kontakte').select().eq('id', id).limit(1);
-      if (rows.isEmpty) return null;
-      return BetriebKontaktMapper.fromDto(BetriebKontakt.fromJson(rows.first));
-    }
-    return IsarService.betriebKontaktGet(int.parse(id));
-  }
-
   static Future<void> save(BetriebKontaktLocal kontakt) async {
     kontakt.userId = _userId;
     if (kIsWeb) {

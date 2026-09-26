@@ -199,30 +199,12 @@ class ReinigungRepository {
     return IsarService.reinigungGet(int.parse(id));
   }
 
-  static Future<List<ReinigungLocal>> getByAnlage(String anlageId) async {
-    if (kIsWeb) {
-      final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
-      return rows.map((r) => ReinigungMapper.fromDto(Reinigung.fromJson(r))).toList();
-    }
-    return IsarService.reinigungFilterByAnlage(anlageId);
-  }
-
   static Future<List<ReinigungLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
       return rows.map((r) => ReinigungMapper.fromDto(Reinigung.fromJson(r))).toList();
     }
     return IsarService.reinigungFilterByBetrieb(betriebId);
-  }
-
-  static Stream<List<ReinigungLocal>> watchByAnlage(String anlageId) {
-    if (kIsWeb) return Stream.fromFuture(getByAnlage(anlageId));
-    return IsarService.reinigungWatchByAnlage(anlageId);
-  }
-
-  static Stream<List<ReinigungLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.reinigungWatchByBetrieb(betriebId);
   }
 
   static Future<void> save(ReinigungLocal reinigung) async {

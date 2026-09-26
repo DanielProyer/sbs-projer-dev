@@ -31,16 +31,6 @@ class LagerRepository {
     return Lager.fromJson(rows.first);
   }
 
-  static Future<List<Lager>> getBestellliste() async {
-    final rows = await SupabaseService.client
-        .from('lager')
-        .select()
-        .eq('user_id', _userId)
-        .eq('bestand_niedrig', true)
-        .order('name');
-    return rows.map((r) => Lager.fromJson(r)).toList();
-  }
-
   static Future<Lager> create(Map<String, dynamic> json) async {
     json['user_id'] = SupabaseService.currentUser!.id;
     json.remove('id');

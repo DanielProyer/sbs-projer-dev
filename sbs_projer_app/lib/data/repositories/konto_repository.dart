@@ -17,12 +17,4 @@ class KontoRepository {
   static Stream<List<Konto>> watchAll() {
     return Stream.fromFuture(getAll());
   }
-
-  static Future<int> count() async {
-    final rows = await SupabaseService.client
-        .from('konten')
-        .select('id')
-        .eq('user_id', _userId);
-    return rows.length;
-  }
 }

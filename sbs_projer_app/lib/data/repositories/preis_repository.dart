@@ -47,9 +47,4 @@ class PreisRepository {
   static Future<void> updateFields(String preisId, Map<String, dynamic> fields) async {
     await SupabaseService.client.from('preise').update(fields).eq('id', preisId);
   }
-
-  /// Löscht eine Preisversion.
-  static Future<void> delete(String id) async {
-    await SupabaseService.client.from('preise').delete().eq('id', id);
-  }
 }

@@ -77,11 +77,6 @@ class EroeffnungsreinigungRepository {
     return IsarService.eroeffnungsreinigungFilterByBetrieb(betriebId);
   }
 
-  static Stream<List<EroeffnungsreinigungLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.eroeffnungsreinigungWatchByBetrieb(betriebId);
-  }
-
   static Future<void> save(EroeffnungsreinigungLocal er) async {
     er.userId = _userId;
     if (kIsWeb) {

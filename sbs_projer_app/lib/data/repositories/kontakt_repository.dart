@@ -21,16 +21,6 @@ class KontaktRepository {
     return IsarService.kontaktFindAll();
   }
 
-  static Future<List<KontaktLocal>> getByBetrieb(String betriebId) async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from('kontakte').select()
-          .eq('user_id', _userId).eq('betrieb_id', betriebId);
-      return rows.map((r) => KontaktMapper.fromDto(Kontakt.fromJson(r))).toList();
-    }
-    return IsarService.kontaktFilterByBetrieb(betriebId);
-  }
-
   static Future<List<KontaktLocal>> getByKategorie(String kategorie) async {
     if (kIsWeb) {
       final rows = await SupabaseService.client

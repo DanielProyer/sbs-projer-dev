@@ -1,4 +1,3 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sbs_projer_app/core/util/beleg_korrektur.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
@@ -95,33 +94,6 @@ class BuchungRepository {
     return Stream.fromFuture(getAll());
   }
 
-  /// Spesenkonten für die Dashboard-Zahl — Aufwandseite ohne Vorsteuer (1171).
-  static const spesenKonten = [4004, 5820, 5850, 6200, 6270, 6460];
-
-  /// Anzahl Spesenbelege eines Jahres (nach Belegdatum) für die Dashboard-
-  /// Kachel. Erfasst **beide Quellen**: gescannte Belege und die direkt
-  /// importierten (Excel-Übernahme, ohne Scanner-Notiz) — abgegrenzt über die
-  /// Spesenkonten statt über die Herkunft.
-  ///
-  /// Gezählt werden Belege, nicht Buchungszeilen: ein Beleg mit drei
-  /// MwSt-Gruppen ergibt drei Buchungen, ist aber ein Einkauf.
-  static Future<int> spesenBelegeImJahr(int jahr) async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select('datum, beschreibung')
-        .eq('user_id', _userId)
-        .inFilter('soll_konto', spesenKonten)
-        .gte('datum', '$jahr-01-01')
-        .lte('datum', '$jahr-12-31');
-    return zaehleBelege([
-      for (final r in rows)
-        (
-          datum: r['datum']?.toString() ?? '',
-          beschreibung: (r['beschreibung'] as String?) ?? '',
-        )
-    ]);
-  }
-
   /// Bereits gebuchte Spesen-Positionen eines Belegdatums — Grundlage für die
   /// Dubletten-Warnung im Scanner. Vorsteuer-Gegenbuchungen (1171) bleiben
   /// aussen vor, sonst würde die Summe doppelt zählen.
@@ -151,17 +123,6 @@ class BuchungRepository {
         .limit(1);
     if (rows.isEmpty) return null;
     return Buchung.fromJson(rows.first);
-  }
-
-  static Future<List<Buchung>> getByPeriode(int jahr, int monat) async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select()
-        .eq('user_id', _userId)
-        .eq('geschaeftsjahr', jahr)
-        .eq('monat', monat)
-        .order('datum', ascending: false);
-    return rows.map((r) => Buchung.fromJson(r)).toList();
   }
 
   static Future<List<Buchung>> getByKonto(int kontonummer) async {
@@ -279,25 +240,6 @@ class BuchungRepository {
     return ids;
   }
 
-  static Future<int> count() async {
-    final res = await SupabaseService.client
-        .from('buchungen')
-        .select('id')
-        .eq('user_id', _userId)
-        .count(CountOption.exact);
-    return res.count;
-  }
-
-  static Future<int> countByPeriode(int jahr, int monat) async {
-    final rows = await SupabaseService.client
-        .from('buchungen')
-        .select('id')
-        .eq('user_id', _userId)
-        .eq('geschaeftsjahr', jahr)
-        .eq('monat', monat);
-    return rows.length;
-  }
-
   static Future<Buchung> create(Map<String, dynamic> json) async {
     json['user_id'] = _userId;
     json.remove('id');
@@ -321,14 +263,6 @@ class BuchungRepository {
         .delete()
         .eq('id', id)
         .eq('user_id', _userId);
-  }
-
-  /// Stempelt den camt-Dedup-Schlüssel auf eine Buchung (Idempotenz-Marker).
-  static Future<void> setCamtTxKey(String id, String txKey) async {
-    await SupabaseService.client
-        .from('buchungen')
-        .update({'camt_tx_key': txKey})
-        .eq('id', id);
   }
 
   /// Liefert alle bereits per camt verbuchten tx_keys (für Dedup).

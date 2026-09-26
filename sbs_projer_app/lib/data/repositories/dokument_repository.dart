@@ -97,13 +97,6 @@ class DokumentRepository {
     }
   }
 
-  static Future<void> update(String id, Map<String, dynamic> felder) async {
-    await SupabaseService.client
-        .from('dokumente')
-        .update({...felder, 'updated_at': DateTime.now().toIso8601String()})
-        .eq('id', id);
-  }
-
   /// Erst die DB-Zeile, dann die Datei. Scheitert nur das Storage-Löschen,
   /// bleibt eine verwaiste Datei zurück — das Dokument gilt aber als gelöscht,
   /// deshalb wird der Fehler nur protokolliert und nicht weitergereicht.

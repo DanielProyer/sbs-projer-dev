@@ -78,16 +78,6 @@ class StoerungRepository {
     return IsarService.stoerungWatchAll();
   }
 
-  static Future<List<StoerungLocal>> getByAnlage(String anlageId) async {
-    if (kIsWeb) {
-      final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
-      return rows
-          .map((r) => StoerungMapper.fromDto(Stoerung.fromJson(r)))
-          .toList();
-    }
-    return IsarService.stoerungFilterByAnlage(anlageId);
-  }
-
   static Future<List<StoerungLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
@@ -96,16 +86,6 @@ class StoerungRepository {
           .toList();
     }
     return IsarService.stoerungFilterByBetrieb(betriebId);
-  }
-
-  static Stream<List<StoerungLocal>> watchByAnlage(String anlageId) {
-    if (kIsWeb) return Stream.fromFuture(getByAnlage(anlageId));
-    return IsarService.stoerungWatchByAnlage(anlageId);
-  }
-
-  static Stream<List<StoerungLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.stoerungWatchByBetrieb(betriebId);
   }
 
   static Future<void> save(StoerungLocal stoerung) async {

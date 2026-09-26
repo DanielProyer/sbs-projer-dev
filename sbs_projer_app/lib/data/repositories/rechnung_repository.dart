@@ -87,10 +87,6 @@ class RechnungRepository {
     return rows.map((r) => Rechnung.fromJson(r)).toList();
   }
 
-  static Stream<List<Rechnung>> watchByBetrieb(String betriebId) {
-    return Stream.fromFuture(getByBetrieb(betriebId));
-  }
-
   /// Anzahl offener Rechnungen — nur die Zahl, ohne eine Zeile zu laden.
   ///
   /// WARUM: Die Kennzahl im Buchhaltungs-Dashboard lud dafür alle ~5'300

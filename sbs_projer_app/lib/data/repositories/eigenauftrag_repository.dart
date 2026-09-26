@@ -77,11 +77,6 @@ class EigenauftragRepository {
     return IsarService.eigenauftragFilterByBetrieb(betriebId);
   }
 
-  static Stream<List<EigenauftragLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.eigenauftragWatchByBetrieb(betriebId);
-  }
-
   static Future<void> save(EigenauftragLocal eigenauftrag) async {
     eigenauftrag.userId = _userId;
     if (kIsWeb) {

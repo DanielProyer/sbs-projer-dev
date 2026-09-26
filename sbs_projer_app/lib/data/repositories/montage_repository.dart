@@ -78,16 +78,6 @@ class MontageRepository {
     return IsarService.montageWatchAll();
   }
 
-  static Future<List<MontageLocal>> getByAnlage(String anlageId) async {
-    if (kIsWeb) {
-      final rows = await _pagedByUser(col: 'anlage_id', val: anlageId);
-      return rows
-          .map((r) => MontageMapper.fromDto(Montage.fromJson(r)))
-          .toList();
-    }
-    return IsarService.montageFilterByAnlage(anlageId);
-  }
-
   static Future<List<MontageLocal>> getByBetrieb(String betriebId) async {
     if (kIsWeb) {
       final rows = await _pagedByUser(col: 'betrieb_id', val: betriebId);
@@ -96,16 +86,6 @@ class MontageRepository {
           .toList();
     }
     return IsarService.montageFilterByBetrieb(betriebId);
-  }
-
-  static Stream<List<MontageLocal>> watchByAnlage(String anlageId) {
-    if (kIsWeb) return Stream.fromFuture(getByAnlage(anlageId));
-    return IsarService.montageWatchByAnlage(anlageId);
-  }
-
-  static Stream<List<MontageLocal>> watchByBetrieb(String betriebId) {
-    if (kIsWeb) return Stream.fromFuture(getByBetrieb(betriebId));
-    return IsarService.montageWatchByBetrieb(betriebId);
   }
 
   static Future<void> save(MontageLocal montage) async {

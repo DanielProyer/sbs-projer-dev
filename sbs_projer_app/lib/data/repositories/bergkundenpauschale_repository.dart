@@ -42,23 +42,6 @@ class BergkundenpauschaleRepository {
     throw UnimplementedError('Native nicht implementiert');
   }
 
-  static Future<List<BergkundenpauschaleLocal>> getByBetrieb(
-      String betriebId) async {
-    if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from(_table)
-          .select()
-          .eq('user_id', _userId)
-          .eq('betrieb_id', betriebId)
-          .order('datum', ascending: false);
-      return rows
-          .map((r) => BergkundenpauschaleMapper.fromDto(
-              Bergkundenpauschale.fromJson(r)))
-          .toList();
-    }
-    throw UnimplementedError('Native nicht implementiert');
-  }
-
   /// Gibt es für diesen Besuch schon eine Pauschale — zur Reinigung selbst
   /// ODER am selben Tag im selben Betrieb? Die Pauschale gilt pro Besuch
   /// (Betrieb + Tag), nicht pro Anlage. Die Abschlusskette läuft auch als
