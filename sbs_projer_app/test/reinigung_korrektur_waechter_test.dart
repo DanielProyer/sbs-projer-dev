@@ -24,6 +24,19 @@ void main() {
     expect(detail.contains('ReinigungKorrekturService.sperrePruefen'), isTrue);
   });
 
+  test('Review af581d42: eigene Ausnahmen, Abschluss-Erkennung, Preise behalten', () {
+    final s = lies('lib/services/rechnung/reinigung_korrektur_service.dart');
+    expect(s.contains('throw KorrekturGesperrt('), isTrue);
+    expect(s.contains('throw KorrekturFehler('), isTrue);
+    expect(s.contains('StateError('), isFalse);
+    final form = lies('lib/presentation/screens/reinigungen/reinigung_form_screen.dart');
+    expect(form.contains('abschliessen && !_warAbgeschlossen'), isTrue);
+    expect(form.contains('_existing?.status != '), isFalse);
+    expect(form.contains('preiseBehalten'), isTrue);
+    final detail = lies('lib/presentation/screens/reinigungen/reinigung_detail_screen.dart');
+    expect(detail.contains('mitAusweg: false'), isTrue);
+  });
+
   test('Duplikat-Check der Ertragsbuchung zaehlt stornierte Zeilen nicht', () {
     final s = lies('lib/services/buchhaltung/reinigung_buchung_service.dart');
     expect(s.contains('zaehltFuerSaldo('), isTrue);

@@ -142,9 +142,11 @@ class BuchungNachholService {
         .toList();
 
     // Gezielt in Blöcken nachschlagen — dieselbe 1000-Zeilen-Falle.
-    // Bewusst OHNE Storno-Filter: dieselbe Sicht wie der Duplikat-Check in
-    // createFromReinigung (`getByBeleg`). Ein bewusst stornierter Ertrag darf
-    // nicht automatisch wieder auferstehen.
+    // Bewusst OHNE Storno-Filter — und damit bewusst ABWEICHEND vom
+    // Duplikat-Check in createFromReinigung, der seit R1 stornierte Zeilen
+    // ignoriert (die Korrektur storniert und legt neu an). Der Nachhol-Lauf
+    // sieht auch stornierte Buchungen, damit ein manuell stornierter Ertrag
+    // nicht automatisch wieder aufersteht.
     final hatBuchung = <String>{};
     for (var i = 0; i < ids.length; i += kInFilterBlock) {
       final teil = ids.sublist(i, (i + kInFilterBlock).clamp(0, ids.length));

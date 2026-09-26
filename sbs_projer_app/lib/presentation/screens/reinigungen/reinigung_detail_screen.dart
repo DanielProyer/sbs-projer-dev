@@ -346,7 +346,11 @@ class _ReinigungDetailContent extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: AppColors.error,
-            content: Text('Löschen nicht möglich. ${stand.text}',
+            // Ohne Ausweg-Satz «Notiz, Foto, Zeiten …» — hier geht es ums
+            // Löschen, nicht ums Bearbeiten.
+            content: Text(
+                'Löschen nicht möglich. '
+                '${sperrText(stand.sperre, stand.rechnung?.rechnungsnummer, mitAusweg: false)}',
                 style: const TextStyle(color: Colors.white)),
             duration: const Duration(seconds: 10),
           ),
@@ -401,7 +405,10 @@ class _ReinigungDetailContent extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Löschen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+              content: Text(
+                'Löschen fehlgeschlagen: '
+                '${korrekturMeldung(e)}',
+              ),
             ),
           );
         }

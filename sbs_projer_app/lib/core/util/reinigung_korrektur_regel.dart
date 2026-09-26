@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
@@ -10,6 +12,7 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 enum KorrekturSperre {
   keine,
   bezahlt,
+  jahresrechnung,
   mahnfall,
   gemahnt,
   versendet,
@@ -31,6 +34,11 @@ KorrekturSperre korrekturSperre({
       hatZahlungsbuchung) {
     return KorrekturSperre.bezahlt;
   }
+  // Die Jahresrechnung trägt die Positionen ALLER Reinigungen des Jahres;
+  // `zuruecknehmen` würde sie ganz löschen (Review af581d42).
+  if (rechnung.rechnungstyp == 'jahresrechnung') {
+    return KorrekturSperre.jahresrechnung;
+  }
   if (imMahnfall) return KorrekturSperre.mahnfall;
   if (rechnung.mahnungStufe > 0 ||
       _gemahntStatus.contains(rechnung.zahlungsstatus)) {
@@ -46,13 +54,18 @@ KorrekturSperre korrekturSperre({
 }
 
 /// Text für Band und Dialog. Leer bei [KorrekturSperre.keine].
-String sperrText(KorrekturSperre sperre, String? rechnungsnummer) {
+String sperrText(KorrekturSperre sperre, String? rechnungsnummer,
+    {bool mitAusweg = true}) {
   final nr = rechnungsnummer == null ? 'Die Rechnung' : 'Rechnung $rechnungsnummer';
-  const ausweg = ' Notiz, Foto und Zeiten lassen sich weiterhin speichern.';
+  final ausweg =
+      mitAusweg ? ' Notiz, Foto und Zeiten lassen sich weiterhin speichern.' : '';
   return switch (sperre) {
     KorrekturSperre.keine => '',
     KorrekturSperre.bezahlt =>
       '$nr ist bereits bezahlt — Preis und Positionen sind gesperrt.$ausweg',
+    KorrekturSperre.jahresrechnung =>
+      '$nr ist eine Jahresrechnung — Preisänderung nur über die '
+          'Jahresrechnung selbst.$ausweg',
     KorrekturSperre.mahnfall =>
       '$nr steckt in einem Mahnfall — Preis und Positionen sind gesperrt.$ausweg',
     KorrekturSperre.gemahnt =>
@@ -69,7 +82,7 @@ String sperrText(KorrekturSperre sperre, String? rechnungsnummer) {
 /// Ob sich zwischen [alt] (geladener Stand) und [neu] (Formular) etwas
 /// geändert hat, das Rechnung oder Buchung berührt. Alles, was
 /// `RechnungService._buildPositionen` und `ReinigungBuchungService._calcNetto`
-/// lesen (Grundtarif, Hähne-Mengen aller Kategorien, Brutto-Rückrechnung,
+/// lesen (Grundtarif, Bergkunde, Hähne-Mengen aller Kategorien, Brutto-Rückrechnung,
 /// Service-Typ für die Positionsbeschreibung), plus Datum
 /// (Rechnungsnummer/-datum), Zahlungsart (Kasse vs. Debitoren) und Kulanz/
 /// Heineken-Monteur (steuern `brauchtErtragsbuchung`). Notizen, Zeiten,
@@ -81,6 +94,7 @@ bool preisrelevantGeaendert(ReinigungLocal alt, ReinigungLocal neu) {
       alt.serviceTyp != neu.serviceTyp ||
       alt.istKulanz != neu.istKulanz ||
       alt.istHeinekenMonteur != neu.istHeinekenMonteur ||
+      alt.istBergkunde != neu.istBergkunde ||
       alt.preisGrundtarif != neu.preisGrundtarif ||
       alt.preisZusatzHaehne != neu.preisZusatzHaehne ||
       alt.bergkundenZuschlag != neu.bergkundenZuschlag ||
@@ -91,7 +105,23 @@ bool preisrelevantGeaendert(ReinigungLocal alt, ReinigungLocal neu) {
       alt.anzahlHaehneFremd != neu.anzahlHaehneFremd ||
       alt.anzahlHaehneWein != neu.anzahlHaehneWein ||
       alt.anzahlHaehneAndererStandort != neu.anzahlHaehneAndererStandort ||
-      alt.anlageIdsJson != neu.anlageIdsJson;
+      !_gleicheMenge(anlagenMenge(alt), anlagenMenge(neu));
+}
+
+bool _gleicheMenge(Set<String> a, Set<String> b) =>
+    a.length == b.length && a.containsAll(b);
+
+/// Anlagen einer Reinigung als Menge. Bei rund 5800 Altfällen ist
+/// `anlage_ids` null und nur `anlageId` gesetzt; das Formular schreibt beim
+/// Speichern aber immer das JSON — ein Textvergleich meldete dann bei jeder
+/// Notiz-Änderung «preisrelevant». Reihenfolge zählt nicht.
+Set<String> anlagenMenge(ReinigungLocal r) {
+  final json = r.anlageIdsJson;
+  if (json != null && json.isNotEmpty) {
+    final liste = (jsonDecode(json) as List).map((e) => e.toString()).toSet();
+    if (liste.isNotEmpty) return liste;
+  }
+  return r.anlageId.isEmpty ? <String>{} : {r.anlageId};
 }
 
 /// Kopie genau der Felder, die [preisrelevantGeaendert] vergleicht.
@@ -110,6 +140,7 @@ ReinigungLocal preisSchnappschuss(ReinigungLocal r) => ReinigungLocal()
   ..serviceTyp = r.serviceTyp
   ..istKulanz = r.istKulanz
   ..istHeinekenMonteur = r.istHeinekenMonteur
+  ..istBergkunde = r.istBergkunde
   ..preisGrundtarif = r.preisGrundtarif
   ..preisZusatzHaehne = r.preisZusatzHaehne
   ..bergkundenZuschlag = r.bergkundenZuschlag
@@ -120,4 +151,5 @@ ReinigungLocal preisSchnappschuss(ReinigungLocal r) => ReinigungLocal()
   ..anzahlHaehneFremd = r.anzahlHaehneFremd
   ..anzahlHaehneWein = r.anzahlHaehneWein
   ..anzahlHaehneAndererStandort = r.anzahlHaehneAndererStandort
+  ..anlageId = r.anlageId
   ..anlageIdsJson = r.anlageIdsJson;

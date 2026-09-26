@@ -622,8 +622,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       r.serviceArt = _serviceArt;
       r.wasserKuehlerGewechselt = _wasserKuehlerGewechselt;
 
+      // 1) Mengen und Typ übernehmen (Heineken-Monteur: keine Positionen).
       if (_istHeinekenMonteur) {
-        // Heineken-Monteur: nur Datum, keine Preise/Checkliste
         r.serviceTyp = null;
         r.istBergkunde = false;
         r.anzahlHaehneEigen = 0;
@@ -631,6 +631,36 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         r.anzahlHaehneFremd = 0;
         r.anzahlHaehneWein = 0;
         r.anzahlHaehneAndererStandort = 0;
+      } else {
+        r.serviceTyp = _serviceTyp;
+        r.istBergkunde = _istBergkunde;
+        r.anzahlHaehneEigen = _anzahlHaehneEigen;
+        r.anzahlHaehneOrion = _anzahlHaehneOrion;
+        r.anzahlHaehneFremd = _anzahlHaehneFremd;
+        r.anzahlHaehneWein = _anzahlHaehneWein;
+        r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
+      }
+
+      // 2) R1: Hat sich an einer abgeschlossenen Reinigung etwas
+      // Preisrelevantes geändert? Verglichen wird mit dem Schnappschuss beim
+      // Laden, NICHT mit `_existing` (dasselbe Objekt wie `r`) — und zwar
+      // BEVOR die Preise neu gerechnet werden: Die preis*-Felder in `r` sind
+      // hier noch die gespeicherten, verglichen werden effektiv Mengen, Typ,
+      // Bergkunde, Kulanz, Datum, Zahlungsart und Anlagen. Sonst würde bei
+      // Altdaten oder nach einer Preislisten-Änderung jede Notiz-Korrektur
+      // «preisrelevant» und löste eine Rechnungskorrektur aus.
+      final mengenGeaendert = _warAbgeschlossen &&
+          _ausgangsstand != null &&
+          preisrelevantGeaendert(_ausgangsstand!, r);
+      // Nichts Preisrelevantes geändert → gespeicherte Preise behalten.
+      final preiseBehalten =
+          _isEdit && _warAbgeschlossen && !abschliessen && !mengenGeaendert;
+
+      // 3) Preise
+      if (preiseBehalten) {
+        // gespeicherte Preise bleiben unverändert
+      } else if (_istHeinekenMonteur) {
+        // Heineken-Monteur: nur Datum, keine Preise/Checkliste
         r.preisGrundtarif = null;
         r.preisZusatzHaehne = null;
         r.bergkundenZuschlag = null;
@@ -640,13 +670,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         r.preisBrutto = null;
       } else if (_istKulanz) {
         // Kulanz: Positionen normal, aber alle Preise 0
-        r.serviceTyp = _serviceTyp;
-        r.istBergkunde = _istBergkunde;
-        r.anzahlHaehneEigen = _anzahlHaehneEigen;
-        r.anzahlHaehneOrion = _anzahlHaehneOrion;
-        r.anzahlHaehneFremd = _anzahlHaehneFremd;
-        r.anzahlHaehneWein = _anzahlHaehneWein;
-        r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
         r.preisGrundtarif = 0;
         r.preisZusatzHaehne = 0;
         r.bergkundenZuschlag = 0;
@@ -656,14 +679,6 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         r.preisBrutto = 0;
       } else {
         // Normal: Preis-Kalkulation
-        r.serviceTyp = _serviceTyp;
-        r.istBergkunde = _istBergkunde;
-        r.anzahlHaehneEigen = _anzahlHaehneEigen;
-        r.anzahlHaehneOrion = _anzahlHaehneOrion;
-        r.anzahlHaehneFremd = _anzahlHaehneFremd;
-        r.anzahlHaehneWein = _anzahlHaehneWein;
-        r.anzahlHaehneAndererStandort = _anzahlHaehneAndererStandort;
-
         final preis = _calculatePreis();
         if (preis.isNotEmpty) {
           r.preisGrundtarif = preis['grundtarif'];
@@ -676,22 +691,22 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         }
       }
 
-      // R1: Abgeschlossene Reinigung bearbeiten — Buchhaltung nur anfassen,
-      // wenn sich etwas Preisrelevantes geändert hat, und nur ohne Sperre.
-      // Verglichen wird mit dem Schnappschuss beim Laden, NICHT mit
-      // `_existing` (das ist dasselbe Objekt wie `r`).
+      // R1: Buchhaltung nur anfassen, wenn sich etwas Preisrelevantes
+      // geändert hat, und nur ohne Sperre.
       final korrekturNoetig = _isEdit &&
           !abschliessen &&
           kIsWeb &&
-          _warAbgeschlossen &&
-          _ausgangsstand != null &&
           r.serverId != null &&
-          preisrelevantGeaendert(_ausgangsstand!, r);
+          mengenGeaendert;
       if (korrekturNoetig) {
         final stand = await ReinigungKorrekturService.sperrePruefen(r.serverId!);
         if (stand.sperre != KorrekturSperre.keine) {
-          // `r` trägt schon die Formularwerte, ist aber nicht gespeichert;
-          // jedes weitere Speichern schreibt sie ohnehin neu aus dem Formular.
+          // `r` trägt schon neu gerechnete Preise, ist aber nicht gespeichert.
+          // Frisch nachladen: Setzt der Nutzer die Mengen zurück, gilt beim
+          // nächsten Speichern «Preise behalten» — und das müssen die
+          // GESPEICHERTEN sein, nicht die eben gerechneten.
+          final frisch = await ReinigungRepository.getById(widget.reinigungId!);
+          if (frisch != null) _existing = frisch;
           if (mounted) {
             await showDialog<void>(
               context: context,
@@ -758,9 +773,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       // denselben Uebergang erneut zaehlen — `anzahl` waechst kuenstlich und
       // verwaessert den gleitenden Mittelwert (Review-Befund 29.07.2026).
       // Erkennung: abschliessen==true UND der Status VOR diesem Save war noch
-      // nicht 'abgeschlossen' (_existing = geladener Stand vor den Edits).
-      final wurdeGeradeAbgeschlossen =
-          abschliessen && _existing?.status != 'abgeschlossen';
+      // nicht 'abgeschlossen'. NICHT über _existing: das ist dasselbe Objekt
+      // wie r, dessen Status oben schon gesetzt wurde — der Vergleich war
+      // beim Bearbeiten deshalb immer false (Review af581d42).
+      // _warAbgeschlossen hält den Stand beim Laden fest (neu: false).
+      final wurdeGeradeAbgeschlossen = abschliessen && !_warAbgeschlossen;
       // Eigener try/catch: die synchrone Vorgaenger-Suche haengt sonst im
       // aeusseren try von _save — eine Exception hier wuerde dem Nutzer
       // faelschlich "Fehler" zeigen, obwohl das Speichern (Zeile oben) schon
@@ -882,7 +899,8 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
                 backgroundColor: AppColors.error,
                 content: Text(
                   'Reinigung gespeichert, aber Rechnung/Buchung NICHT korrigiert: '
-                  '${kurzeFehlermeldung(e)}\nBitte im Rechnungsbereich prüfen.',
+                  '${korrekturMeldung(e)}'
+                  '\nBitte im Rechnungsbereich prüfen.',
                   style: const TextStyle(color: Colors.white),
                 ),
                 duration: const Duration(seconds: 12),

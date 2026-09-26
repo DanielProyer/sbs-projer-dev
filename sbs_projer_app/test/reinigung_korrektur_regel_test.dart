@@ -10,12 +10,13 @@ Rechnung _rg({
   DateTime? zahlungEingegangenAm,
   int mahnungStufe = 0,
   DateTime? rechnungsdatum,
+  String typ = 'kundenrechnung',
 }) =>
     Rechnung.fromJson({
       'id': 'r1',
       'user_id': 'u',
       'rechnungsnummer': '2026-09-26-0001',
-      'rechnungstyp': 'kundenrechnung',
+      'rechnungstyp': typ,
       'rechnungsdatum':
           (rechnungsdatum ?? DateTime(2026, 9, 26)).toIso8601String(),
       'faelligkeitsdatum': DateTime(2026, 10, 26).toIso8601String(),
@@ -38,6 +39,7 @@ ReinigungLocal _rein({
   bool kulanz = false,
   String notizen = '',
 }) => ReinigungLocal()
+  ..anlageId = '' // native: late — Altfall-Vergleich liest es
   ..datum = DateTime(2026, 9, 26)
   ..preisGrundtarif = grundtarif
   ..anzahlHaehneEigen = eigen
@@ -160,6 +162,52 @@ void main() {
       r.anzahlHaehneEigen = 3;
       r.istKulanz = true;
       expect(preisrelevantGeaendert(alt, r), true);
+    });
+    test('Altfall ohne anlageIdsJson vs. gleiche Anlage als JSON, nur Notiz -> false', () {
+      final alt = _rein()..anlageId = 'a1';
+      final neu = _rein(notizen: 'neu')
+        ..anlageId = 'a1'
+        ..anlageIdsJson = '["a1"]';
+      expect(preisrelevantGeaendert(alt, neu), false);
+      expect(anlagenMenge(neu), {'a1'});
+    });
+    test('Bergkunde umgeschaltet -> true (Zuschlag muss neu)', () {
+      final neu = _rein()..istBergkunde = true;
+      expect(preisrelevantGeaendert(_rein(), neu), true);
+      expect(preisrelevantGeaendert(preisSchnappschuss(neu), neu), false);
+    });
+    test('andere Anlage -> true, Reihenfolge egal', () {
+      final alt = _rein()..anlageIdsJson = '["a1","a2"]';
+      final gedreht = _rein()..anlageIdsJson = '["a2","a1"]';
+      final anders = _rein()..anlageIdsJson = '["a1","a3"]';
+      expect(preisrelevantGeaendert(alt, gedreht), false);
+      expect(preisrelevantGeaendert(alt, anders), true);
+    });
+  });
+
+  group('Jahresrechnung', () {
+    test('offene Jahresrechnung -> jahresrechnung', () {
+      expect(
+        korrekturSperre(
+            rechnung: _rg(typ: 'jahresrechnung'),
+            hatZahlungsbuchung: false, imMahnfall: false, nachbuchGrenze: grenze),
+        KorrekturSperre.jahresrechnung,
+      );
+    });
+    test('bezahlte Jahresrechnung -> bezahlt', () {
+      expect(
+        korrekturSperre(
+            rechnung: _rg(typ: 'jahresrechnung', status: 'bezahlt'),
+            hatZahlungsbuchung: false, imMahnfall: false, nachbuchGrenze: grenze),
+        KorrekturSperre.bezahlt,
+      );
+    });
+    test('sperrText ohne Ausweg', () {
+      final t = sperrText(KorrekturSperre.jahresrechnung, 'J-1');
+      expect(t, contains('Jahresrechnung'));
+      expect(t, contains('Notiz'));
+      final ohne = sperrText(KorrekturSperre.bezahlt, 'J-1', mitAusweg: false);
+      expect(ohne, isNot(contains('Notiz')));
     });
   });
 }
