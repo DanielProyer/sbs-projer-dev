@@ -154,4 +154,119 @@ void main() {
       expect(gespeichert, [(tag1, '')]);
     });
   });
+
+  // D1 (Review 26.09.2026): Im Lade-Fenster zeigte die Zeitachse den Plan
+  // des vorigen Tages unter dem neuen Datum, «Übernehmen» legte dort ab, und
+  // das Verschieben liess Stopps doppelt stehen. Der Screen gibt Plan-
+  // Aktionen nur frei, wenn `gehoertZu(angezeigter Tag)` stimmt.
+  group('TagesplanNotifier.gehoertZu', () {
+    final tag1 = DateTime(2026, 9, 28);
+    final tag2 = DateTime(2026, 9, 29);
+
+    test('vor dem ersten Laden gehört der State keinem Tag', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(tagesplanProvider.notifier);
+      expect(notifier.gehoertZu(tag1), isFalse);
+    });
+
+    test('Kalendertag-Vergleich — die Uhrzeit zählt nicht', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(tagesplanProvider.notifier);
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+
+      expect(notifier.gehoertZu(tag1), isTrue);
+      expect(notifier.gehoertZu(DateTime(2026, 9, 28, 23, 59)), isTrue);
+      expect(notifier.gehoertZu(tag2), isFalse);
+      // Gleicher Tag und Monat, anderes Jahr.
+      expect(notifier.gehoertZu(DateTime(2025, 9, 28)), isFalse);
+    });
+
+    test('Lade-Fenster: neuer Tag aktiv, State noch beim alten', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+      notifier.setFromGespeichert(tag1, [_e('a')]);
+
+      // Tipp auf tag2: der Screen stellt den aktiven Tag sofort um.
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag2;
+      expect(notifier.gehoertZu(tag2), isFalse);
+      expect(notifier.gehoertZu(tag1), isTrue);
+
+      // Plan von tag2 ist da (hier: keine Zeile gespeichert).
+      notifier.resetLeer(tag2);
+      expect(notifier.gehoertZu(tag2), isTrue);
+      expect(notifier.gehoertZu(tag1), isFalse);
+    });
+
+    test('eine Mutation vor dem ersten Laden beansprucht den aktiven Tag', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tag1;
+      final notifier = container.read(tagesplanProvider.notifier);
+      notifier.hinzufuegen(_e('a'));
+      expect(notifier.gehoertZu(tag1), isTrue);
+    });
+  });
+
+  group('tagesplanAnsicht (Tagesplan-Tab)', () {
+    test('Plan gehört dem Tag → Zeitachse', () {
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: true,
+          ladefehler: false,
+        ),
+        TagesplanAnsicht.plan,
+      );
+    });
+
+    test('Plan noch beim vorigen Tag → «Plan wird geladen…»', () {
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: false,
+          ladefehler: false,
+        ),
+        TagesplanAnsicht.laedt,
+      );
+    });
+
+    test('Ladefehler → Fehlerzustand, NICHT leerer Plan', () {
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: false,
+          ladefehler: true,
+        ),
+        TagesplanAnsicht.ladefehler,
+      );
+    });
+
+    test('Nachladefehler bei geladenem Plan → Plan bleibt stehen', () {
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: true,
+          ladefehler: true,
+        ),
+        TagesplanAnsicht.plan,
+      );
+    });
+
+    test('vergangener Tag zeigt die Ist-Daten, auch ohne geladenen Plan', () {
+      for (final ladefehler in [false, true]) {
+        expect(
+          tagesplanAnsicht(
+            nurIst: true,
+            planGehoertZumTag: false,
+            ladefehler: ladefehler,
+          ),
+          TagesplanAnsicht.plan,
+        );
+      }
+    });
+  });
 }

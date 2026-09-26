@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tagesuebersicht_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 const _wochentage = [
   'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag',
@@ -397,6 +398,36 @@ class _Leerzustand extends StatelessWidget {
   }
 }
 
+/// Der heutige Tagesplan liess sich nicht laden — sagen statt verstecken.
+class _HeuteLadefehler extends StatelessWidget {
+  final VoidCallback onErneut;
+
+  const _HeuteLadefehler({required this.onErneut});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, color: AppColors.error, size: 18),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Tagesplan nicht geladen',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+            TapKnopf(text: 'Erneut laden', primaer: false, onTap: onErneut),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Angebundene Fassung für den Startbildschirm.
 class HeuteListe extends ConsumerWidget {
   const HeuteListe({super.key});
@@ -413,7 +444,12 @@ class HeuteListe extends ConsumerWidget {
 
     return offen.when(
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      // Bis v0.145.0 kam ein Ladefehler als «kein Plan» an (leere Liste);
+      // seit er durchgereicht wird, wäre die Liste sonst wortlos weg.
+      error: (_, _) => _HeuteLadefehler(
+        onErneut: () =>
+            ref.invalidate(gespeicherterTagesplanProvider(tagHeute())),
+      ),
       data: (stopps) => HeuteListeInhalt(
         stopps: stopps,
         erledigt: zaehler?.erledigt ?? 0,
