@@ -115,7 +115,7 @@ final steuerjahrZeileProvider = FutureProvider.family<SteuerjahrZeile, int>((
   );
 });
 
-final steuerzahlungenProvider = FutureProvider.family<List<Buchung>, int>((
+final steuerzahlungenProvider = FutureProvider.autoDispose.family<List<Buchung>, int>((
   ref,
   jahr,
 ) {
@@ -130,7 +130,7 @@ final nichtZugeordneteSteuerbuchungenProvider = FutureProvider<List<Buchung>>((
   return SteuerzahlungRepository.getNichtZugeordnet();
 });
 
-final steuerDokumenteProvider = FutureProvider.family<List<Dokument>, int>(
+final steuerDokumenteProvider = FutureProvider.autoDispose.family<List<Dokument>, int>(
   (ref, jahr) => DokumentRepository.getAll(bereich: 'steuern', jahr: jahr),
 );
 

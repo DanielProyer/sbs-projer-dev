@@ -27,7 +27,7 @@ final eventsProvider = FutureProvider<List<EventLocal>>((ref) async {
 
 /// Ein Event-Jahr per routeId.
 final eventByIdProvider =
-    FutureProvider.family<EventLocal?, String>((ref, id) async {
+    FutureProvider.autoDispose.family<EventLocal?, String>((ref, id) async {
   return EventRepository.getById(id);
 });
 
@@ -39,7 +39,7 @@ final eventKontakteProvider =
 
 /// Dokumente eines Event-Jahres.
 final eventDokumenteProvider =
-    FutureProvider.family<List<EventDokumentLocal>, String>((ref, eventId) async {
+    FutureProvider.autoDispose.family<List<EventDokumentLocal>, String>((ref, eventId) async {
   return EventDokumentRepository.getByEvent(eventId);
 });
 
@@ -59,7 +59,7 @@ final eventStaendeProvider =
 
 /// Anlagen eines Stands.
 final eventStandAnlagenProvider =
-    FutureProvider.family<List<EventStandAnlageLocal>, String>((ref, standId) async {
+    FutureProvider.autoDispose.family<List<EventStandAnlageLocal>, String>((ref, standId) async {
   return EventStandAnlageRepository.getByStand(standId);
 });
 
@@ -73,13 +73,13 @@ final eventAufwaendeProvider =
 
 /// Technik-Geräte eines Event-Jahres (Anstiche + Durchlaufkühler).
 final eventGeraeteProvider =
-    FutureProvider.family<List<EventGeraetLocal>, String>((ref, eventId) async {
+    FutureProvider.autoDispose.family<List<EventGeraetLocal>, String>((ref, eventId) async {
   return EventGeraetRepository.getByEvent(eventId);
 });
 
 /// Leitungen eines Event-Jahres.
 final eventLeitungenProvider =
-    FutureProvider.family<List<EventLeitungLocal>, String>((ref, eventId) async {
+    FutureProvider.autoDispose.family<List<EventLeitungLocal>, String>((ref, eventId) async {
   return EventLeitungRepository.getByEvent(eventId);
 });
 
@@ -87,6 +87,6 @@ final eventLeitungenProvider =
 /// (UUID) des EventGeraet, nicht die routeId (nativ wäre das die Isar-Id und
 /// der Filter liefe ins Leere).
 final eventKuehlerMessungenProvider =
-    FutureProvider.family<List<EventKuehlerMessungLocal>, String>((ref, geraetId) async {
+    FutureProvider.autoDispose.family<List<EventKuehlerMessungLocal>, String>((ref, geraetId) async {
   return EventKuehlerMessungRepository.getByGeraet(geraetId);
 });

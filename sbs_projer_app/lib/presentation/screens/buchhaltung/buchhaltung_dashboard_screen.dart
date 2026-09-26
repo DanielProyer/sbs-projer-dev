@@ -19,7 +19,8 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
     final buchungen = ref.watch(buchungenProvider);
     final erfolgsrechnung = ref.watch(erfolgsrechnungProvider(now.year));
     final mwst = ref.watch(mwstAbrechnungProvider(now.year));
-    final offeneCount = ref.watch(offeneRechnungenCountProvider);
+    // Server-Count; solange er lädt 0 — wie früher die leere Liste.
+    final offeneCount = ref.watch(offeneRechnungenCountProvider).valueOrNull ?? 0;
 
     // Buchungen aktueller Monat
     final buchungenMonat = buchungen
@@ -71,7 +72,15 @@ class BuchhaltungDashboardScreen extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => context.push('/rechnungen'),
+                  onTap: () async {
+                    await context.push('/rechnungen');
+                    // Zurück aus der Liste frisch zählen — dort geänderte
+                    // Status sollen hier sofort stimmen (früher über den
+                    // gemeinsamen Rechnungs-Stream).
+                    if (context.mounted) {
+                      ref.invalidate(offeneRechnungenCountProvider);
+                    }
+                  },
                   child: _KennzahlCard(
                     label: 'Offene Rechnungen',
                     value: '$offeneCount',

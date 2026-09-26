@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+import 'package:supabase_flutter/supabase_flutter.dart'
+    show CountOption, PostgrestException;
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -90,6 +92,25 @@ class RechnungRepository {
   }
 
   /// Alle offenen Rechnungen (nicht bezahlt/abgeschrieben), älteste zuerst.
+  /// Anzahl offener Rechnungen — nur die Zahl, ohne eine Zeile zu laden.
+  ///
+  /// WARUM: Die Kennzahl im Buchhaltungs-Dashboard lud dafür alle ~5'300
+  /// Rechnungen (6 Seiten à 1000) und zählte in Dart. Dieselbe Bedeutung wie
+  /// damals: jeder Rechnungstyp, jeder Status ausser [Zahlungsstatus.erledigt].
+  /// Ein fehlender Status gilt wie im Modell (`fromJson` → 'offen') als offen —
+  /// deshalb `is.null` im `or`: ein reines `in` liesse NULL-Zeilen still
+  /// wegfallen (NULL-Falle wie bei `neq`).
+  static Future<int> countOffene() async {
+    final offen = Zahlungsstatus.alle.difference(Zahlungsstatus.erledigt);
+    final res = await SupabaseService.client
+        .from('rechnungen')
+        .select('id')
+        .eq('user_id', _userId)
+        .or('zahlungsstatus.is.null,zahlungsstatus.in.(${offen.join(',')})')
+        .count(CountOption.exact);
+    return res.count;
+  }
+
   static Future<List<Rechnung>> getOffene() async {
     final all = <Map<String, dynamic>>[];
     const pageSize = 1000;

@@ -12,10 +12,14 @@ final rechnungenProvider = Provider<List<Rechnung>>((ref) {
   return ref.watch(rechnungenStreamProvider).valueOrNull ?? [];
 });
 
-final offeneRechnungenCountProvider = Provider<int>((ref) {
-  return ref.watch(rechnungenProvider)
-      .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
-      .length;
+/// Anzahl offener Rechnungen fürs Buchhaltungs-Dashboard — ein Server-Count
+/// statt der ganzen Rechnungstabelle (vorher ~5'300 Zeilen für eine Zahl).
+///
+/// `autoDispose`: Jeder Aufbau des Dashboards zählt frisch. Früher hing die
+/// Zahl am `rechnungenStreamProvider` und wurde über dessen Invalidierung
+/// aktuell; der Count kostet einen Request, also einfach neu fragen.
+final offeneRechnungenCountProvider = FutureProvider.autoDispose<int>((ref) {
+  return RechnungRepository.countOffene();
 });
 
 /// Abgeschlossene Reinigungen ohne Kundenrechnung — Frühwarnung in den

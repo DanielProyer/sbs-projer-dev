@@ -550,8 +550,13 @@ class _CamtImportTabState extends ConsumerState<CamtImportTab>
       var rueckFehler = false;
       if (steuerVorschlaege.isNotEmpty) {
         try {
+          // Das Journal aus dem geteilten Stream statt eines eigenen
+          // Voll-Loads (~16'900 Zeilen) — jede Buchung in der App
+          // invalidiert ihn, der Stand ist also derselbe.
           rueckRest.addAll(
-            rueckstellungsRest(await BuchungRepository.getAll()),
+            rueckstellungsRest(
+              await ref.read(buchungenStreamProvider.future),
+            ),
           );
         } catch (e) {
           // Ohne Rückstellungs-Info wird auf 8900 kontiert — im Dropdown

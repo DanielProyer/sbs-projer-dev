@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/camt_datei.dart';
-import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
@@ -390,9 +389,18 @@ final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) as
 typedef Zeitraum = ({DateTime von, DateTime bis});
 
 /// Bilanz per beliebigem Stichtag (Datum-normalisiert vom Aufrufer).
+///
+/// Bilanz, Erfolgsrechnung und ER-Konten teilen sich EINEN Journal-Load: den
+/// laufenden `buchungenStreamProvider`. Vorher rief jeder der drei
+/// `BuchungRepository.getAll()` selbst — ein Berichte-Aufbau zog das Journal
+/// (~16'900 Zeilen, 17 Seiten) dreimal zusätzlich zum Stream. Nebeneffekt:
+/// nach einer Buchung (Invalidierung des Streams) rechnen die Berichte neu,
+/// statt den ersten Stand bis zum App-Neustart zu behalten. `autoDispose`,
+/// damit nicht jeder je gewählte Stichtag/Zeitraum dabei mitrechnet (die
+/// PDF-/Mail-Knöpfe lesen denselben Schlüssel, den die Ansicht gerade hält).
 final bilanzStichtagProvider =
-    FutureProvider.family<BilanzDaten, DateTime>((ref, stichtag) async {
-  final buchungen = await BuchungRepository.getAll();
+    FutureProvider.autoDispose.family<BilanzDaten, DateTime>((ref, stichtag) async {
+  final buchungen = await ref.watch(buchungenStreamProvider.future);
   final konten = await KontoRepository.getAll();
   final infos = konten
       .map((k) => KontoInfo(
@@ -406,8 +414,8 @@ final bilanzStichtagProvider =
 
 /// Erfolgsrechnung (Stufengliederung) über einen Zeitraum.
 final erfolgsrechnungZeitraumProvider =
-    FutureProvider.family<ErfolgsrechnungDaten, Zeitraum>((ref, z) async {
-  final buchungen = await BuchungRepository.getAll();
+    FutureProvider.autoDispose.family<ErfolgsrechnungDaten, Zeitraum>((ref, z) async {
+  final buchungen = await ref.watch(buchungenStreamProvider.future);
   return ErfolgsrechnungService.berechne(
     toSaldoInput(buchungen),
     von: z.von,
@@ -418,8 +426,8 @@ final erfolgsrechnungZeitraumProvider =
 /// Konten-Aufstellung (Klassen + bebuchte Konten) über einen Zeitraum, mit
 /// Bezeichnung. Nur Konten mit Bewegung im Zeitraum.
 final erKontenAufstellungProvider =
-    FutureProvider.family<ErKontenAufstellung, Zeitraum>((ref, z) async {
-  final buchungen = await BuchungRepository.getAll();
+    FutureProvider.autoDispose.family<ErKontenAufstellung, Zeitraum>((ref, z) async {
+  final buchungen = await ref.watch(buchungenStreamProvider.future);
   final konten = await KontoRepository.getAll();
   final namen = {for (final k in konten) k.kontonummer: k.bezeichnung};
   final roh = ErfolgsrechnungService.kontenAufstellung(
