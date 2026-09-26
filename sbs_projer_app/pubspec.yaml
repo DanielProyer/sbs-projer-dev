@@ -30,6 +30,10 @@ dependencies:
 
   # Datum & Internationalisierung
   intl: any
+  # Deutsche Material-Texte (Datumsauswahl «Abbrechen/OK», Wochentage) —
+  # ohne die Delegates in app.dart zeigt showDatePicker Englisch.
+  flutter_localizations:
+    sdk: flutter
 
   # PDF
   pdf: ^3.10.0
