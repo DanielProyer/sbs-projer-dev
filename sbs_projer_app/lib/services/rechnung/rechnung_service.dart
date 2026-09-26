@@ -13,24 +13,13 @@ import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnungs_position_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_rechnungsadresse_repository.dart';
-import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_faktor.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 
 class RechnungService {
-  static double _mwstFaktor = 0.081;
-  static double _mwstSatzProzent = 8.10;
-
-  static Future<void> _loadMwst({DateTime? datum}) async {
-    final preis = await PreisRepository.getAktuell(datum: datum);
-    if (preis != null) {
-      _mwstFaktor = preis.mwstFaktor;
-      _mwstSatzProzent = preis.mwstSatz;
-    }
-  }
-
   static const _invoiceRechnungsstellungen = [
     'rechnung_mail',
     'rechnung_post',
@@ -41,10 +30,15 @@ class RechnungService {
   /// Reinigung erzeugen würde — ohne etwas zu schreiben. Nutzt exakt dieselben
   /// Schritte, damit eine Vorschau nicht lügen kann.
   static Future<double> vorschauBrutto(ReinigungLocal reinigung) async {
-    await _loadMwst(datum: reinigung.datum);
-    return bruttoKundenrechnung(_nettoSumme(_buildPositionen(reinigung)),
-        _mwstFaktor);
+    final mwst = await mwstAusPreisliste(reinigung.datum);
+    return bruttoAusReinigung(reinigung, mwst);
   }
+
+  /// Reiner Kern von [vorschauBrutto] und [createFromReinigung]: Brutto der
+  /// Kundenrechnung einer Reinigung beim Satz [mwst], auf 5 Rappen.
+  static double bruttoAusReinigung(ReinigungLocal reinigung, MwstAngabe mwst) =>
+      bruttoKundenrechnung(
+          _nettoSumme(buildPositionen(reinigung, mwst)), mwst.faktor);
 
   /// Kundenguthaben (Konto 2030), das auf eine neue Rechnung dieses Betriebs
   /// verrechnet wird: min(Guthaben, Brutto), auf 5 Rappen.
@@ -119,8 +113,8 @@ class RechnungService {
     }
 
     try {
-      // 0. MwSt-Satz laden
-      await _loadMwst(datum: reinigung.datum);
+      // 0. MwSt-Satz dieses Datums — pro Aufruf, nie aus einem Vorlauf
+      final mwstSatz = await mwstAusPreisliste(reinigung.datum);
 
       // 1. Rechnungsnummer bauen
       final nr = (betrieb.betriebNr ?? '0000').padLeft(4, '0');
@@ -129,7 +123,7 @@ class RechnungService {
           '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}-$nr';
 
       // 2. Positionen aufbauen
-      final positionen = _buildPositionen(reinigung);
+      final positionen = buildPositionen(reinigung, mwstSatz);
       // Kundenrechnungen sind IMMER auf 5 Rappen gerundet (nur die
       // Heineken-Monatsrechnung ist ungerundet — die entsteht woanders).
       // Zuerst das Brutto runden, dann die MwSt als Differenz ableiten, damit
@@ -137,7 +131,7 @@ class RechnungService {
       // [vorschauBrutto] — sonst könnte die Vorschau etwas anderes zeigen als
       // am Ende gebucht wird.
       final netto = _nettoSumme(positionen);
-      final brutto = bruttoKundenrechnung(netto, _mwstFaktor);
+      final brutto = bruttoKundenrechnung(netto, mwstSatz.faktor);
       final mwst = _round2(brutto - netto);
       final guthaben =
           await guthabenFuerNeueRechnung(betrieb.serverId, brutto);
@@ -238,8 +232,11 @@ class RechnungService {
   /// Baut Rechnungspositionen aus einer Reinigung.
   /// Wenn preisBrutto direkt gesetzt ist (OCR/manuell) und kein Grundtarif vorhanden,
   /// wird eine einzige Position "Reinigung gemäss Protokoll" erstellt.
-  static List<Map<String, dynamic>> _buildPositionen(
-      ReinigungLocal reinigung) {
+  ///
+  /// Rein (kein I/O) — der Satz [mwst] kommt vom Aufrufer, damit jede
+  /// Reinigung mit dem Satz ihres eigenen Datums rechnet.
+  static List<Map<String, dynamic>> buildPositionen(
+      ReinigungLocal reinigung, MwstAngabe mwst) {
     final positionen = <Map<String, dynamic>>[];
     int pos = 0;
 
@@ -252,9 +249,10 @@ class RechnungService {
         reinigung.preisBrutto! > 0) {
       // Einzige Position: Netto aus Brutto zurückrechnen
       final brutto = reinigung.preisBrutto!;
-      final netto = _round2(brutto / (1 + _mwstFaktor));
+      final netto = _round2(brutto / (1 + mwst.faktor));
       pos++;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung: 'Reinigung gemäss Protokoll',
         netto: netto,
@@ -269,6 +267,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.preisGrundtarif!;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung: 'Grundtarif ${_serviceTypLabel(reinigung.serviceTyp)}',
         netto: netto,
@@ -282,6 +281,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.anzahlHaehneEigen * 18.0;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung:
             'Weitere zusätzliche Leitungen (×${reinigung.anzahlHaehneEigen})',
@@ -294,6 +294,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.anzahlHaehneOrion * 18.0;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung:
             'Zusätzliche Hähne Orion (×${reinigung.anzahlHaehneOrion})',
@@ -306,6 +307,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.anzahlHaehneFremd * 23.0;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung:
             'Zusätzliche Hähne fremd (×${reinigung.anzahlHaehneFremd})',
@@ -318,6 +320,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.anzahlHaehneWein * 23.0;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung:
             'Zusätzliche Hähne Wein (×${reinigung.anzahlHaehneWein})',
@@ -330,6 +333,7 @@ class RechnungService {
       pos++;
       final netto = reinigung.anzahlHaehneAndererStandort * 30.0;
       positionen.add(_position(
+        mwst: mwst,
         pos: pos,
         beschreibung:
             'Zusätzliche Hähne anderer Standort (×${reinigung.anzahlHaehneAndererStandort})',
@@ -343,20 +347,21 @@ class RechnungService {
   }
 
   static Map<String, dynamic> _position({
+    required MwstAngabe mwst,
     required int pos,
     required String beschreibung,
     required double netto,
     String? serviceTyp,
     String? serviceId,
   }) {
-    final mwst = _round2(netto * _mwstFaktor);
+    final mwstBetrag = _round2(netto * mwst.faktor);
     return {
       'position': pos,
       'beschreibung': beschreibung,
       'betrag_netto': _round2(netto),
-      'mwst_satz': _mwstSatzProzent,
-      'mwst_betrag': mwst,
-      'betrag_brutto': _round2(netto + mwst),
+      'mwst_satz': mwst.prozent,
+      'mwst_betrag': mwstBetrag,
+      'betrag_brutto': _round2(netto + mwstBetrag),
       if (serviceTyp != null) 'service_typ': serviceTyp,
       if (serviceId != null) 'service_id': serviceId,
     };

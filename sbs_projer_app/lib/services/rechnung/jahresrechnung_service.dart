@@ -13,7 +13,7 @@ import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/geschaeft_repository.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
-import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_faktor.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
@@ -21,25 +21,19 @@ import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 class JahresrechnungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
 
-  static double _mwstFaktor = 0.081;
-  static double _mwstSatzProzent = 8.10;
-
-  static Future<void> _loadMwst({DateTime? datum}) async {
-    final preis = await PreisRepository.getAktuell(datum: datum);
-    if (preis != null) {
-      _mwstFaktor = preis.mwstFaktor;
-      _mwstSatzProzent = preis.mwstSatz;
-    }
-  }
+  /// MwSt-Satz einer Jahresrechnung: der am Rechnungsdatum (31.12.) gültige.
+  static Future<MwstAngabe> mwstFuerJahr(int jahr) =>
+      mwstAusPreisliste(DateTime(jahr, 12, 31));
 
   /// Berechnet den tatsächlichen Netto-Betrag einer Reinigung aus allen Komponenten.
   /// preis_netto in der DB enthält manchmal nur den Grundtarif — deshalb
   /// berechnen wir hier immer aus Grundtarif + Zusatz-Hähne + Bergkunden-Zuschlag.
-  static double calcNetto(ReinigungLocal r) {
+  /// [mwstFaktor] braucht nur die Brutto-Rückrechnung (OCR-Reinigungen).
+  static double calcNetto(ReinigungLocal r, double mwstFaktor) {
     // OCR/direkt: Netto aus Brutto zurückrechnen
     final hatGrundtarif = r.preisGrundtarif != null && r.preisGrundtarif! > 0;
     if (!hatGrundtarif && r.preisBrutto != null && r.preisBrutto! > 0) {
-      return _round2(r.preisBrutto! / (1 + _mwstFaktor));
+      return _round2(r.preisBrutto! / (1 + mwstFaktor));
     }
 
     double netto = 0;
@@ -66,12 +60,14 @@ class JahresrechnungService {
     // Alle Reinigungen des Betriebs laden
     final alle = await ReinigungRepository.getByBetrieb(betriebId);
 
-    // Im Jahr filtern, abgeschlossen, Netto > 0, keine Kulanz/Heineken
+    // Im Jahr filtern, abgeschlossen, Netto > 0, keine Kulanz/Heineken.
+    // Für «Netto > 0» ist der Satz ohne Belang (positives Brutto ergibt bei
+    // jedem Satz ein positives Netto) — deshalb hier kein Preislisten-Abruf.
     final kandidaten = alle.where((r) {
       if (r.status != 'abgeschlossen') return false;
       if (r.datum.year != jahr) return false;
       if (r.istKulanz || r.istHeinekenMonteur) return false;
-      if (calcNetto(r) <= 0) return false;
+      if (calcNetto(r, kMwstFaktorFallback) <= 0) return false;
       return true;
     }).toList();
 
@@ -122,6 +118,48 @@ class JahresrechnungService {
     }
   }
 
+  /// Positionen und Totale einer Jahresrechnung beim Satz [mwst] — rein,
+  /// ohne I/O (eine Position pro Reinigung).
+  static ({
+    List<Map<String, dynamic>> positionen,
+    double netto,
+    double mwst,
+    double brutto,
+  }) berechnePositionen(List<ReinigungLocal> reinigungen, MwstAngabe mwst) {
+    final dateFormat = DateFormat('dd.MM.yyyy');
+    final positionen = <Map<String, dynamic>>[];
+    double totalNetto = 0;
+
+    for (int i = 0; i < reinigungen.length; i++) {
+      final r = reinigungen[i];
+      final netto = calcNetto(r, mwst.faktor);
+      final mwstBetrag = _round2(netto * mwst.faktor);
+      totalNetto += netto;
+
+      positionen.add({
+        'position': i + 1,
+        'beschreibung': 'Reinigung ${dateFormat.format(r.datum)}',
+        'betrag_netto': netto,
+        'mwst_satz': mwst.prozent,
+        'mwst_betrag': mwstBetrag,
+        'betrag_brutto': _round2(netto + mwstBetrag),
+        'service_typ': 'reinigung',
+        'service_id': r.serverId,
+      });
+    }
+
+    // Auch die Jahresrechnung ist eine Kundenrechnung → 5 Rappen. Die MwSt wird
+    // aus dem gerundeten Brutto abgeleitet, sonst ergibt Netto + MwSt nicht
+    // exakt das Brutto (Differenz bis 1 Rappen).
+    final bruttoTotal = bruttoKundenrechnung(totalNetto, mwst.faktor);
+    return (
+      positionen: positionen,
+      netto: totalNetto,
+      mwst: _round2(bruttoTotal - totalNetto),
+      brutto: bruttoTotal,
+    );
+  }
+
   /// Erstellt eine Jahresrechnung für einen Betrieb.
   /// Gibt die erstellte Rechnung zurück.
   static Future<Rechnung> erstelleJahresrechnung({
@@ -133,40 +171,17 @@ class JahresrechnungService {
       throw Exception('Keine Reinigungen zum Abrechnen vorhanden');
     }
 
-    // MwSt-Satz laden
-    await _loadMwst(datum: DateTime(jahr, 12, 31));
+    // MwSt-Satz des Rechnungsdatums — pro Aufruf, nie aus einem Vorlauf
+    final mwstSatz = await mwstFuerJahr(jahr);
 
-    final dateFormat = DateFormat('dd.MM.yyyy');
     final betriebNr = (betrieb.betriebNr ?? '0000').padLeft(4, '0');
     final rechnungsnummer = '$jahr-JR-$betriebNr';
 
-    // Positionen aufbauen: Eine pro Reinigung
-    final positionen = <Map<String, dynamic>>[];
-    double totalNetto = 0;
-
-    for (int i = 0; i < reinigungen.length; i++) {
-      final r = reinigungen[i];
-      final netto = calcNetto(r);
-      final mwst = _round2(netto * _mwstFaktor);
-      totalNetto += netto;
-
-      positionen.add({
-        'position': i + 1,
-        'beschreibung': 'Reinigung ${dateFormat.format(r.datum)}',
-        'betrag_netto': netto,
-        'mwst_satz': _mwstSatzProzent,
-        'mwst_betrag': mwst,
-        'betrag_brutto': _round2(netto + mwst),
-        'service_typ': 'reinigung',
-        'service_id': r.serverId,
-      });
-    }
-
-    // Auch die Jahresrechnung ist eine Kundenrechnung → 5 Rappen. Die MwSt wird
-    // aus dem gerundeten Brutto abgeleitet, sonst ergibt Netto + MwSt nicht
-    // exakt das Brutto (Differenz bis 1 Rappen).
-    final bruttoTotal = bruttoKundenrechnung(totalNetto, _mwstFaktor);
-    final mwstTotal = _round2(bruttoTotal - totalNetto);
+    final berechnet = berechnePositionen(reinigungen, mwstSatz);
+    final positionen = berechnet.positionen;
+    final totalNetto = berechnet.netto;
+    final bruttoTotal = berechnet.brutto;
+    final mwstTotal = berechnet.mwst;
     // Offenes Kundenguthaben (2030) verrechnen — wirft nie.
     final guthaben = await RechnungService.guthabenFuerNeueRechnung(
       betrieb.serverId,

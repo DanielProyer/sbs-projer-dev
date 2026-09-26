@@ -155,7 +155,7 @@ class HeinekenPdfService {
             // Total
             _uebersichtRow('Total', daten.totalNetto, bold: false),
             pw.SizedBox(height: 4),
-            _uebersichtRow('Mehrwertsteuer (${mwstLabel ?? '8.1%'})', daten.mwstBetrag,
+            _uebersichtRow('Mehrwertsteuer (${mwstLabel ?? daten.mwstLabel})', daten.mwstBetrag,
                 bold: false),
             pw.SizedBox(height: 6),
             _uebersichtRow(

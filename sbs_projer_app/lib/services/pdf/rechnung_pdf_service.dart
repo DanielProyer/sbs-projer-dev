@@ -11,6 +11,7 @@ import 'package:sbs_projer_app/data/models/rechnungs_position.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 import 'package:sbs_projer_app/services/pdf/qr_zahlteil.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
 /// Eine Zeile im Summenblock der Rechnung (rein, testbar).
 class SummenZeile {
@@ -375,9 +376,8 @@ class RechnungPdfService {
   /// der Abzug und fett «Zu zahlen» — Betrag, Ertrag und MWST der Rechnung
   /// bleiben unverändert.
   static List<SummenZeile> summenZeilen(Rechnung rechnung) {
-    final satz = rechnung.betragNetto > 0
-        ? (rechnung.mwstBetrag / rechnung.betragNetto * 100).toStringAsFixed(1)
-        : '8.1';
+    final satz =
+        mwstProzentAusBetraegen(rechnung.betragNetto, rechnung.mwstBetrag);
     final zeilen = <SummenZeile>[
       SummenZeile('Netto', rechnung.betragNetto),
       SummenZeile('MwSt $satz%', rechnung.mwstBetrag),

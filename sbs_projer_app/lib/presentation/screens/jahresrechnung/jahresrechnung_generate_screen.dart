@@ -6,7 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresrechnung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/preis_providers.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/services/rechnung/jahresrechnung_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -28,6 +28,9 @@ class _JahresrechnungGenerateScreenState
   bool _generatingAll = false;
   String? _generatingBetriebId;
   String? _error;
+  /// Satz des gewählten Jahres (31.12.) — derselbe, mit dem
+  /// [JahresrechnungService.erstelleJahresrechnung] rechnet.
+  MwstAngabe _mwst = MwstAngabe.fallback;
 
   static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
@@ -45,6 +48,7 @@ class _JahresrechnungGenerateScreenState
     });
     try {
       _reinigungen.clear();
+      _mwst = await JahresrechnungService.mwstFuerJahr(_selectedJahr);
       for (final b in betriebe) {
         final reinigungen = await JahresrechnungService.sammleReinigungen(
           b.serverId!,
@@ -140,13 +144,11 @@ class _JahresrechnungGenerateScreenState
       betriebe++;
       reinigungen += entry.value.length;
       for (final r in entry.value) {
-        netto += JahresrechnungService.calcNetto(r);
+        netto += JahresrechnungService.calcNetto(r, _mwst.faktor);
       }
     }
 
-    final preise = ref.read(aktuellePreiseProvider).valueOrNull;
-    final mwstFaktor = preise?.mwstFaktor ?? 0.081;
-    final mwst = _round2(netto * mwstFaktor);
+    final mwst = _round2(netto * _mwst.faktor);
     final brutto = _round5Rappen(netto + mwst);
     return (
       anzahlBetriebe: betriebe,
@@ -348,7 +350,7 @@ class _JahresrechnungGenerateScreenState
             _TotalRow(label: 'Netto', value: totale.netto),
             _TotalRow(
               label:
-                  'MwSt ${ref.read(aktuellePreiseProvider).valueOrNull?.mwstLabel ?? '8.1%'}',
+                  'MwSt ${_mwst.label}',
               value: totale.mwst,
             ),
             const Divider(height: 16),
@@ -365,11 +367,9 @@ class _JahresrechnungGenerateScreenState
     final istAktiv = _generatingBetriebId == b.serverId;
     final netto = reinigungen.fold<double>(
       0,
-      (sum, r) => sum + JahresrechnungService.calcNetto(r),
+      (sum, r) => sum + JahresrechnungService.calcNetto(r, _mwst.faktor),
     );
-    final mwstF =
-        ref.read(aktuellePreiseProvider).valueOrNull?.mwstFaktor ?? 0.081;
-    final brutto = _round5Rappen(netto + _round2(netto * mwstF));
+    final brutto = _round5Rappen(netto + _round2(netto * _mwst.faktor));
     final dateFormat = DateFormat('dd.MM.');
 
     return Card(

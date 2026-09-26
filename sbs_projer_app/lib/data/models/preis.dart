@@ -1,3 +1,5 @@
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+
 class Preis {
   final String id;
   final String userId;
@@ -51,7 +53,7 @@ class Preis {
     required this.userId,
     required this.gueltigAb,
     this.gueltigBis,
-    this.mwstSatz = 8.10,
+    this.mwstSatz = kMwstFaktorFallback * 100,
     this.mwstSatzReduziert = 2.60,
     this.heinekenPoNummer,
     this.bergkundenZuschlag = 180.00,
@@ -95,7 +97,7 @@ class Preis {
       userId: json['user_id'],
       gueltigAb: DateTime.parse(json['gueltig_ab']),
       gueltigBis: json['gueltig_bis'] != null ? DateTime.parse(json['gueltig_bis']) : null,
-      mwstSatz: _d(json['mwst_satz'], 8.10),
+      mwstSatz: _d(json['mwst_satz'], kMwstFaktorFallback * 100),
       mwstSatzReduziert: _d(json['mwst_satz_reduziert'], 2.60),
       heinekenPoNummer: json['heineken_po_nummer'] as String?,
       bergkundenZuschlag: _d(json['bergkunden_zuschlag'], 180.00),

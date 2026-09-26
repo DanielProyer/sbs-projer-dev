@@ -271,7 +271,7 @@ class _HeinekenRechnungGenerateScreenState
             // Totale
             _TotalRow(label: 'Total', value: _daten!.totalNetto),
             _TotalRow(
-              label: 'Mehrwertsteuer (8.1%)',
+              label: 'Mehrwertsteuer (${_daten!.mwstLabel})',
               value: _daten!.mwstBetrag,
             ),
             _TotalRow(

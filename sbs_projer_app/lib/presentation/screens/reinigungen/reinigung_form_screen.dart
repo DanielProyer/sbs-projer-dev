@@ -43,6 +43,7 @@ import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_provid
 import 'package:sbs_projer_app/services/storage/protokoll_foto_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/repositories/wegpunkt_repository.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
 class ReinigungFormScreen extends ConsumerStatefulWidget {
   final String? reinigungId; // null = neu
@@ -693,7 +694,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         r.preisZusatzHaehne = 0;
         r.bergkundenZuschlag = 0;
         r.preisNetto = 0;
-        r.mwstSatz = 8.1;
+        r.mwstSatz = _mwstSatzProzent;
         r.preisMwst = 0;
         r.preisBrutto = 0;
       } else {
@@ -1400,6 +1401,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     return (value * 20).roundToDouble() / 20;
   }
 
+  /// MwSt-Satz (Prozent) der zum Reinigungsdatum geladenen Preisliste.
+  double get _mwstSatzProzent =>
+      (_preisliste?['mwst_satz'] as num?)?.toDouble() ??
+      kMwstFaktorFallback * 100;
+
   Map<String, double> _calculatePreis() {
     if (_preisliste == null || _serviceTyp == null) return {};
     final p = _preisliste!;
@@ -1435,7 +1441,7 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         : 0.0;
     // Bergkunden-Zuschlag NICHT in Netto/Brutto — wird Heineken separat verrechnet
     final netto = grundtarif + zusatz;
-    final mwstSatz = (p['mwst_satz'] as num?)?.toDouble() ?? 8.1;
+    final mwstSatz = _mwstSatzProzent;
     final brutto = _roundTo5Rappen(netto * (1 + mwstSatz / 100));
     final mwst = brutto - netto;
 
@@ -2320,14 +2326,14 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   List<Widget> _buildKulanzKalkulationRows() {
     return [
       _preisRow('Netto (exkl. MwSt)', 0),
-      _preisRow('MwSt (8.1%)', 0),
+      _preisRow('MwSt (${_mwstSatzProzent.toStringAsFixed(1)}%)', 0),
       const Divider(height: 16),
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Total (inkl. 8.1% MwSt)',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          Text(
+            'Total (inkl. ${_mwstSatzProzent.toStringAsFixed(1)}% MwSt)',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
           const Text(
             '0.00 CHF',
@@ -2366,9 +2372,9 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Total (inkl. 8.1% MwSt)',
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          Text(
+            'Total (inkl. ${preis['mwstSatz']!.toStringAsFixed(1)}% MwSt)',
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
           ),
           Text(
             '${preis['brutto']!.toStringAsFixed(2)} CHF',

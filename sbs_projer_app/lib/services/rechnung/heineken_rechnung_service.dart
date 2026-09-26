@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/uuid_check.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/data/models/heineken_monats_daten.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
@@ -20,17 +21,13 @@ import 'package:sbs_projer_app/services/pdf/pdf_schrift.dart';
 class HeinekenRechnungService {
   // Defaults als Fallback, werden dynamisch aus Preisen geladen
   static double _anfahrtPauschale = 180.0;
-  static double _mwstSatz = 0.081;
   static String _heinekenPoNummer = '6100259429';
-  static String _mwstLabel = '8.1%';
 
   static Future<Preis?> _loadPreise({DateTime? datum}) async {
     final preis = await PreisRepository.getAktuell(datum: datum);
     if (preis != null) {
-      _mwstSatz = preis.mwstFaktor;
       _anfahrtPauschale = preis.bergkundenZuschlag;
       _heinekenPoNummer = preis.heinekenPoNummer ?? '6100259429';
-      _mwstLabel = preis.mwstLabel;
     }
     return preis;
   }
@@ -39,8 +36,9 @@ class HeinekenRechnungService {
 
   /// Sammelt alle Heineken-relevanten Daten für den gegebenen Monat.
   static Future<HeinekenMonatsDaten> sammleMonatsDaten(DateTime monat) async {
-    // Preise für den Monat laden
-    await _loadPreise(datum: monat);
+    // Preise für den Monat laden. Der MwSt-Satz reist in den Monatsdaten
+    // mit (kein statisches Feld mehr, das der nächste Aufruf überschreibt).
+    final preis = await _loadPreise(datum: monat);
     final start = DateTime(monat.year, monat.month, 1);
     final end = DateTime(monat.year, monat.month + 1, 1);
     final startStr = start.toIso8601String().split('T').first;
@@ -131,7 +129,7 @@ class HeinekenRechnungService {
       gratisreinigungRows: reinigungData['gratisreinigungen']!,
       betriebMap: betriebMap,
       materialNames: materialNames,
-      mwstFaktor: _mwstSatz,
+      mwstFaktor: preis?.mwstFaktor ?? kMwstFaktorFallback,
     );
   }
 
@@ -168,13 +166,13 @@ class HeinekenRechnungService {
     int pos = 0;
     for (final (name, _, total) in daten.kategorien) {
       pos++;
-      final mwst = _round2(total * _mwstSatz);
+      final mwst = _round2(total * daten.mwstFaktor);
       positionen.add({
         'rechnung_id': rechnung.id,
         'position': pos,
         'beschreibung': name,
         'betrag_netto': _round2(total),
-        'mwst_satz': _mwstSatz * 100,
+        'mwst_satz': daten.mwstFaktor * 100,
         'mwst_betrag': mwst,
         'betrag_brutto': _round2(total + mwst),
       });
@@ -202,7 +200,7 @@ class HeinekenRechnungService {
           daten, rechnung.rechnungsnummer,
           logoBytes: logoBytes,
           poNummer: _heinekenPoNummer,
-          mwstLabel: _mwstLabel));
+          mwstLabel: daten.mwstLabel));
       debugPrint('[HEI] Übersicht-Seite hinzugefügt');
 
       final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
@@ -274,7 +272,7 @@ class HeinekenRechnungService {
         daten, rechnung.rechnungsnummer,
         logoBytes: logoBytes,
         poNummer: _heinekenPoNummer,
-        mwstLabel: _mwstLabel));
+        mwstLabel: daten.mwstLabel));
     final detailWidgets = HeinekenPdfService.buildDetailWidgets(daten);
     pdf.addPage(pw.MultiPage(
       pageFormat: PdfPageFormat.a4,

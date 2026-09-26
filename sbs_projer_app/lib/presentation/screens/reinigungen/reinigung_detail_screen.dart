@@ -28,6 +28,7 @@ import 'package:sbs_projer_app/data/repositories/bergkundenpauschale_repository.
 import 'package:sbs_projer_app/presentation/providers/bergkundenpauschale_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
 class ReinigungDetailScreen extends ConsumerWidget {
   final String reinigungId;
@@ -1189,7 +1190,7 @@ class _PreisCard extends StatelessWidget {
               _preisZeile('Netto', reinigung.preisNetto!),
             if (mwst != null)
               _preisZeile(
-                'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? '8.1'}%)',
+                'MwSt (${reinigung.mwstSatz?.toStringAsFixed(1) ?? mwstProzentAusBetraegen(reinigung.preisNetto ?? 0, mwst)}%)',
                 mwst,
               ),
             if (brutto != null) ...[

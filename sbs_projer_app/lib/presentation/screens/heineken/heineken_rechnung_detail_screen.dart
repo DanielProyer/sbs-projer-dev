@@ -22,6 +22,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
   final String rechnungId;
@@ -740,7 +741,10 @@ class _HeinekenRechnungDetailScreenState
           const SizedBox(height: 8),
           const Divider(),
           _TotalRow(label: 'Total Netto', value: r.betragNetto),
-          _TotalRow(label: 'MwSt (8.1%)', value: r.mwstBetrag),
+          _TotalRow(
+              label:
+                  'MwSt (${mwstProzentAusBetraegen(r.betragNetto, r.mwstBetrag)}%)',
+              value: r.mwstBetrag),
           _TotalRow(
             label: 'Gesamttotal inkl. MwSt',
             value: r.betragBrutto,

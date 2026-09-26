@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 
 /// Steht zur Heineken-Rechnung [rechnungId] die Ertragsbuchung aus der
 /// Freigabe (beleg_typ `rechnung`, Haben 3400), nicht storniert?
@@ -79,7 +80,11 @@ class HeinekenBuchungService {
     final netto = betraege.netto;
     final mwstBetrag = betraege.mwst;
     final brutto = betraege.brutto;
-    final mwstSatz = netto > 0 ? (mwstBetrag / netto * 100) : 8.1;
+    // Satz aus den Beträgen (Heineken ist ungerundet → exakt); ohne Netto
+    // der Normalsatz am Rechnungsdatum.
+    final mwstSatz = netto > 0
+        ? (mwstBetrag / netto * 100)
+        : await MwstSatzService.satzFuerDatum(rechnung.rechnungsdatum);
 
     final monatLabel = rechnung.heinekenMonat != null
         ? DateFormat('MM/yyyy').format(rechnung.heinekenMonat!)

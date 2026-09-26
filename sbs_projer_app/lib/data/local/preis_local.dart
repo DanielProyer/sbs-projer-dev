@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:isar/isar.dart';
 
 part 'preis_local.g.dart';
@@ -17,7 +18,7 @@ class PreisLocal {
   late String userId;
   late DateTime gueltigAb;
   DateTime? gueltigBis;
-  double mwstSatz = 8.10;
+  double mwstSatz = kMwstFaktorFallback * 100;
   double bergkundenZuschlag = 180.00;
 
   // Reinigung Grundtarife

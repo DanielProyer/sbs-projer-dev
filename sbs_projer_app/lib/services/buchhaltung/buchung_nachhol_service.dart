@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/core/util/zahlungsart.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
@@ -192,7 +193,10 @@ class BuchungNachholService {
       final art = resolveZahlungsart(r.zahlungsart, betrieb.rechnungsstellung);
       if (!brauchtErtragsbuchung(
         art: art,
-        netto: ReinigungBuchungService.netto(r),
+        // Nur «Netto > 0» zählt, und das hängt nicht vom Satz ab (positives
+        // Brutto → positives Netto bei jedem Satz) — kein Preislisten-Abruf
+        // pro Zeile. Gebucht wird mit dem Satz des Reinigungsdatums.
+        netto: ReinigungBuchungService.netto(r, kMwstFaktorFallback),
         istKulanz: r.istKulanz,
         istHeinekenMonteur: r.istHeinekenMonteur,
       )) {

@@ -6,7 +6,7 @@ import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_beleg_repository.dart';
 import 'package:sbs_projer_app/data/repositories/buchungs_vorlage_repository.dart';
-import 'package:sbs_projer_app/data/repositories/preis_repository.dart';
+import 'package:sbs_projer_app/services/buchhaltung/mwst_faktor.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -39,24 +39,25 @@ bool brauchtErtragsbuchung({
 
 class ReinigungBuchungService {
   static double _round2(double v) => (v * 100).roundToDouble() / 100;
-  static double _mwstFaktor = 0.081;
-
   /// Schweizer Rappenrundung: auf 5 Rappen (0.05 CHF) runden.
   static double _round5Rappen(double v) => (v * 20).roundToDouble() / 20;
 
   /// Netto-Betrag einer Reinigung — auch für die Nachhol-Suche, damit dort
   /// dieselbe Zahl über «buchen oder nicht» entscheidet wie hier.
-  static double netto(ReinigungLocal reinigung) => _calcNetto(reinigung);
+  /// [mwstFaktor] (Satz des Reinigungsdatums) braucht nur die
+  /// Brutto-Rückrechnung von OCR-Reinigungen.
+  static double netto(ReinigungLocal reinigung, double mwstFaktor) =>
+      _calcNetto(reinigung, mwstFaktor);
 
   /// Berechnet den tatsächlichen Netto-Betrag aus allen Komponenten.
   /// preis_netto in der DB kann unvollständig sein (nur Grundtarif).
-  static double _calcNetto(ReinigungLocal reinigung) {
+  static double _calcNetto(ReinigungLocal reinigung, double mwstFaktor) {
     final hatGrundtarif =
         reinigung.preisGrundtarif != null && reinigung.preisGrundtarif! > 0;
     if (!hatGrundtarif &&
         reinigung.preisBrutto != null &&
         reinigung.preisBrutto! > 0) {
-      return _round2(reinigung.preisBrutto! / (1 + _mwstFaktor));
+      return _round2(reinigung.preisBrutto! / (1 + mwstFaktor));
     }
     double netto = 0;
     if (hatGrundtarif) netto += reinigung.preisGrundtarif!;
@@ -78,9 +79,8 @@ class ReinigungBuchungService {
     ReinigungLocal reinigung,
     BetriebLocal betrieb,
   ) async {
-    // MwSt-Satz laden
-    final preis = await PreisRepository.getAktuell(datum: reinigung.datum);
-    if (preis != null) _mwstFaktor = preis.mwstFaktor;
+    // MwSt-Satz des Reinigungsdatums — pro Aufruf, nie aus einem Vorlauf
+    final mwstFaktor = await mwstFaktorFuer(reinigung.datum);
 
     // Massgebend ist die Zahlungsart der REINIGUNG (Ursache der 38: hier stand
     // betrieb.rechnungsstellung — heineken fiel lautlos durch, Cache veraltete).
@@ -91,7 +91,7 @@ class ReinigungBuchungService {
     final istBar = rs == 'barzahlung';
 
     // Netto aus den Komponenten rechnen (preisNetto kann unvollständig sein).
-    final netto = _calcNetto(reinigung);
+    final netto = _calcNetto(reinigung, mwstFaktor);
 
     // Einzige Stelle für «wird gebucht oder nicht» — dieselbe Funktion nutzt
     // die Nachhol-Suche, damit beide nie auseinanderlaufen.

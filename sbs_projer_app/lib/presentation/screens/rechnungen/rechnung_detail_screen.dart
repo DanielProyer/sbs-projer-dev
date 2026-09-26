@@ -35,6 +35,7 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 
 class RechnungDetailScreen extends ConsumerWidget {
   final String rechnungId;
@@ -442,7 +443,7 @@ class _RechnungDetailContentState
             children: [
               _SummenRow('Netto', _rechnung.betragNetto),
               _SummenRow(
-                'MwSt ${_rechnung.betragNetto > 0 ? (_rechnung.mwstBetrag / _rechnung.betragNetto * 100).toStringAsFixed(1) : '8.1'}%',
+                'MwSt ${mwstProzentAusBetraegen(_rechnung.betragNetto, _rechnung.mwstBetrag)}%',
                 _rechnung.mwstBetrag,
               ),
               const Divider(),

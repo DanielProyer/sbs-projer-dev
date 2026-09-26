@@ -1,3 +1,5 @@
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+
 class RechnungsPosition {
   final String id;
   final String userId;
@@ -21,7 +23,7 @@ class RechnungsPosition {
     required this.position,
     required this.beschreibung,
     required this.betragNetto,
-    this.mwstSatz = 8.10,
+    this.mwstSatz = kMwstFaktorFallback * 100,
     required this.mwstBetrag,
     required this.betragBrutto,
     this.createdAt,

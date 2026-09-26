@@ -1,3 +1,5 @@
+import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+
 /// Repräsentiert eine einzelne Position in der Heineken-Monatsrechnung.
 class HeinekenPosition {
   final DateTime datum;
@@ -58,7 +60,7 @@ class HeinekenMonatsDaten {
     this.gratisreinigungRows = const [],
     this.betriebMap = const {},
     this.materialNames = const {},
-    this.mwstFaktor = 0.081,
+    this.mwstFaktor = kMwstFaktorFallback,
   });
 
   double get totalStoerungen =>
@@ -89,6 +91,9 @@ class HeinekenMonatsDaten {
       totalGratisreinigungen;
 
   double get mwstBetrag => _round2(totalNetto * mwstFaktor);
+
+  /// Satz für die Anzeige, z. B. «8.1%» (wie `Preis.mwstLabel`).
+  String get mwstLabel => '${(mwstFaktor * 100).toStringAsFixed(1)}%';
   double get totalBrutto => _round2(totalNetto + mwstBetrag);
 
   /// Alle 8 Kategorien als geordnete Liste.
