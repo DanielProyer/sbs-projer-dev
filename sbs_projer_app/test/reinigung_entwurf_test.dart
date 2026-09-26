@@ -90,4 +90,23 @@ void main() {
   test('kurzText zeigt die Uhrzeit der Sicherung', () {
     expect(voll().kurzText(), '09:12');
   });
+
+  group('notizenZusammenfuehren', () {
+    test('leeres Feld übernimmt die Entwurfsnotiz', () {
+      expect(notizenZusammenfuehren('Hahn 3 tropft', ''), 'Hahn 3 tropft');
+      expect(notizenZusammenfuehren(null, ''), '');
+    });
+    test('Diktat bleibt erhalten, Entwurf zuerst', () {
+      expect(
+        notizenZusammenfuehren('Hahn 3 tropft', 'Keller nass'),
+        'Hahn 3 tropft\n\nKeller nass',
+      );
+    });
+    test('ohne Entwurfsnotiz bleibt das Diktat', () {
+      expect(notizenZusammenfuehren(null, 'Keller nass'), 'Keller nass');
+    });
+    test('identischer Text nur einmal', () {
+      expect(notizenZusammenfuehren('Keller nass', 'Keller nass'), 'Keller nass');
+    });
+  });
 }

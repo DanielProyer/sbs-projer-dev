@@ -9,7 +9,8 @@ class Mahnschreiben {
   final String userId;
   final String betriebId;
 
-  /// Höchste Stufe unter den enthaltenen Rechnungen (`MahnStufe.wert`).
+  /// Höchste Stufe unter den enthaltenen Rechnungen (`MahnStufe.index`,
+  /// 0/1/2 — nicht `wert`, das gilt für `rechnungen.mahnung_stufe`).
   final int stufe;
   final List<String> rechnungIds;
 

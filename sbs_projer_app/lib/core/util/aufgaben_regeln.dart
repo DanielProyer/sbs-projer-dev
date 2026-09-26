@@ -3,6 +3,8 @@
 /// 2026-07-22). Detektoren erzeugen KEINE Persistenz — sie rechnen frisch.
 library;
 
+import 'package:sbs_projer_app/core/util/tour_filter.dart';
+
 const _monate = [
   'Januar',
   'Februar',
@@ -84,6 +86,16 @@ typedef OffeneArbeit = ({
   String betriebName,
   DateTime datum,
 });
+
+/// Zählt ein Einsatz mit `arbeit_von`, aber ohne `arbeit_bis` als laufende
+/// Arbeit? Nur solange er noch offen ist ([stoerungOffen] / [montageOffen]).
+/// Ein abgeschlossener Einsatz ohne `arbeit_bis` (z. B. Montage 7ff997ec…,
+/// Status `abgeschlossen`, nur Beginn erfasst) ist erledigt — keine Aufgabe.
+/// Gefiltert wird in Dart, nicht per `.neq('status', …)` (NULL-Falle).
+bool einsatzArbeitLaeuft(String typ, String? status) {
+  if (status == null) return false;
+  return typ == 'montage' ? montageOffen(status) : stoerungOffen(status);
+}
 
 /// Laufende Arbeit von gestern (V9): `arbeit_von` gesetzt, `arbeit_bis`
 /// leer, Tag vor heute. Die Zeiterfassung dieses Einsatzes bleibt sonst

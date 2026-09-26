@@ -324,6 +324,7 @@ final draussenAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
   // b) Laufende Arbeit von gestern — «Beginn» gedrückt, «Beenden» nie.
   //    `arbeit_bis` leer per isFilter (NULL-Falle: nie neq). Der Tag des
   //    Einsatzes ist der geplante, sonst das Datum; «vor heute» in Dart.
+  //    Status ebenfalls in Dart: Abgeschlossenes ohne `arbeit_bis` zählt nicht.
   try {
     final client = SupabaseService.client;
     final ab = heute
@@ -338,7 +339,7 @@ final draussenAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     ]) {
       final rows = await client
           .from(tabelle)
-          .select('id, betrieb_id, datum, geplant_am')
+          .select('id, betrieb_id, datum, geplant_am, status')
           .not('arbeit_von', 'is', null)
           .isFilter('arbeit_bis', null)
           .gte('datum', ab)
@@ -346,6 +347,7 @@ final draussenAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
           .order('id')
           .limit(100);
       for (final r in rows) {
+        if (!einsatzArbeitLaeuft(typ, r['status'] as String?)) continue;
         final tag = DateTime.tryParse(
           (r['geplant_am'] ?? r['datum'] ?? '').toString(),
         );

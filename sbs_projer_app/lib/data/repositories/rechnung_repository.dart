@@ -91,7 +91,6 @@ class RechnungRepository {
     return Stream.fromFuture(getByBetrieb(betriebId));
   }
 
-  /// Alle offenen Rechnungen (nicht bezahlt/abgeschrieben), älteste zuerst.
   /// Anzahl offener Rechnungen — nur die Zahl, ohne eine Zeile zu laden.
   ///
   /// WARUM: Die Kennzahl im Buchhaltungs-Dashboard lud dafür alle ~5'300
@@ -111,6 +110,7 @@ class RechnungRepository {
     return res.count;
   }
 
+  /// Alle offenen Rechnungen (nicht bezahlt/abgeschrieben), älteste zuerst.
   static Future<List<Rechnung>> getOffene() async {
     final all = <Map<String, dynamic>>[];
     const pageSize = 1000;

@@ -498,6 +498,14 @@ class _MaterialBestellungScreenState
             color: hasContact ? AppColors.textSecondary : AppColors.error,
           ),
         ),
+        // Kontextbezogener Weg zur Kontaktzuweisung, nur wenn der Kontakt
+        // fehlt — kein doppelter Einstieg (Review Runde 5, war in T11 weg).
+        trailing: hasContact
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () => context.push('/heineken/zuweisungen'),
+              ),
       ),
     );
   }

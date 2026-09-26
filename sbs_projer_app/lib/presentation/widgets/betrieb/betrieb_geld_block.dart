@@ -10,7 +10,7 @@ import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
 
 /// «Geld» auf der Betriebsseite (Akte, T10): offener Saldo, Mahnstufe,
 /// Kundenguthaben. Tippen öffnet die Rechnungsliste, gesucht nach dem
-/// Betriebsnamen über alle Jahre (`/rechnungen?suche=`).
+/// Betriebsnamen über alle Jahre, nur offene (`/rechnungen?suche=&status=offen`).
 ///
 /// Nur im Web — Rechnungen und Buchungen liegen nicht in Isar.
 class BetriebGeldBlock extends ConsumerWidget {
@@ -28,9 +28,7 @@ class BetriebGeldBlock extends ConsumerWidget {
     final stand = ref.watch(betriebGeldProvider(betriebId));
     return BetriebGeldInhalt(
       stand: stand,
-      onTap: () => context.push(
-        '/rechnungen?suche=${Uri.encodeQueryComponent(betriebName)}',
-      ),
+      onTap: () => context.push(betriebOffeneRechnungenRoute(betriebName)),
     );
   }
 }

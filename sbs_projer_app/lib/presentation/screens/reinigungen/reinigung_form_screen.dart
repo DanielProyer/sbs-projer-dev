@@ -233,8 +233,12 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         // genau der Verlust, den V10 beheben soll. Die Service-Art dagegen
         // ist eine Plan-Vorgabe wie der Betrieb und markiert nichts.
         // Nach dem ersten Frame, weil `markiereGeaendert` setState ruft.
+        // Bewusst am Entwurf-Band vorbei: Das Diktat ist keine Eingabe, die
+        // einen angebotenen Entwurf verdrängen soll (siehe markiereGeaendert).
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) markiereGeaendert();
+          if (!mounted) return;
+          super.markiereGeaendert();
+          _entwurfVormerken();
         });
       }
     }
@@ -279,7 +283,23 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
   @override
   void markiereGeaendert() {
     super.markiereGeaendert();
+    // Tippt Daniel bei offenem Band einfach los, ist das der Entscheid
+    // «neu beginnen»: Sonst sicherte das Formular nichts, und beim Speichern
+    // verschwände der alte Entwurf trotzdem still (Review Runde 5).
+    if (_angebotenerEntwurf != null) _entwurfNeuBeginnen();
     _entwurfVormerken();
+  }
+
+  /// Band schliessen und den angebotenen Entwurf löschen — ohne Rückfrage,
+  /// weil die erste eigene Eingabe den Entscheid schon ausdrückt.
+  void _entwurfNeuBeginnen() {
+    final e = _angebotenerEntwurf;
+    if (e == null || !mounted) return;
+    setState(() => _angebotenerEntwurf = null);
+    final vorher = _laufendeSicherung ?? Future<void>.value();
+    _laufendeSicherung = vorher
+        .then((_) => ReinigungEntwurfSpeicher.loeschen(e.betriebId))
+        .then((_) => _heuteKarteAuffrischen());
   }
 
   void _entwurfVormerken() {
@@ -295,9 +315,15 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
     _entwurfTimer?.cancel();
     _entwurfTimer = null;
     if (!_entwurfErlaubt) return;
-    _laufendeSicherung = ReinigungEntwurfSpeicher.speichern(
-      _entwurfBauen(),
-    ).then((_) => _heuteKarteAuffrischen());
+    final entwurf = _entwurfBauen();
+    // Hinter ein evtl. noch laufendes Löschen des alten Entwurfs hängen
+    // («neu beginnen»), damit das Löschen den neuen Stand nicht erwischt.
+    final vorher = (_laufendeSicherung ?? Future<void>.value()).catchError(
+      (Object _) {},
+    );
+    _laufendeSicherung = vorher
+        .then((_) => ReinigungEntwurfSpeicher.speichern(entwurf))
+        .then((_) => _heuteKarteAuffrischen());
   }
 
   /// Die Heute-Karte zeigt «angefangen» aus dem Entwurf-Speicher — nach
@@ -414,7 +440,11 @@ class _ReinigungFormScreenState extends ConsumerState<ReinigungFormScreen>
         _rechnungsstellung = art;
         _zahlungsartManuellGewaehlt = true;
       }
-      _notizenController.text = e.notizen ?? '';
+      // Eine per Route mitgegebene Diktat-Notiz nicht überschreiben.
+      _notizenController.text = notizenZusammenfuehren(
+        e.notizen,
+        _notizenController.text,
+      );
       // Das Foto liegt schon im Speicher, im Ordner der vorab erzeugten
       // Reinigungs-ID — die ID MUSS mitkommen, sonst zeigte die Reinigung
       // auf einen fremden Ordner. Angezeigt wird es wie ein bestehendes

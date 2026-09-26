@@ -41,6 +41,25 @@ void main() {
     );
   });
 
+  test('erste Eingabe bei offenem Band beginnt neu (Review Runde 5)', () {
+    // Ohne diese Weiche sicherte das Formular bei offenem Band nichts, und
+    // beim Speichern verschwand der alte Entwurf still.
+    final text = datei.readAsStringSync();
+    final start = text.indexOf('void markiereGeaendert()');
+    expect(start, isNot(-1));
+    final ende = text.indexOf('\n  }\n', start);
+    expect(
+      text.substring(start, ende),
+      contains('if (_angebotenerEntwurf != null) _entwurfNeuBeginnen();'),
+    );
+  });
+
+  test('Fortsetzen hängt die Diktat-Notiz an statt sie zu überschreiben', () {
+    final text = datei.readAsStringSync();
+    expect(text, contains('notizenZusammenfuehren('));
+    expect(text, isNot(contains("_notizenController.text = e.notizen ?? '';")));
+  });
+
   test('Verwerfen fragt über gefahrRueckfrage nach', () {
     final text = datei.readAsStringSync();
     expect(text, contains("titel: 'Entwurf verwerfen?'"));

@@ -525,6 +525,7 @@ final router = GoRouter(
       path: '/rechnungen',
       builder: (context, state) => RechnungenListScreen(
         startSuche: state.uri.queryParameters['suche'],
+        startStatus: state.uri.queryParameters['status'],
       ),
     ),
     // MUSS vor '/rechnungen/:id' stehen — GoRouter nimmt die erste passende

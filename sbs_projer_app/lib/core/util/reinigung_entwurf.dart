@@ -140,3 +140,15 @@ class ReinigungEntwurf {
     return '${zwei(gespeichertAm.hour)}:${zwei(gespeichertAm.minute)}';
   }
 }
+
+/// Notiz beim Fortsetzen eines Entwurfs: Eine per Route mitgegebene
+/// Diktat-Notiz ([aktuell]) darf die Entwurfsnotiz nicht verdrängen und
+/// umgekehrt. Leeres Feld → Entwurfsnotiz; sonst Entwurf zuerst, Leerzeile,
+/// dann das Diktat — identischer Text nur einmal.
+String notizenZusammenfuehren(String? entwurf, String aktuell) {
+  final alt = entwurf?.trim() ?? '';
+  final neu = aktuell.trim();
+  if (neu.isEmpty) return alt;
+  if (alt.isEmpty || alt == neu) return neu;
+  return '$alt\n\n$neu';
+}

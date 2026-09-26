@@ -467,6 +467,21 @@ void _draussenTests() {
     });
   });
 
+  group('einsatzArbeitLaeuft', () {
+    test('offene Status zaehlen', () {
+      expect(einsatzArbeitLaeuft('stoerung', 'offen'), isTrue);
+      expect(einsatzArbeitLaeuft('stoerung', 'in_bearbeitung'), isTrue);
+      expect(einsatzArbeitLaeuft('montage', 'geplant'), isTrue);
+      expect(einsatzArbeitLaeuft('montage', 'in_bearbeitung'), isTrue);
+    });
+    test('abgeschlossen ohne arbeit_bis ist keine laufende Arbeit', () {
+      // Produktionsfall Montage 7ff997ec…: abgeschlossen, arbeit_bis NULL.
+      expect(einsatzArbeitLaeuft('montage', 'abgeschlossen'), isFalse);
+      expect(einsatzArbeitLaeuft('stoerung', 'abgeschlossen'), isFalse);
+      expect(einsatzArbeitLaeuft('montage', null), isFalse);
+    });
+  });
+
   group('arbeitstagOffenAufgabe', () {
     final heute = DateTime(2026, 9, 26, 7);
     test('Beginn ohne Ende -> Aufgabe zum Tourenplan jenes Tages', () {

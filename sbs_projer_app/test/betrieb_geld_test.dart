@@ -98,4 +98,14 @@ void main() {
     expect(betriebGeldStand(const [], 55.5, heute: heute).guthabenCHF, 55.5);
     expect(betriebGeldStand(const [], -3, heute: heute).guthabenCHF, 0);
   });
+
+  test('Geld-Block öffnet die offenen Rechnungen des Betriebs', () {
+    expect(
+      betriebOffeneRechnungenRoute('Pub & Bar'),
+      '/rechnungen?suche=Pub+%26+Bar&status=offen',
+    );
+    final uri = Uri.parse(betriebOffeneRechnungenRoute('Pub & Bar'));
+    expect(uri.queryParameters['suche'], 'Pub & Bar');
+    expect(uri.queryParameters['status'], 'offen');
+  });
 }

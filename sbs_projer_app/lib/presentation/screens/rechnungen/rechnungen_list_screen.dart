@@ -95,10 +95,32 @@ String? _naechsterStatus(String current) {
   }
 }
 
+/// Werte des Status-Filters (Dropdown), die auch per `?status=` kommen dürfen.
+const rechnungStatusFilterWerte = {
+  'alle',
+  'mahnfaellig',
+  'nicht_versendet',
+  'offen',
+  'erinnert',
+  'mahnung_1',
+  'mahnung_2',
+  'bezahlt',
+  'abgeschrieben',
+};
+
+/// Start-Filter aus dem Query-Parameter `status` — Unbekanntes wird «alle»,
+/// damit ein Tippfehler in einem Link die Liste nicht leer zeigt.
+String rechnungStartStatus(String? wert) =>
+    rechnungStatusFilterWerte.contains(wert) ? wert! : 'alle';
+
 class RechnungenListScreen extends ConsumerStatefulWidget {
   final String? startSuche;
 
-  const RechnungenListScreen({super.key, this.startSuche});
+  /// Start-Statusfilter (`/rechnungen?status=offen`), siehe
+  /// [rechnungStartStatus].
+  final String? startStatus;
+
+  const RechnungenListScreen({super.key, this.startSuche, this.startStatus});
 
   @override
   ConsumerState<RechnungenListScreen> createState() =>
@@ -115,6 +137,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   @override
   void initState() {
     super.initState();
+    _statusFilter = rechnungStartStatus(widget.startStatus);
     final start = widget.startSuche;
     if (start != null && start.isNotEmpty) {
       _suchController.text = start;
