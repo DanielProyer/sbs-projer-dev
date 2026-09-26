@@ -15,6 +15,17 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/rechnung_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+/// Der Versand ist laut Server NICHT erfolgt. Trägt den fertigen,
+/// nutzerlesbaren Text aus [versandMeldung] — der Aufrufer zeigt ihn statt
+/// einer allgemeinen Ketten-Meldung («Mail NICHT versendet — im
+/// Rechnungs-Detail nachholen» ist genauer als «prüfen»).
+class VersandFehler implements Exception {
+  final String text;
+  const VersandFehler(this.text);
+  @override
+  String toString() => text;
+}
+
 /// Ergebnis eines Rechnungs-/Mailversands zu einer Reinigung.
 class ReinigungVersandErgebnis {
   /// Ob eine Rechnung erstellt wurde (false = war bereits vorhanden oder
@@ -192,7 +203,7 @@ class ReinigungRechnungVersand {
         bereich: 'reinigung',
       );
 
-      final versandHinweis = await _sendeMail(rechnung.id, {
+      var versandHinweis = await _sendeMail(rechnung.id, {
           'to': empfaenger,
           'subject':
               'Rechnung Service Offenausschankanlage $betriebLabel vom $datumStr',
@@ -223,8 +234,13 @@ class ReinigungRechnungVersand {
       // idempotent (der Server hebt `offen` → `gesendet`, hier passiert bei
       // gleichem Ergebnis nichts Neues). Kommt die Antwort an, ist der Status
       // ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
-      if (MailConfig.istScharf('reinigung')) {
-        await vermerkeVersand(rechnung);
+      //
+      // NUR ohne Hinweis: Mit Hinweis kam die Antwort nicht an. Ist der Stand
+      // «unklar», wäre ein Client-Vermerk eine Behauptung ohne Beleg — die
+      // Rechnung stünde auf `gesendet` und würde nie nachgeholt. Ist sie
+      // «laut Server versendet», steht der Vermerk schon.
+      if (versandHinweis == null && MailConfig.istScharf('reinigung')) {
+        versandHinweis = await _vermerkeMitNachfrage(rechnung);
       }
 
       return _mitPdfStand(
@@ -247,7 +263,7 @@ class ReinigungRechnungVersand {
 
     if (rs == 'rechnung_post') {
       // Rechnung per Mail an Daniel selbst (zum Ausdrucken + Postversand).
-      final versandHinweis = await _sendeMail(rechnung.id, {
+      var versandHinweis = await _sendeMail(rechnung.id, {
           'to': MailConfig.testEmpfaenger, // dani.proyer@gmail.com (intern)
           'subject':
               'Post-Rechnung zum Ausdrucken: $betriebLabel vom $datumStr',
@@ -265,7 +281,8 @@ class ReinigungRechnungVersand {
       });
 
       // Versand gilt mit dem Abschluss als erfolgt (Postversand zeitnah).
-      await vermerkeVersand(rechnung);
+      // Nur ohne Hinweis — Begründung siehe Mail-Zweig oben.
+      versandHinweis ??= await _vermerkeMitNachfrage(rechnung);
 
       return _mitPdfStand(
         ReinigungVersandErgebnis(
@@ -345,8 +362,32 @@ class ReinigungRechnungVersand {
         versandStandAus(await RechnungRepository.istVersandVermerkt(rechnungId)),
         e,
       );
-      if (m.istFehler) rethrow;
-      return m.text; // Server hat den Vermerk: Mail ist raus
+      if (m.istFehler) throw VersandFehler(m.text);
+      return m.text; // Server hat den Vermerk (oder unklar): nicht erneut senden
+    }
+  }
+
+  /// [vermerkeVersand] nach erfolgreichem Mailaufruf. Scheitert der Vermerk
+  /// selbst (Netz weg), ist die Mail trotzdem raus — und der Server hat den
+  /// Vermerk seit v15 meist schon gesetzt. Deshalb auch hier nachfragen statt
+  /// werfen: sonst würde aus einer versendeten Rechnung ein roter
+  /// Kettenfehler, der zum erneuten Senden einlädt (Fix vom 14.09.2026).
+  /// Liefert null bei Erfolg, sonst den Hinweistext; wirft [VersandFehler],
+  /// wenn laut Server kein Vermerk steht.
+  static Future<String?> _vermerkeMitNachfrage(Rechnung rechnung) async {
+    try {
+      await vermerkeVersand(rechnung);
+      return null;
+    } catch (e) {
+      debugPrint('[ReinigungVersand] Vermerk-Fehler: $e');
+      final m = versandMeldung(
+        versandStandAus(
+          await RechnungRepository.istVersandVermerkt(rechnung.id),
+        ),
+        e,
+      );
+      if (m.istFehler) throw VersandFehler(m.text);
+      return m.text;
     }
   }
 

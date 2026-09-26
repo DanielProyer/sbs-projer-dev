@@ -70,16 +70,26 @@ class BergkundenpauschaleRepository {
     throw UnimplementedError('Native nicht implementiert');
   }
 
-  /// Gibt es zur Reinigung schon eine Pauschale? Die Abschlusskette läuft
-  /// auch als Nachhol-Weg (Reinigungs-Detail) und beim erneuten Abschliessen —
-  /// ohne diese Prüfung entstünde die Pauschale jedes Mal neu und würde
-  /// Heineken doppelt verrechnet.
-  static Future<bool> existiertFuerReinigung(String reinigungId) async {
+  /// Gibt es für diesen Besuch schon eine Pauschale — zur Reinigung selbst
+  /// ODER am selben Tag im selben Betrieb? Die Pauschale gilt pro Besuch
+  /// (Betrieb + Tag), nicht pro Anlage. Die Abschlusskette läuft auch als
+  /// Nachhol-Weg (Reinigungs-Detail) und beim erneuten Abschliessen — ohne
+  /// diese Prüfung entstünde die Pauschale jedes Mal neu und würde Heineken
+  /// doppelt verrechnet.
+  static Future<bool> existiertFuerBesuch({
+    required String reinigungId,
+    required String betriebId,
+    required DateTime datum,
+  }) async {
     if (kIsWeb) {
+      final tag = datum.toIso8601String().split('T').first;
       final rows = await SupabaseService.client
           .from(_table)
           .select('id')
-          .eq('reinigung_id', reinigungId)
+          .or(
+            'reinigung_id.eq.$reinigungId,'
+            'and(betrieb_id.eq.$betriebId,datum.eq.$tag)',
+          )
           .limit(1);
       return rows.isNotEmpty;
     }

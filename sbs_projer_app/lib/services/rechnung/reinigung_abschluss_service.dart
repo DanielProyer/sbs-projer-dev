@@ -79,8 +79,13 @@ class ReinigungAbschlussService {
       final erg = await ReinigungRechnungVersand.erstelleUndSende(r, betrieb);
       rechnungErstellt = erg.rechnungErstellt;
       // Ein fehlendes PDF wird immer gemeldet — auch wenn die Rechnung schon
-      // bestand (Vorfall 01.09.2026: Erfolg gemeldet, Beleg fehlte).
-      if (erg.rechnungErstellt || erg.mailGesendet || erg.pdfFehlt) {
+      // bestand (Vorfall 01.09.2026: Erfolg gemeldet, Beleg fehlte). Eine
+      // bereits vorhandene Rechnung ebenfalls: sonst stünde im
+      // Detail-Screen nur «Reinigung abgeschlossen».
+      if (erg.rechnungErstellt ||
+          erg.warVorhanden ||
+          erg.mailGesendet ||
+          erg.pdfFehlt) {
         meldungen.add(AbschlussMeldung(
           erg.meldung,
           erg.keineKundenadresse || erg.pdfFehlt || erg.hinweis
@@ -90,8 +95,12 @@ class ReinigungAbschlussService {
       }
     } catch (e) {
       debugPrint('[Abschluss] Rechnung/Versand: $e');
+      // VersandFehler trägt den genauen Server-Stand («Mail NICHT versendet
+      // — im Rechnungs-Detail nachholen»), alles andere die vorsichtige
+      // Ketten-Meldung («prüfen»).
+      final text = e is VersandFehler ? e.text : kettenFehlerMeldung(e);
       meldungen.add(AbschlussMeldung(
-        'Reinigung ist abgeschlossen. ${kettenFehlerMeldung(e)}',
+        'Reinigung ist abgeschlossen. $text',
         AbschlussStufe.fehler,
       ));
     }
@@ -152,12 +161,15 @@ class ReinigungAbschlussService {
 
     // 4. Bergkundenpauschale (wird Heineken verrechnet, nicht dem Kunden).
     //    Vorher prüfen: Die Kette läuft auch als Nachhol-Weg und beim
-    //    erneuten Abschliessen — die Pauschale darf nur einmal entstehen.
+    //    erneuten Abschliessen — die Pauschale darf nur einmal entstehen,
+    //    und zwar pro BESUCH (Betrieb + Tag), nicht pro Anlage/Reinigung.
     if (r.istBergkunde && !r.istHeinekenMonteur && r.serverId != null) {
       try {
         final vorhanden =
-            await BergkundenpauschaleRepository.existiertFuerReinigung(
-          r.serverId!,
+            await BergkundenpauschaleRepository.existiertFuerBesuch(
+          reinigungId: r.serverId!,
+          betriebId: r.betriebId,
+          datum: r.datum,
         );
         if (!vorhanden) {
           final preis = await PreisRepository.getAktuell(datum: r.datum);
