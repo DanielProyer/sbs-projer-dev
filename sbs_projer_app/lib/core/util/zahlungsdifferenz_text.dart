@@ -1,5 +1,6 @@
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/core/util/zahlung_kern_plan.dart';
 
 // Plausibilitätsprüfungen einer Zahlungszuordnung im camt-Abgleich:
@@ -113,7 +114,11 @@ DifferenzInfo bewerteDifferenz(double zahlung, double forderung,
           'wird nicht verrechnet und bleibt bestehen';
     }
   }
-  final diff = ((zahlung - vergleich) * 20).roundToDouble() / 20;
+  // Rappengenau — wie die Buchung (differenzPlan, Review Runde 3). Auf 5
+  // Rappen gerundet zeigte der Hinweis eine andere Differenz als gebucht
+  // wurde (Bankbetrag 94.03 auf 94.05: Text hätte 0 gemeldet, gebucht wurde
+  // 0.02).
+  final diff = rundeAufRappen(zahlung - vergleich);
   if (diff.abs() < 0.01) {
     return DifferenzInfo(DifferenzArt.keine, 0, false,
         guthabenHinweis: hinweis);

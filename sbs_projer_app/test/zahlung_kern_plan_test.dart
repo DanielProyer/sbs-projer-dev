@@ -144,6 +144,60 @@ void main() {
     expect(p.vorher['a']!['guthaben_verrechnet'], 0);
   });
 
+  group('Bankbetrag rappengenau (Review Runde 3)', () {
+    test('94.03 auf 94.05: Bankzeile 94.03, nur 3805 0.02, keine 2200-Zeile',
+        () {
+      final p = zahlungKernPlan(
+          rechnungen: [_r('a', 94.05)], betrag: 94.03, datum: tag, weg: ZahlungWeg.bank);
+      expect(p.buchungen.map((b) => b['soll_konto']).toList(), [1020, 3805]);
+      expect(p.buchungen[0]['betrag_brutto'], closeTo(94.03, 1e-9));
+      expect(p.buchungen[1]['betrag_brutto'], closeTo(0.02, 1e-9));
+      expect(p.updates['a']!['zahlung_betrag'], closeTo(94.05, 1e-9));
+    });
+
+    test('94.07 auf 94.05: 1020 94.05 + Mehrzahlung 0.02 auf 8000', () {
+      final p = zahlungKernPlan(
+          rechnungen: [_r('a', 94.05)], betrag: 94.07, datum: tag, weg: ZahlungWeg.bank);
+      final konten = p.buchungen.map((b) => '${b['soll_konto']}/${b['haben_konto']}').toList();
+      expect(konten, ['1020/1100', '1020/8000']);
+      expect(p.buchungen[0]['betrag_brutto'], closeTo(94.05, 1e-9));
+      expect(p.buchungen[1]['betrag_brutto'], closeTo(0.02, 1e-9));
+    });
+  });
+
+  test('Vollzahlung trotz Guthaben: keine 2030-Zeile, guthaben_verrechnet 0, Notiz an der Bankzeile',
+      () {
+    final p = zahlungKernPlan(
+        rechnungen: [_r('a', 143.75, guthaben: 30)],
+        betrag: 143.75,
+        datum: tag,
+        weg: ZahlungWeg.bank);
+    expect(p.buchungen.length, 1);
+    expect(p.buchungen.single['soll_konto'], 1020);
+    expect(p.buchungen.single['haben_konto'], 1100);
+    expect(p.updates['a']!['guthaben_verrechnet'], 0);
+    expect(p.buchungen.single['notizen'], contains('"guthaben_verrechnet":30'));
+  });
+
+  test('94.05 / Zahlung 94.00: nur 1020 94.00 + 3805 0.05, keine 2200-Zeile',
+      () {
+    final p = zahlungKernPlan(
+        rechnungen: [_r('a', 94.05)], betrag: 94.00, datum: tag, weg: ZahlungWeg.bank);
+    expect(p.buchungen.map((b) => b['soll_konto']).toList(), [1020, 3805]);
+    expect(p.buchungen[0]['betrag_brutto'], closeTo(94.00, 1e-9));
+    expect(p.buchungen[1]['betrag_brutto'], closeTo(0.05, 1e-9));
+  });
+
+  test('Sammelzahlung: updates.keys entspricht den Ids aller Rechnungen', () {
+    final p = zahlungKernPlan(
+      rechnungen: [_r('a', 100.00), _r('b', 50.00), _r('c', 25.00)],
+      betrag: 175.00,
+      datum: tag,
+      weg: ZahlungWeg.bank,
+    );
+    expect(p.updates.keys.toSet(), {'a', 'b', 'c'});
+  });
+
   group('Heineken (ungerundet, Befund B2)', () {
     Rechnung hei(double brutto) => Rechnung.fromJson({
           'id': 'h',
@@ -177,12 +231,13 @@ void main() {
     });
 
     test('abweichender Betrag, Sammlung oder Kasse: Fehler statt Plan', () {
+      // Review Runde 3: lesbarer ZahlungPlanFehler statt roher ArgumentError.
       expect(() => zahlungKernPlan(rechnungen: [hei(1081.02)], betrag: 1081.00,
-          datum: tag, weg: ZahlungWeg.bank), throwsArgumentError);
+          datum: tag, weg: ZahlungWeg.bank), throwsA(isA<ZahlungPlanFehler>()));
       expect(() => zahlungKernPlan(rechnungen: [hei(1081.02), _r('a', 10)],
-          betrag: 1091.02, datum: tag, weg: ZahlungWeg.bank), throwsArgumentError);
+          betrag: 1091.02, datum: tag, weg: ZahlungWeg.bank), throwsA(isA<ZahlungPlanFehler>()));
       expect(() => zahlungKernPlan(rechnungen: [hei(1081.02)], betrag: 1081.02,
-          datum: tag, weg: ZahlungWeg.kasse), throwsArgumentError);
+          datum: tag, weg: ZahlungWeg.kasse), throwsA(isA<ZahlungPlanFehler>()));
     });
   });
 }

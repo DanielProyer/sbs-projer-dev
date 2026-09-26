@@ -294,7 +294,7 @@ class ForderungsAbgleichService {
       }
     }
     if (bereitsBezahlt.isNotEmpty) {
-      throw Exception(
+      throw ZahlungGesperrt(
           'Nicht mehr zahlbar (bezahlt, abgeschrieben oder geändert): '
           '${bereitsBezahlt.join(', ')} — Zuordnung abgebrochen. Bitte Liste '
           'aktualisieren.');

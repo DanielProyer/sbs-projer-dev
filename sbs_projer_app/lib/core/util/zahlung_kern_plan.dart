@@ -77,6 +77,18 @@ double mwstAnteil(Rechnung r, double brutto) {
 
 const String kRechnungstypHeineken = 'heineken_monat';
 
+/// Der Heineken-Zweig lehnt eine Zahlung ab (falsche Gruppierung, falscher
+/// Weg, abweichender Betrag) — lesbarer Text statt roher `ArgumentError`
+/// (Review Runde 3). `ZahlungGesperrt` passt nicht: die liegt in
+/// `services/rechnung/zahlung_kern.dart`, dieser Fehler entsteht schon in der
+/// reinen Planung, bevor die DB überhaupt gefragt wird.
+class ZahlungPlanFehler implements Exception {
+  final String text;
+  const ZahlungPlanFehler(this.text);
+  @override
+  String toString() => text;
+}
+
 /// Heineken-Monatsrechnung: Heineken fakturiert UNGERUNDET (Befund B2
 /// 06.08.2026) und zahlt genau das Brutto — KEINE 5-Rappen-Rundung, sonst
 /// blieben auf 1100 Rappenreste stehen und 1020 wiche vom Kontoauszug ab.
@@ -85,16 +97,16 @@ const String kRechnungstypHeineken = 'heineken_monat';
 ZahlungKernPlan _heinekenPlan(List<Rechnung> rechnungen, double betrag,
     DateTime datum, ZahlungWeg weg, String? camtTxKey) {
   if (rechnungen.length != 1) {
-    throw ArgumentError(
+    throw const ZahlungPlanFehler(
         'Heineken-Rechnungen werden einzeln bezahlt, nie gemischt oder gesammelt');
   }
   if (weg != ZahlungWeg.bank) {
-    throw ArgumentError('Heineken zahlt nur per Bank');
+    throw const ZahlungPlanFehler('Heineken zahlt nur per Bank');
   }
   final r = rechnungen.single;
   final brutto = rundeAufRappen(r.betragBrutto);
   if ((rundeAufRappen(betrag) - brutto).abs() >= 0.005) {
-    throw ArgumentError('Heineken-Zahlung ${rundeAufRappen(betrag)} ≠ '
+    throw ZahlungPlanFehler('Heineken-Zahlung ${rundeAufRappen(betrag)} ≠ '
         'Rechnungsbetrag $brutto — nichts gebucht');
   }
   final m = r.heinekenMonat;

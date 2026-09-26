@@ -122,6 +122,21 @@ void main() {
     });
   });
 
+  group('differenzPlan Bankbetrag rappengenau (Review Runde 3)', () {
+    test('94.03 auf Rechnung 94.05 → Bankzeile 94.03, Minderzahlung 0.02', () {
+      final p = differenzPlan([_rg('a', 94.05)], 94.03);
+      expect(p.differenz, closeTo(-0.02, 1e-9));
+      expect(p.zeilen.single.bank, closeTo(94.03, 1e-9));
+    });
+
+    test('94.07 auf Rechnung 94.05 → Bankzeile bleibt 94.05, Mehrzahlung 0.02',
+        () {
+      final p = differenzPlan([_rg('a', 94.05)], 94.07);
+      expect(p.differenz, closeTo(0.02, 1e-9));
+      expect(p.zeilen.single.bank, closeTo(94.05, 1e-9));
+    });
+  });
+
   group('guthabenWirdVerrechnet (Review I1: Grenze = Brutto − 0.05)', () {
     test('ohne Guthaben nie', () {
       expect(

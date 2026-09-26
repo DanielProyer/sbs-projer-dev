@@ -105,7 +105,12 @@ class DifferenzPlan {
 /// - Verrechnungszeile je Rechnung mit Guthaben (nur wenn verrechnet).
 /// - Differenz gegen die Summe der Hauptzeilen-Basis.
 DifferenzPlan differenzPlan(List<Rechnung> rechnungen, double zahlbetrag) {
-  final zahlung = rundeAuf5Rappen(zahlbetrag);
+  // Der Zahlbetrag kommt von der Bank (camt) oder aus der Kasse — beides
+  // rappengenau, nie auf 5 Rappen. Nur die Rechnungsbasis («zu zahlen»
+  // /Brutto) ist 5-Rappen-gestellt (Review Runde 3, Bankbetrag-Falle
+  // 94.03 auf 94.05: 1020 wäre sonst 94.05 gebucht worden, 2 Rappen vom
+  // Kontoauszug abweichend).
+  final zahlung = rundeAufRappen(zahlbetrag);
   var summeBrutto = 0.0;
   var summeGuthaben = 0.0;
   for (final r in rechnungen) {
@@ -127,16 +132,17 @@ DifferenzPlan differenzPlan(List<Rechnung> rechnungen, double zahlbetrag) {
   final basen = [for (final r in rechnungen) basis(r)];
   final summeBasis =
       rundeAuf5Rappen(basen.fold<double>(0, (s, b) => s + b));
-  final differenz = rundeAuf5Rappen(zahlung - summeBasis);
+  final differenz = rundeAufRappen(zahlung - summeBasis);
 
-  // Verlust von hinten verteilen.
+  // Verlust von hinten verteilen — rappengenau, damit die Bankzeilen in
+  // Summe wieder exakt den (rappengenauen) Zahlbetrag ergeben.
   final bank = List<double>.of(basen);
   if (differenz < 0) {
     var rest = differenz.abs();
     for (var i = bank.length - 1; i >= 0 && rest > 0.001; i--) {
       final k = rest < bank[i] ? rest : bank[i];
-      bank[i] = rundeAuf5Rappen(bank[i] - k);
-      rest = rundeAuf5Rappen(rest - k);
+      bank[i] = rundeAufRappen(bank[i] - k);
+      rest = rundeAufRappen(rest - k);
     }
   }
 

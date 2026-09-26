@@ -5,7 +5,7 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 export 'package:sbs_projer_app/core/util/zahlung_kern_plan.dart'
-    show ZahlungWeg, MehrzahlungZiel, mehrzahlungStandard;
+    show ZahlungWeg, MehrzahlungZiel, mehrzahlungStandard, ZahlungPlanFehler;
 
 /// Die DB hat abgelehnt (Sperre) — Text ist nutzerlesbar (aus RAISE EXCEPTION).
 class ZahlungGesperrt implements Exception {
@@ -90,6 +90,9 @@ class ZahlungKern {
   }
 
   /// Nutzerlesbarer Text: eigene Sperren voll, alles andere gekürzt.
-  static String meldung(Object e) =>
-      e is ZahlungGesperrt ? e.text : kurzeFehlermeldung(e);
+  static String meldung(Object e) => e is ZahlungGesperrt
+      ? e.text
+      : e is ZahlungPlanFehler
+          ? e.text
+          : kurzeFehlermeldung(e);
 }
