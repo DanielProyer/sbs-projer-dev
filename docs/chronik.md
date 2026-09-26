@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 26.09.2026 — v0.143.0 Analyse-Runde 4: Bausteine & Aufräumen (−3700 Zeilen netto)
 - 26.09.2026 — v0.142.0 ZahlungKern: ein Zahlungsweg, atomar (Migration 209)
 - 26.09.2026 — v0.141.0 Betriebsferien aus der Tabelle (R7), Kalender-Schlüssel nach Datum
 - 26.09.2026 — v0.140.0 Analyse-Runde 2 Teil 1: eine Abschlusskette (R1, T1, T5, T6)
@@ -28,6 +29,49 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 26.09.2026 — v0.143.0 Analyse-Runde 4: Bausteine & Aufräumen
+
+Plan `docs/superpowers/plans/2026-09-26-runde4-bausteine.md`. Keine Migration.
+`lib/`: +2211 / −5918 Zeilen. Verhaltensneutral bis auf die unten genannten
+Korrekturen.
+
+- **Toter Code weg:** 18 Dateien (u. a. das alte Reinigungsprotokoll-PDF,
+  camt-Import-Vorgänger, System-Diagramme, alter Kontakt-Screen) und 42
+  Funktionen/Provider/Repository-Methoden ohne Aufrufer; `riverpod_annotation`
+  und `riverpod_generator` aus der pubspec; Gast-Redirects auf `/einsaetze`.
+- **`flutter analyze` 56 → 14:** `.g.dart` ausgeschlossen, `context.mounted`
+  einheitlich, Klammern, Doc-Kommentare. Übrig: 6× `initialValue` (braucht
+  Sichtprüfung), 8× `dart:html` (eigener Umbau).
+- **Wächter:** `Zahlungsstatus`-Konstante gegen den DB-CHECK (083);
+  CanvasKit-Ratsche über alle Screens (Material-Knöpfe dürfen nur weniger
+  werden, keine in AppBar-Aktionen); Migrationsnummern (keine neuen Doppel/
+  Lücken); eine Datumsauswahl; eine 5-Rappen-Rundung; Firmendaten nur an einer
+  Stelle; Formular- und Detail-Bausteine.
+- **Bausteine:** `zeigeDatumsauswahl` (29 Aufrufe), `DetailKarte`/`InfoZeile`
+  (8 Detailseiten), `BetriebFeld` (5 Formulare), `ArbeitszeitBlock` (Störung,
+  Montage), `MaterialSlots` (Störung, Montage, Eigenauftrag).
+- **Korrekturen mit Wirkung:** MwSt-Satz wird pro Aufruf aus dem Datum
+  bestimmt statt aus einem statischen Feld (vorher konnte der Satz eines
+  früheren Aufrufs gelten); Jahresrechnungs-Vorschau rechnet mit dem Satz des
+  gewählten Jahres; Ertragsbuchung einer Reinigung nimmt den Satz des
+  Reinigungsdatums statt fix 8.1 % aus der Buchungsvorlage (vor 2024 liefen
+  Rechnung und Buchung sonst auseinander); Eigenauftrag gab einen Controller
+  doppelt frei.
+- **Zahlungsdaten fest:** IBAN und Zahlungsempfänger im QR-Zahlteil, in
+  Rechnungs-/Mahn-/Kontoauszug-/Heineken-PDF, im Rechnungsdetail und im
+  QR-Dialog kommen aus der Konstante in `GeschaeftEinstellungen`, nie aus der
+  DB (eine geänderte Einstellung darf kein Geld auf ein fremdes Konto lenken).
+  Übrige Firmendaten (Absender, Telefon, MWST-Nr.) aus der DB mit Rückfall.
+- Kosmetisch: Telefon im Heineken-PDF und in der Mail-Signatur als
+  «076 566 58 06»; Betriebsvorschläge in Eigenauftrag/Eröffnung 400 px breit.
+- Browser geprüft: Störung (Betriebssuche, Material-Suche), Montage,
+  Eigenauftrag, Rechnungsdetail (IBAN, MwSt 8.1 %).
+- Nicht in dieser Runde: Isar einfrieren (offene Frage an Daniel),
+  `dart:html`, `initialValue`, «Arbeit beginnen» noch Material-Knopf.
+- 2415 Tests grün, `flutter analyze` 14.
 
 ---
 

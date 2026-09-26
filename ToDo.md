@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.142.0 live** (Analyse-Runde 3: ZahlungKern — ein Zahlungsweg, atomar) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2375 Tests grün**.
+**Stand:** **v0.143.0 live** (Analyse-Runde 4: Bausteine & Aufräumen) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2415 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,18 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.143.0** — Störung und Montage neu anlegen: Betrieb suchen und wählen,
+  «Arbeit beginnen»/«beenden» (Timer läuft, Zeiten übernommen), Material
+  suchen; Eigenauftrag mit Material; ein Datum wählen (z. B. Betrieb →
+  Saison). Rechnungs-PDF öffnen: QR-Zahlteil und Fuss unverändert. **Offen
+  (Folgearbeit):** Isar einfrieren? (Entscheid Daniel — widerspricht heute
+  der Regel «nativen Pfad als Android-Vorlage pflegen»); `dart:html` →
+  `package:web` (8); `value` → `initialValue` mit Sichtprüfung (6);
+  «Arbeit beginnen» auf TapKnopf; Repository-Methoden, die durch das Löschen
+  toter Provider selbst aufruferlos wurden (z. B. `watchByBetrieb` einiger
+  Repos); statische `_heinekenPoNummer`/`_anfahrtPauschale` im
+  Heineken-Service (gleiches Muster wie der MwSt-Fehler).
 
 - **v0.142.0 — ✅ vier Buchhaltungs-Entscheide von Daniel bestätigt
   (26.09.2026)**, so gebaut: ① Minderzahlung erlassen = 3805
