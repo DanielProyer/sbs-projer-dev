@@ -171,6 +171,34 @@ class StoerungRepository {
     await save(local);
   }
 
+  /// Setzt NUR das Plandatum (`geplant_am`) um — Zeit und Dauer bleiben, wie
+  /// sie in der DB stehen. Für «Auf anderen Tag verschieben» im Tourenplan:
+  /// [einplanen] schrieb dort Zeit und Dauer aus dem Plan-Eintrag mit, und
+  /// weil das Plan-JSON `geplantDauerMin` nicht speichert, schrumpfte ein
+  /// 180-min-Einsatz auf 60 min — auch im Google-Kalender (Review
+  /// 26.09.2026). Kalender-Push wie bei [einplanen].
+  static Future<void> umplanenAufTag({
+    required String id,
+    required DateTime tag,
+  }) async {
+    final geplantAm = tag.toIso8601String().split('T').first;
+    if (kIsWeb) {
+      await SupabaseService.client
+          .from('stoerungen')
+          .update({'geplant_am': geplantAm})
+          .eq('id', id);
+      await GoogleCalendarSyncService.push(
+        'einsatz',
+        GoogleCalendarSyncService.einsatzEntityId(istStoerung: true, id: id),
+      );
+      return;
+    }
+    final local = await IsarService.stoerungGet(int.parse(id));
+    if (local == null) return;
+    local.geplantAm = tag;
+    await save(local);
+  }
+
   /// Setzt die tatsaechliche Arbeitszeit.
   ///
   /// ACHTUNG: Beide Werte werden geschrieben, auch `null`. Wer nur das Ende

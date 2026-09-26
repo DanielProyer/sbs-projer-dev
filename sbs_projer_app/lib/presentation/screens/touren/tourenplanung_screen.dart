@@ -1079,7 +1079,7 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     var angehaengt = false;
     try {
       await _mitSperre(() async {
-        einsaetzeUmgeplant = await _einsaetzeAufTagEinplanen(
+        einsaetzeUmgeplant = await _einsaetzeAufTagUmplanen(
           ref,
           eintraege,
           ziel,
@@ -2398,26 +2398,24 @@ void _einsatzEinplanungZurueckschreiben(
   }
 }
 
-/// Ist der Eintrag ein Störungs-/Montage-Einsatz mit eigenem `geplant_am`
-/// (Präfix `s_`/`m_`)? HeiGenie läuft als Montage und zählt mit — bliebe sein
-/// `geplant_am` stehen, tauchte er am alten Tag wieder als fällig auf.
-bool _istEinsatzMitPlandatum(TourEintrag e) =>
-    e.typ != TourEintragTyp.reinigung &&
-    (e.id.startsWith('s_') || e.id.startsWith('m_'));
-
 /// Plan-Eintrag für den Zieltag; bei Einsätzen zieht `geplantAm` mit.
 TourEintrag _alsVerschobenerEintrag(TourEintrag e, DateTime ziel) {
   final plan = e.alsPlanEintrag();
-  return _istEinsatzMitPlandatum(e) ? plan.copyWith(geplantAm: ziel) : plan;
+  return geplanteEinsatzId(e) != null ? plan.copyWith(geplantAm: ziel) : plan;
 }
 
-/// Schreibt das neue Plandatum an alle Störungen/Montagen unter [eintraege]
-/// (Anker-Zeit und Dauer bleiben) und frischt deren Listen auf. Anders als
-/// [_einsatzEinplanungZurueckschreiben] wird gewartet — schlägt es fehl,
-/// bricht das Verschieben ab, bevor der Plan angefasst wird. Liefert die
-/// Zahl der umgeplanten Einsätze (für eine ehrliche Fehlermeldung, falls ein
-/// späterer Schritt scheitert).
-Future<int> _einsaetzeAufTagEinplanen(
+/// Setzt das Plandatum aller Störungen/Montagen (inkl. HeiGenie) unter
+/// [eintraege] auf [ziel] und frischt deren Listen auf. Nur `geplant_am` —
+/// Zeit und Dauer bleiben, wie sie am Einsatz stehen (`umplanenAufTag`;
+/// früher überschrieb `einplanen` sie mit den Plan-Werten, eine 180-min-
+/// Montage schrumpfte so auf 60 min). HeiGenie zählt mit: bliebe sein
+/// `geplant_am` stehen, tauchte er am alten Tag wieder als fällig auf.
+///
+/// Anders als [_einsatzEinplanungZurueckschreiben] wird gewartet — schlägt
+/// es fehl, bricht das Verschieben ab, bevor der Plan angefasst wird.
+/// Liefert die Zahl der umgeplanten Einsätze (für eine ehrliche
+/// Fehlermeldung, falls ein späterer Schritt scheitert).
+Future<int> _einsaetzeAufTagUmplanen(
   WidgetRef ref,
   List<TourEintrag> eintraege,
   DateTime ziel,
@@ -2426,28 +2424,15 @@ Future<int> _einsaetzeAufTagEinplanen(
   var montagen = false;
   final auftraege = <Future<void>>[];
   for (final e in eintraege) {
-    if (!_istEinsatzMitPlandatum(e)) continue;
-    final dauer = e.dauerMinuten ?? kDauerDefaultMinuten;
-    if (e.id.startsWith('s_')) {
+    final id = geplanteEinsatzId(e);
+    if (id == null) continue;
+    if (e.typ == TourEintragTyp.stoerung) {
       stoerungen = true;
-      auftraege.add(
-        StoerungRepository.einplanen(
-          id: e.id.substring(2),
-          tag: ziel,
-          zeit: e.ankerZeit,
-          dauerMin: dauer,
-        ),
-      );
+      auftraege.add(StoerungRepository.umplanenAufTag(id: id, tag: ziel));
     } else {
+      // montage und heigenie — beide aus der `montagen`-Tabelle.
       montagen = true;
-      auftraege.add(
-        MontageRepository.einplanen(
-          id: e.id.substring(2),
-          tag: ziel,
-          zeit: e.ankerZeit,
-          dauerMin: dauer,
-        ),
-      );
+      auftraege.add(MontageRepository.umplanenAufTag(id: id, tag: ziel));
     }
   }
   if (auftraege.isEmpty) return 0;
