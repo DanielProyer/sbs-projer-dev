@@ -1,14 +1,30 @@
+import 'dart:math' as math;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/material_filter.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
+import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
+import 'package:sbs_projer_app/data/repositories/material_artikel_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
-import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/screens/materialien/widgets/material_karte.dart';
+import 'package:sbs_projer_app/presentation/screens/materialien/widgets/material_kategorie_chips.dart';
+import 'package:sbs_projer_app/services/storage/material_ansicht_speicher.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
+/// Materialliste mit Kategorie-Chips und zwei Ansichten: Liste und Karten,
+/// durch die man wischt (Vorbild: v2-Materialkatalog der Heineken-App, ohne
+/// dessen Fehler — Controller im State statt im build, Karten mit Key,
+/// kein Trefferdeckel, Filterwechsel auf Seite 0).
 class MaterialienListScreen extends ConsumerStatefulWidget {
-  const MaterialienListScreen({super.key});
+  /// Nur für Tests: im Widget-Test gibt es keinen Supabase-Client, und
+  /// `SupabaseService.isGuest` würfe. null → zur Laufzeit aus der Sitzung.
+  final bool? istGast;
+
+  const MaterialienListScreen({super.key, this.istGast});
 
   @override
   ConsumerState<MaterialienListScreen> createState() =>
@@ -17,63 +33,159 @@ class MaterialienListScreen extends ConsumerStatefulWidget {
 
 class _MaterialienListScreenState
     extends ConsumerState<MaterialienListScreen> {
-  String _searchQuery = '';
-  String _kategorieFilter = 'alle';
+  String _suche = '';
+  String? _kategorie;
   bool _nurNiedrig = false;
+  MaterialAnsicht _ansicht = MaterialAnsicht.liste;
+  int _karte = 0;
+
+  // Im State, nicht im build: ein im build erzeugter Controller leckt bei
+  // jedem Rebuild und schneidet laufende Wischgesten ab (v2-Fehler).
+  PageController _seiten = PageController();
+
+  /// Signierte Foto-URLs je materialId — sonst holte jede neu gebaute Karte
+  /// (jedes Wischen, jedes Bestand ±) das Foto erneut.
+  final _fotoUrls = <String, Future<String?>>{};
+
+  /// Im Niedrig-Filter auf der Karte geänderte Artikel (siehe
+  /// [MaterialFilter.behalten]); gilt bis zum nächsten Filterwechsel.
+  final _behalten = <String>{};
+
+  bool get _istGast => widget.istGast ?? SupabaseService.isGuest;
+
+  @override
+  void initState() {
+    super.initState();
+    _ladeGemerktes();
+  }
+
+  @override
+  void dispose() {
+    _seiten.dispose();
+    super.dispose();
+  }
+
+  Future<void> _ladeGemerktes() async {
+    final g = await MaterialAnsichtSpeicher.lade();
+    if (!mounted) return;
+    setState(() {
+      _ansicht = g.ansicht;
+      _kategorie = g.kategorieId;
+    });
+  }
+
+  /// Bringt den PageView auf Seite [i]. Hängt der Controller an keinem
+  /// PageView (Liste oder «keine Treffer» sichtbar), wird er ersetzt — sonst
+  /// startete der nächste PageView an der alten `initialPage`.
+  void _seitenAuf(int i) {
+    if (_seiten.hasClients) {
+      _seiten.jumpToPage(i);
+    } else {
+      _seiten.dispose();
+      _seiten = PageController(initialPage: i);
+    }
+  }
+
+  void _filterGeaendert(VoidCallback aenderung) {
+    setState(() {
+      aenderung();
+      _karte = 0;
+      _behalten.clear();
+    });
+    _seitenAuf(0);
+  }
+
+  /// Karten an [i] zeigen. Speichert die Ansicht NICHT: der Tipp auf eine
+  /// Listenzeile ist ein vorübergehender Drill-in.
+  void _zeigeKarten(int i) {
+    _seitenAuf(i);
+    setState(() {
+      _ansicht = MaterialAnsicht.karten;
+      _karte = i;
+    });
+  }
+
+  void _umschalten(int anzahl) {
+    if (_ansicht == MaterialAnsicht.liste) {
+      _zeigeKarten(anzahl == 0 ? 0 : _karte.clamp(0, anzahl - 1));
+      MaterialAnsichtSpeicher.speichereAnsicht(MaterialAnsicht.karten);
+    } else {
+      // Der Controller bleibt; er löst sich mit dem PageView von selbst.
+      setState(() => _ansicht = MaterialAnsicht.liste);
+      MaterialAnsichtSpeicher.speichereAnsicht(MaterialAnsicht.liste);
+    }
+  }
+
+  Future<String?> _fotoUrl(Lager l) {
+    final materialId = l.materialId;
+    if (materialId == null) return Future.value(null);
+    return _fotoUrls.putIfAbsent(materialId, () async {
+      try {
+        final a = await MaterialArtikelRepository.getById(materialId);
+        final pfad = a?.fotoStoragePath;
+        if (pfad == null) return null;
+        // `await`, damit auch ein Fehler hier im catch landet — ein Foto
+        // darf die Karte nie stören.
+        return await MaterialArtikelRepository.getSignedUrlPreview(pfad);
+      } catch (_) {
+        return null;
+      }
+    });
+  }
+
+  // Fehler gehen bewusst an die Karte durch — sie setzt die Anzeige zurück.
+  // Den Container vor dem await holen: Ist der Screen danach schon zu, darf
+  // das Neuladen trotzdem laufen (Badge «N niedrig» in der Leiste), `ref`
+  // wäre dann aber nicht mehr benutzbar.
+  Future<void> _speichereBestand(Lager l, double neu) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    _behalten.add(l.id);
+    await LagerRepository.update(l.id, {'bestand_aktuell': neu});
+    container.invalidate(materialienStreamProvider);
+  }
+
+  Future<void> _speichereVormerken(Lager l, bool v) async {
+    final container = ProviderScope.containerOf(context, listen: false);
+    await LagerRepository.toggleVorgemerkt(l.id, v);
+    container.invalidate(materialienStreamProvider);
+  }
 
   @override
   Widget build(BuildContext context) {
     final materialien = ref.watch(materialienProvider);
-    final kategorienAsync = ref.watch(kategorienProvider);
-    final kategorien = kategorienAsync.valueOrNull ?? [];
+    final kategorien = ref.watch(kategorienProvider).valueOrNull ?? [];
+    final niedrigAnzahl = ref.watch(niedrigCountProvider);
 
-    // Kategorie-Name Lookup
-    final kategorieNames = <String, String>{};
-    for (final k in kategorien) {
-      kategorieNames[k.id] = k.name;
-    }
-
-    // In Materialien tatsächlich verwendete Kategorien (für den Filter).
-    final usedIds =
-        materialien.map((m) => m.kategorieId).whereType<String>().toSet();
-    final usedKategorien =
-        kategorien.where((k) => usedIds.contains(k.id)).toList();
-    // Zombie-Schutz: gewählte Kategorie nur, wenn sie noch als Option existiert.
-    final effektiveKategorie =
-        usedKategorien.any((k) => k.id == _kategorieFilter)
-            ? _kategorieFilter
-            : 'alle';
-
-    // Filter
-    final filtered = materialien.where((l) {
-      if (_nurNiedrig && l.bestandNiedrig != true) return false;
-      if (effektiveKategorie != 'alle' && l.kategorieId != effektiveKategorie) {
-        return false;
-      }
-      if (_searchQuery.isNotEmpty) {
-        final query = _searchQuery.toLowerCase();
-        return l.name.toLowerCase().contains(query) ||
-            (l.dboNr?.toLowerCase().contains(query) ?? false) ||
-            (l.sapNr?.toLowerCase().contains(query) ?? false) ||
-            (l.beschreibung?.toLowerCase().contains(query) ?? false) ||
-            (l.notizen?.toLowerCase().contains(query) ?? false) ||
-            (l.lieferant?.toLowerCase().contains(query) ?? false);
-      }
-      return true;
-    }).toList()
-      ..sort((a, b) {
-        final aDbo = a.dboNr ?? '';
-        final bDbo = b.dboNr ?? '';
-        if (aDbo.isEmpty && bDbo.isEmpty) return a.name.compareTo(b.name);
-        if (aDbo.isEmpty) return 1;
-        if (bDbo.isEmpty) return -1;
-        return aDbo.compareTo(bDbo);
-      });
+    final kategorieNamen = <String, String>{
+      for (final k in kategorien) k.id: k.name,
+    };
+    final chips = kategorieChips(kategorien, materialien);
+    // Die gemerkte Kategorie bleibt in `_kategorie`, auch wenn sie gerade
+    // nicht wirkt (Kategorien noch nicht geladen) — nichts wird vergessen.
+    final wirksam = wirksameKategorie(_kategorie, chips);
+    final gefiltert = filtereMaterial(
+      materialien,
+      MaterialFilter(
+        suche: _suche,
+        kategorieId: wirksam,
+        nurNiedrig: _nurNiedrig,
+        behalten: _behalten,
+      ),
+    );
+    final karten = _ansicht == MaterialAnsicht.karten;
+    final zaehlerStil = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.textSecondary,
+        );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Material'),
         actions: [
+          IconButton(
+            icon: Icon(karten ? Icons.view_list : Icons.view_carousel),
+            tooltip: karten ? 'Liste' : 'Karten',
+            onPressed: () => _umschalten(gefiltert.length),
+          ),
           IconButton(
             icon: const Icon(Icons.receipt_long),
             tooltip: 'Bestellungen',
@@ -89,68 +201,55 @@ class _MaterialienListScreenState
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: SearchBar(
               hintText: 'Material suchen...',
               leading: const Padding(
                 padding: EdgeInsets.only(left: 8),
                 child: Icon(Icons.search, size: 20),
               ),
-              onChanged: (value) =>
-                  setState(() => _searchQuery = value),
+              onChanged: (value) => _filterGeaendert(() => _suche = value),
             ),
           ),
-          AppFilterBar(
-            items: [
-              AppFilterDropdown<String>(
-                hint: 'Alle Kategorien',
-                value: effektiveKategorie == 'alle' ? null : effektiveKategorie,
-                options: [
-                  for (final k in usedKategorien) (k.id, k.name),
-                ],
-                onChanged: (v) => setState(() => _kategorieFilter = v ?? 'alle'),
-              ),
-              AppFilterToggle(
-                label: 'Nur niedrig',
-                value: _nurNiedrig,
-                onChanged: (v) => setState(() => _nurNiedrig = v),
-              ),
-            ],
+          MaterialKategorieChips(
+            chips: chips,
+            gewaehlt: wirksam,
+            nurNiedrig: _nurNiedrig,
+            niedrigAnzahl: niedrigAnzahl,
+            onKategorie: (id) {
+              _filterGeaendert(() => _kategorie = id);
+              MaterialAnsichtSpeicher.speichereKategorie(id);
+            },
+            onNurNiedrig: (v) => _filterGeaendert(() => _nurNiedrig = v),
           ),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${filtered.length} Materialien',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: karten && gefiltert.isNotEmpty
+                ? Center(
+                    child: Text(
+                      '${math.min(_karte, gefiltert.length - 1) + 1} / '
+                      '${gefiltert.length}',
+                      style: zaehlerStil,
                     ),
-              ),
-            ),
+                  )
+                : Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${gefiltert.length} Materialien',
+                      style: zaehlerStil,
+                    ),
+                  ),
           ),
           Expanded(
-            child: filtered.isEmpty
-                ? _buildEmpty()
-                : ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final lager = filtered[index];
-                      return _MaterialListItem(
-                        lager: lager,
-                        kategorieName: lager.kategorieId != null
-                            ? kategorieNames[lager.kategorieId]
-                            : null,
-                        onTap: () =>
-                            context.push('/materialien/${lager.id}'),
-                      );
-                    },
-                  ),
+            child: gefiltert.isEmpty
+                ? _buildEmpty(filterAktiv: wirksam != null)
+                : karten
+                ? _buildKarten(gefiltert, kategorieNamen)
+                : _buildListe(gefiltert, kategorieNamen),
           ),
         ],
       ),
-      floatingActionButton: SupabaseService.isGuest
+      floatingActionButton: _istGast
           ? null
           : FloatingActionButton(
               onPressed: () => context.push('/materialien/neu'),
@@ -159,8 +258,59 @@ class _MaterialienListScreenState
     );
   }
 
+  Widget _buildKarten(List<Lager> gefiltert, Map<String, String> kategorieNamen) {
+    // Maus mit dazu: Flutter wischt Scrollables von Haus aus nur per
+    // Touch/Stift — am PC-Browser käme man sonst nur über die Liste zur
+    // nächsten Karte.
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: PointerDeviceKind.values.toSet(),
+      ),
+      child: PageView.builder(
+        controller: _seiten,
+        itemCount: gefiltert.length,
+        onPageChanged: (i) => setState(() => _karte = i),
+        itemBuilder: (context, i) {
+          final l = gefiltert[i];
+          return MaterialKarte(
+            // Key je Artikel: Nach einem Filterwechsel oder Neuladen gehörte
+            // der lokale Bestand/Vormerk-Zustand sonst plötzlich zur Karte
+            // eines anderen Artikels.
+            key: ValueKey(l.id),
+            lager: l,
+            kategorieName:
+                l.kategorieId != null ? kategorieNamen[l.kategorieId] : null,
+            fotoUrl: _fotoUrl(l),
+            bearbeitbar: !_istGast,
+            onBestand: (neu) => _speichereBestand(l, neu),
+            onVormerken: (v) => _speichereVormerken(l, v),
+            onDetails: () => context.push('/materialien/${l.id}'),
+          );
+        },
+      ),
+    );
+  }
 
-  Widget _buildEmpty() {
+  Widget _buildListe(List<Lager> gefiltert, Map<String, String> kategorieNamen) {
+    return ListView.builder(
+      // Hält die Scrollposition, wenn man aus den Karten zurückkommt (die
+      // Liste wird dabei neu aufgebaut).
+      key: const PageStorageKey('material_liste'),
+      itemCount: gefiltert.length,
+      itemBuilder: (context, index) {
+        final lager = gefiltert[index];
+        return _MaterialListItem(
+          lager: lager,
+          kategorieName: lager.kategorieId != null
+              ? kategorieNamen[lager.kategorieId]
+              : null,
+          onTap: () => _zeigeKarten(index),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmpty({required bool filterAktiv}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -169,7 +319,7 @@ class _MaterialienListScreenState
               size: 64, color: AppColors.textSecondary.withAlpha(100)),
           const SizedBox(height: 16),
           Text(
-            _searchQuery.isNotEmpty || _nurNiedrig
+            _suche.isNotEmpty || _nurNiedrig || filterAktiv
                 ? 'Keine Ergebnisse'
                 : 'Noch keine Materialien',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
