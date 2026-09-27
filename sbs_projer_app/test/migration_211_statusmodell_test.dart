@@ -69,15 +69,23 @@ void main() {
     expect(snap, lessThan(pos(RegExp(r'UPDATE rechnungen\s+SET mahnung_stufe'))));
   });
 
-  test('freigegeben_am: Spalte, Buchungsdatum sonst updated_at, auch bezahlte '
-      'Heineken — VOR dem Umschreiben (updated_at-Trigger)', () {
+  test('freigegeben_am: Spalte, Buchungsdatum → Zahlungsdatum → Rechnungsdatum '
+      '(nie updated_at = Importtag), auch bezahlte Heineken — VOR dem '
+      'Umschreiben', () {
     expect(sql, contains('ADD COLUMN IF NOT EXISTS freigegeben_am TIMESTAMPTZ'));
     final setzen = pos('SET freigegeben_am = coalesce(');
     final teil = sql.substring(setzen, sql.indexOf(';', setzen));
     expect(teil, contains("b.beleg_typ = 'rechnung'"));
     expect(teil, contains('b.soll_konto = 1100'));
     expect(teil, contains('min(b.datum)'));
-    expect(teil, contains('r.updated_at'));
+    // Reihenfolge im coalesce: Buchung, Zahlungseingang, Rechnungsdatum.
+    final buchung = teil.indexOf('min(b.datum)');
+    final zahlung = teil.indexOf('r.zahlung_eingegangen_am::timestamptz');
+    final rdatum = teil.indexOf('r.rechnungsdatum::timestamptz');
+    expect(zahlung, greaterThan(buchung));
+    expect(rdatum, greaterThan(zahlung));
+    // updated_at ist bei 79 Import-Rechnungen der Importtag 14.07.2026.
+    expect(teil, isNot(contains('updated_at')));
     expect(teil, contains("r.zahlungsstatus = 'freigegeben'"));
     expect(teil, contains("r.rechnungstyp = 'heineken_monat'"));
     expect(teil, contains("r.zahlungsstatus = 'bezahlt'"));
@@ -167,6 +175,81 @@ void main() {
     for (final alt in ['gesendet', 'erinnert', 'mahnung_1', 'mahnung_2']) {
       expect(v, isNot(contains("'$alt'")), reason: alt);
     }
+  });
+
+  test('Kopfvermerk: nur als EIN apply_migration-Aufruf (atomar)', () {
+    final kopf = roh.substring(0, roh.indexOf('WARUM:'));
+    expect(kopf, contains('apply_migration'));
+    expect(kopf, contains('atomar'));
+    expect(kopf, contains('BEGIN;'));
+    expect(kopf, contains('COMMIT;'));
+  });
+
+  group('Rückweg (Kommentar am Ende)', () {
+    late String rueck;
+    setUpAll(() {
+      final start = roh.indexOf('RÜCKWEG (nur im Notfall');
+      expect(start, isNot(-1));
+      rueck = roh.substring(start);
+    });
+
+    String statement(String anfang) {
+      final i = rueck.indexOf(anfang);
+      expect(i, isNot(-1), reason: 'nicht gefunden: $anfang');
+      return rueck.substring(i, rueck.indexOf(';', i));
+    }
+
+    test('nur heute offene Rechnungen, nie bezahlt/abgeschrieben aus dem '
+        'Snapshot', () {
+      final u = statement('update rechnungen r set zahlungsstatus = case');
+      expect(u, contains("r.zahlungsstatus = 'offen'"));
+      // Der Snapshot-Status wird nie 1:1 übernommen — sonst käme eine nach
+      // 211 zurückgenommene Zahlung als «bezahlt» zurück.
+      expect(u, isNot(contains('= s.zahlungsstatus')));
+      expect(u, isNot(contains('then x.s_status')));
+      expect(u, isNot(contains("then 'bezahlt'")));
+      expect(u, isNot(contains("then 'abgeschrieben'")));
+      // Kein zweites Status-Update, das den Snapshot ungefiltert übernimmt.
+      expect(
+        RegExp('update rechnungen r set zahlungsstatus').allMatches(rueck).length,
+        1,
+      );
+    });
+
+    test('Mahnstufe vor Zustellung: nach 211 gemahnt → erinnert/mahnung_x, '
+        'nicht gesendet', () {
+      final u = statement('update rechnungen r set zahlungsstatus = case');
+      final m2 = u.indexOf("r.mahnung_stufe >= 3 then 'mahnung_2'");
+      final m1 = u.indexOf("r.mahnung_stufe = 2  then 'mahnung_1'");
+      final er = u.indexOf("r.mahnung_stufe = 1  then 'erinnert'");
+      final ge = u.indexOf("then 'gesendet'");
+      for (final i in [m2, m1, er, ge]) {
+        expect(i, isNot(-1), reason: u);
+      }
+      expect(m2, lessThan(ge));
+      expect(m1, lessThan(ge));
+      expect(er, lessThan(ge));
+      // Heineken-Freigabe aus dem Feld (kennt auch «Auf gesendet zurücksetzen»).
+      expect(
+        u,
+        contains(
+          "r.rechnungstyp = 'heineken_monat' and r.freigegeben_am is not null "
+          "then 'freigegeben'",
+        ),
+      );
+    });
+
+    test('Zahlungsgruppen nach 211 (vorher.zahlungsstatus = offen) werden '
+        'nachgezogen, solange freigegeben_am noch da ist', () {
+      expect(rueck, contains("vorher.zahlungsstatus = 'offen'"));
+      final g = statement('update zahlungsgruppen g set vorher');
+      expect(g, contains('g.zurueckgenommen_am is null'));
+      expect(g, contains('snapshot_am'));
+      expect(
+        rueck.indexOf('update zahlungsgruppen g set vorher'),
+        lessThan(rueck.indexOf('drop column freigegeben_am')),
+      );
+    });
   });
 
   test('Prüf-Queries am Ende (vorher/nachher, nichts ausserhalb des CHECK)', () {

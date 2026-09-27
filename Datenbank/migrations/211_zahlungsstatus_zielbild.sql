@@ -1,5 +1,14 @@
 -- 211: Statusmodell der Rechnung — Zielbild (Entscheid Daniel 27.09.2026)
 --
+-- ⚠️ AUSFÜHREN: nur als EIN Aufruf über `apply_migration` (läuft atomar in
+-- einer Transaktion). Im SQL-Editor oder über psql die GANZE Datei mit
+-- `BEGIN;` … `COMMIT;` klammern — nie abschnittsweise. Bricht ein Teil ab
+-- (z. B. der CHECK in Schritt 4 an einer unerwarteten Zeile), bliebe sonst
+-- ein halber Umbau stehen: Snapshot angelegt, Werte umgeschrieben, aber
+-- alter CHECK und alte Funktionen — und ein zweiter Lauf scheitert am
+-- bestehenden Snapshot. (Die Datei selbst enthält kein BEGIN/COMMIT, wie
+-- alle Migrationen hier: apply_migration klammert selbst.)
+--
 -- WARUM: `rechnungen.zahlungsstatus` mischte drei Dimensionen in EINEM Feld
 -- (Analyse 25.09.2026, docs/analyse-2026-09-25/3-buchhaltung-rechnungen.md
 -- Abschnitt 2):
@@ -40,7 +49,11 @@
 --   Umbau «nicht zugestellt», das wäre ehrlich: Der Status behauptete eine
 --   Zustellung, die nirgends vermerkt ist.
 --   Heineken bezahlt mit Freigabe-Buchung (1100, beleg_typ rechnung): 8 von 87;
---   die 79 übrigen (Import 2019–2026) bekommen updated_at als freigegeben_am.
+--   die 79 übrigen (Import 2019–2026) bekommen das Zahlungsdatum (wo
+--   vermerkt), sonst das Rechnungsdatum als freigegeben_am — NICHT
+--   updated_at: das ist bei den Importzeilen meist der Importtag
+--   (14.07.2026), die Detailseite zeigte sonst «Freigegeben am 14.07.2026»
+--   unter einer Rechnung von 2019.
 --
 -- Geprüft und NICHT nachgezogen (kennen keine Altwerte oder feuern nie):
 --   * abschreibung_jahrgang_buchen (194): prüft nur bezahlt/abgeschrieben,
@@ -81,13 +94,18 @@ ALTER TABLE rechnungen ADD COLUMN IF NOT EXISTS freigegeben_am TIMESTAMPTZ;
 COMMENT ON COLUMN rechnungen.freigegeben_am IS
   'Heineken-Monatsrechnung: Zeitpunkt der Freigabe (Ertragsbuchung 1100/3400). NULL = nicht freigegeben. Seit 211 ersetzt es den Status «freigegeben».';
 
--- VOR Schritt 3: Das Umschreiben des Status setzt updated_at (Trigger) neu —
--- der Rückfallwert muss vorher gelesen werden.
+-- VOR Schritt 3: Der liest den Status 'freigegeben', den Schritt 3 umschreibt.
+-- Zeitpunkt der Freigabe, in dieser Reihenfolge:
+--   1. Datum der Freigabe-Buchung (Debitor 1100 an Ertrag, beleg_typ rechnung)
+--   2. Zahlungseingang — bezahlt ging nur über eine Freigabe, also spätestens da
+--   3. Rechnungsdatum — früher als in Wahrheit, aber im richtigen Monat
+-- NIE updated_at: bei den importierten Rechnungen der Importtag.
 UPDATE rechnungen r
 SET freigegeben_am = coalesce(
       (SELECT min(b.datum)::timestamptz FROM buchungen b
        WHERE b.beleg_id = r.id AND b.beleg_typ = 'rechnung' AND b.soll_konto = 1100),
-      r.updated_at)
+      r.zahlung_eingegangen_am::timestamptz,
+      r.rechnungsdatum::timestamptz)
 WHERE r.freigegeben_am IS NULL
   AND (r.zahlungsstatus = 'freigegeben'
        -- bezahlte Monatsrechnungen waren zwingend freigegeben
@@ -548,29 +566,83 @@ select viewname from pg_views where schemaname = 'public'
   and definition ~ '''(gesendet|freigegeben|erinnert|mahnung_1|mahnung_2)''';
 
    ─── RÜCKWEG (nur im Notfall, in EINER Transaktion) ─────────────────────
-   Die Rücksetzung nimmt nur Zeilen, die seit 211 noch auf 'offen' stehen —
-   eine inzwischen bezahlte Rechnung darf nie auf 'gesendet' zurückfallen.
-   Für neu angelegte Zeilen (nicht im Snapshot) wird der Altwert aus den
-   Feldern abgeleitet.
+   Grundsätze:
+   * Angefasst werden NUR Rechnungen, die heute 'offen' sind. Was seit 211
+     bezahlt oder abgeschrieben wurde, bleibt es.
+   * Aus dem Snapshot kommt NIE 'bezahlt' oder 'abgeschrieben'. Eine vor 211
+     bezahlte Rechnung, deren Zahlung danach zurückgenommen wurde, steht
+     heute auf 'offen' — ihr Snapshot-Wert 'bezahlt' wäre eine erfundene
+     Zahlung ohne Buchung.
+   * Wahrheit sind die Felder, wie sie HEUTE stehen — sie sind genauer als
+     der Snapshot, weil sie spätere Mahnungen, Freigaben und deren
+     Rücknahmen («Auf gesendet zurücksetzen» leert freigegeben_am) kennen:
+       Heineken freigegeben_am   → 'freigegeben'
+       mahnung_stufe 3 / 2 / 1   → 'mahnung_2' / 'mahnung_1' / 'erinnert'
+                                   (auch wenn erst NACH 211 gemahnt — nicht
+                                   'gesendet')
+       versendet_am              → 'gesendet'
+     'erinnert'/'mahnung_x' stecken seit Schritt 3 in mahnung_stufe,
+     'freigegeben' seit Schritt 2 in freigegeben_am.
+   * Der Snapshot trägt deshalb nur zur Zustellung bei, und nur mit
+     'gesendet'/'offen':
+       - Snapshot 'gesendet' → 'gesendet' (auch ohne versendet_am; am
+         27.09.2026: 0 solche Zeilen);
+       - Snapshot 'offen' MIT versendet_am (117 Zeilen am 27.09.2026 —
+         das alte Modell zog den Status dem Feld nicht immer nach) bleibt
+         'offen' wie damals. Wurde versendet_am erst nach 211 gesetzt (oder
+         ist die Zeile neu), gilt 'gesendet'.
+   Probe 27.09.2026 (lesend, rechnungen als Ersatz-Snapshot): Die Herleitung
+   ergibt genau den Vorher-Stand — offen 1084 · gesendet 43 · freigegeben 1.
 
 alter table rechnungen drop constraint rechnungen_zahlungsstatus_check;
 alter table rechnungen add constraint rechnungen_zahlungsstatus_check
   check (zahlungsstatus = any (array['offen','gesendet','freigegeben','bezahlt',
                                      'erinnert','mahnung_1','mahnung_2','abgeschrieben']));
-update rechnungen r set zahlungsstatus = s.zahlungsstatus
-from snapshot_status_umbau.snapshot_status_umbau_211 s
-where s.id = r.id and r.zahlungsstatus = 'offen' and s.zahlungsstatus <> 'offen';
 update rechnungen r set zahlungsstatus = case
     when r.rechnungstyp = 'heineken_monat' and r.freigegeben_am is not null then 'freigegeben'
-    when coalesce(r.mahnung_stufe, 0) >= 3 then 'mahnung_2'
-    when r.mahnung_stufe = 2 then 'mahnung_1'
-    when r.mahnung_stufe = 1 then 'erinnert'
-    when r.versendet_am is not null then 'gesendet'
+    when r.mahnung_stufe >= 3 then 'mahnung_2'
+    when r.mahnung_stufe = 2  then 'mahnung_1'
+    when r.mahnung_stufe = 1  then 'erinnert'
+    when x.s_status = 'gesendet' then 'gesendet'
+    when r.versendet_am is not null
+         and (x.s_status is distinct from 'offen' or x.s_versendet_am is null) then 'gesendet'
     else 'offen' end
-where r.zahlungsstatus = 'offen'
-  and not exists (select 1 from snapshot_status_umbau.snapshot_status_umbau_211 s where s.id = r.id);
--- mahnung_stufe bleibt: 211 hob sie nur für erinnert/mahnung_x an (am
--- 27.09.2026: 0 Zeilen).
+from (select r2.id, s.zahlungsstatus as s_status, s.versendet_am as s_versendet_am
+      from rechnungen r2
+      left join snapshot_status_umbau.snapshot_status_umbau_211 s on s.id = r2.id) x
+where x.id = r.id
+  and r.zahlungsstatus = 'offen';
+-- mahnung_stufe bleibt, wie sie ist: 211 hob sie nur für erinnert/mahnung_x
+-- an (am 27.09.2026: 0 Zeilen).
+
+-- Gespeicherte Vorher-Stände von NACH 211 tragen 'offen': zahlungsgruppen.vorher
+-- speichert seit 211 vorher.zahlungsstatus = 'offen' (auch für gemahnte und
+-- freigegebene Heineken-Rechnungen), ebenso abschreibung_positionen.status_vorher
+-- und mahnschreiben.vorher. Die alte zahlung_zuruecknehmen (209) schreibt
+-- vorher.zahlungsstatus 1:1 zurück — eine nach 211 gezahlte, danach
+-- zurückgenommene Rechnung landete auf 'offen': Mahnung aus der Anzeige weg,
+-- Heineken nicht mehr zahlbar (209 verlangt 'freigegeben'). Deshalb die noch
+-- nicht zurückgenommenen Gruppen nachziehen, SOLANGE freigegeben_am noch da ist:
+update zahlungsgruppen g set vorher = (
+  select jsonb_object_agg(e.key,
+           case when e.value ->> 'zahlungsstatus' = 'offen'
+                then e.value || jsonb_build_object('zahlungsstatus', case
+                  when rg.rechnungstyp = 'heineken_monat' and rg.freigegeben_am is not null then 'freigegeben'
+                  when coalesce((e.value ->> 'mahnung_stufe')::int, 0) >= 3 then 'mahnung_2'
+                  when (e.value ->> 'mahnung_stufe')::int = 2 then 'mahnung_1'
+                  when (e.value ->> 'mahnung_stufe')::int = 1 then 'erinnert'
+                  when rg.versendet_am is not null then 'gesendet'
+                  else 'offen' end)
+                else e.value end)
+  from jsonb_each(g.vorher) as e(key, value)
+  left join rechnungen rg on rg.id = e.key::uuid)
+where g.zurueckgenommen_am is null
+  and g.vorher <> '{}'::jsonb
+  -- nur Gruppen von NACH 211: davor war 'offen' ein echter Altwert
+  and g.created_at > (select max(snapshot_am) from snapshot_status_umbau.snapshot_status_umbau_211);
+-- Nach 211 abgeschriebene bzw. gemahnte Rechnungen (status_vorher /
+-- mahnschreiben.vorher = 'offen') bei einer Rücknahme von Hand prüfen.
+
 alter table rechnungen alter column zahlungsstatus drop not null;
 alter table rechnungen alter column mahnung_stufe drop not null;  -- die 10 NULL waren gleichbedeutend mit 0
 alter table rechnungen drop column freigegeben_am;
