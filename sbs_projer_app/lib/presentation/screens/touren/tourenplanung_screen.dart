@@ -44,6 +44,10 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/core/util/routen_optimierung.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/touren/saison_termine_sektion.dart';
+import 'package:sbs_projer_app/presentation/widgets/touren/aufgaben_tag_sektion.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart'
+    show aufgabenZeilenProvider;
+import 'package:sbs_projer_app/core/util/aufgaben_am_tag.dart';
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste.dart';
@@ -156,6 +160,12 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     // Bestätigte Saison-Termine + Auto-Vorschläge — erscheinen auch an
     // einem Schliessungstag (Fall Löwen Grossdietwil, 04.08.2026).
     final autoTermine = ref.watch(saisonTermineFuerTagProvider(_selectedDate));
+    // Eigene Aufgaben, die am Tag fällig sind (auch erledigte, mit Haken).
+    // Solange die Zeilen laden: keine Sektion.
+    final aufgabenAmGewaehltenTag = aufgabenAmTag(
+      ref.watch(aufgabenZeilenProvider).valueOrNull ?? const [],
+      _selectedDate,
+    );
 
     // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag.
     final gespeichertAsync = ref.watch(
@@ -432,6 +442,11 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                           }
                         },
                         onTap: _navigateToDetail,
+                      ),
+                    if (aufgabenAmGewaehltenTag.isNotEmpty)
+                      AufgabenTagSektion(
+                        aufgaben: aufgabenAmGewaehltenTag,
+                        onTap: () => context.push('/aufgaben'),
                       ),
                     Expanded(
                       child: ansicht == TagesplanAnsicht.laedt
