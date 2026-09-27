@@ -1333,6 +1333,9 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             ? ref.read(reinigungenProvider)
             : const <ReinigungLocal>[],
         wegpunkte: wegpunkte,
+        arbeitszeiten: erledigtePruefen
+            ? ref.read(einsatzArbeitszeitJePlanIdProvider)
+            : const <String, ({int von, int bis})>{},
         dauerFuer: (e) => _dauerFuer(e, historie),
       ).keys,
       ...abgeschlosseneEinsatzEintragIds(
@@ -2088,6 +2091,9 @@ class _TagesplanZeitachseState extends ConsumerState<_TagesplanZeitachse> {
           ? (ref.watch(wegpunkteFuerTagProvider(widget.datum)).valueOrNull ??
                 const <WegpunktTag>[])
           : const <WegpunktTag>[],
+      arbeitszeiten: erledigtePruefen
+          ? ref.watch(einsatzArbeitszeitJePlanIdProvider)
+          : const <String, ({int von, int bis})>{},
       dauerFuer: (e) => _dauerFuer(e, historie),
     );
     // Nicht verschiebbar (Block-Sheet ohne «Auf anderen Tag verschieben»),

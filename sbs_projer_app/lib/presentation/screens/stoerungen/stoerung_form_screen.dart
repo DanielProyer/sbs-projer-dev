@@ -3,7 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_block.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_nachfrage.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/planung_klappe.dart';
+import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
+import 'package:sbs_projer_app/core/util/planung_aufgeklappt.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
@@ -53,6 +58,10 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
   /// Erst geplant (Status 'offen') statt erledigt ('behoben') — nur so
   /// erscheint die Störung im Tourenplan.
   bool _geplant = false;
+
+  /// Klappe «Planung & Arbeitszeit» in dieser Sitzung von Hand geöffnet
+  /// (Regel: core/util/planung_aufgeklappt.dart).
+  bool _planungManuellOffen = false;
 
   // Zeiterfassung
   late DateTime _datum;
@@ -390,6 +399,45 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
     final schliesstJetztAb = warGeplant && !_geplant;
     final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
 
+    // Wird die Störung jetzt ohne jede Arbeitszeit erledigt, einmal nach
+    // der Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid Daniel
+    // 27.09.2026). VOR dem automatischen Nachtragen des Endes unten — danach
+    // fehlte nie mehr beides.
+    final nachfrage = await arbeitszeitBeimAbschliessen(
+      context,
+      ref,
+      noetig: arbeitszeitNachfrageNoetig(
+        wirdErledigt: !_geplant,
+        vorOrt: !_istKilometerabrechnung,
+        arbeitVon: _arbeitVonController.text,
+        arbeitBis: _arbeitBisController.text,
+      ),
+      planId: _existing != null ? 's_${_existing!.routeId}' : null,
+      // Beim Abschluss eines geplanten Einsatzes zählt heute (s.datum unten).
+      datum: schliesstJetztAb ? DateTime.now() : _datum,
+      betriebId: _betriebId,
+      geplanteDauerMin:
+          _existing?.geplantDauerMin ??
+          einsatzDauerVorgabe(
+            art: 'stoerung',
+            stoerungBereiche: _stoerungBereiche,
+          ),
+    );
+    if (!mounted) return;
+    switch (nachfrage.wahl) {
+      case ArbeitszeitWahl.abgebrochen:
+        setState(() => _isLoading = false);
+        return;
+      case ArbeitszeitWahl.uebernommen:
+        markiereGeaendert();
+        _arbeitVonController.text = nachfrage.von!;
+        _arbeitBisController.text = nachfrage.bis!;
+      case ArbeitszeitWahl.ohneZeit:
+      case ArbeitszeitWahl.nichtGefragt:
+        break;
+    }
+    final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
+
     try {
       final s = _existing ?? StoerungLocal();
 
@@ -501,7 +549,13 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
         erledigtWert: 'behoben',
       );
 
+      // «Ohne Zeit» bei einer neuen Störung: Die Id wird fürs Merken
+      // gebraucht, auf Web vergibt sie sonst erst die Datenbank (und `save`
+      // liefert sie nicht zurück).
+      if (verzichtMerken && kIsWeb) s.serverId ??= const Uuid().v4();
+
       await StoerungRepository.save(s);
+      if (verzichtMerken) await arbeitszeitVerzichtMerken('s_${s.routeId}');
       // Ein erledigter Einsatz gehört in die Ist-Ansicht, nicht mehr in den
       // Plan — sonst steht die (jetzt behobene) Störung als „Geisterblock"
       // weiter in der Zeitachse des Tages, für den sie geplant war (Daniel
@@ -712,28 +766,71 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // === Geplant / erledigt ===
-              // Bis v0.59.0 schrieb das Formular immer 'behoben' — eine Störung
-              // liess sich also gar nicht vorausplanen und tauchte nie im
-              // Tourenplan auf (Fund Daniel 31.07.2026).
-              SwitchListTile(
-                title: const Text('Erst geplant'),
-                subtitle: Text(
-                  _geplant
-                      ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
-                      : 'Erledigt — Rapport wird jetzt erfasst',
+              // === Planung & Arbeitszeit (eingeklappt, Runde 5) ===
+              // Störungen werden fast nie vorausgeplant; «Erst geplant» und
+              // «Arbeit beginnen»/Von–bis liegen deshalb unter einer Klappe,
+              // die nur von selbst offen ist, wenn dort etwas steht
+              // (Entscheid Daniel 27.09.2026). Die Arbeitszeit kommt sonst
+              // über die Nachfrage beim Speichern.
+              PlanungKlappe(
+                offen: planungAufgeklappt(
+                  erstGeplant: _geplant,
+                  arbeitVon: _arbeitVonController.text,
+                  arbeitBis: _arbeitBisController.text,
+                  manuellOffen: _planungManuellOffen,
                 ),
-                secondary: Icon(
-                  _geplant ? Icons.event_outlined : Icons.check_circle_outline,
-                  color: _geplant ? AppColors.info : AppColors.success,
+                zuklappbar: !planungAufgeklappt(
+                  erstGeplant: _geplant,
+                  arbeitVon: _arbeitVonController.text,
+                  arbeitBis: _arbeitBisController.text,
+                  manuellOffen: false,
                 ),
-                value: _geplant,
-                activeTrackColor: AppColors.info,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (v) {
-                  markiereGeaendert();
-                  setState(() => _geplant = v);
-                },
+                onUmschalten: () => setState(
+                  () => _planungManuellOffen = !_planungManuellOffen,
+                ),
+                zusammenfassung: 'Sofort erledigt — zum Planen antippen',
+                children: [
+                  // Bis v0.59.0 schrieb das Formular immer 'behoben' — eine
+                  // Störung liess sich also gar nicht vorausplanen und
+                  // tauchte nie im Tourenplan auf (Fund Daniel 31.07.2026).
+                  SwitchListTile(
+                    title: const Text('Erst geplant'),
+                    subtitle: Text(
+                      _geplant
+                          ? 'Erscheint im Tourenplan; Rapport folgt beim Erledigen'
+                          : 'Erledigt — Rapport wird jetzt erfasst',
+                    ),
+                    secondary: Icon(
+                      _geplant
+                          ? Icons.event_outlined
+                          : Icons.check_circle_outline,
+                      color: _geplant ? AppColors.info : AppColors.success,
+                    ),
+                    value: _geplant,
+                    activeTrackColor: AppColors.info,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (v) {
+                      markiereGeaendert();
+                      setState(() {
+                        _geplant = v;
+                        // Wer den Schalter bedient, will die Klappe offen
+                        // sehen — sonst klappte sie beim Ausschalten unter
+                        // dem Finger zu.
+                        _planungManuellOffen = true;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ArbeitszeitBlock(
+                    vonController: _arbeitVonController,
+                    bisController: _arbeitBisController,
+                    beginnMoeglich: _warGeplant,
+                    laeuft: _arbeitBeginnLaeuft,
+                    onBeginnen: _arbeitBeginnen,
+                    onBeenden: _arbeitBeenden,
+                    onGeaendert: markiereGeaendert,
+                  ),
+                ],
               ),
               const Divider(height: 24),
 
@@ -790,77 +887,67 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
                 const SizedBox(height: 24),
               ],
 
-              // === Zeiterfassung ===
+              // === Datum & Eingang ===
+              // Bleibt immer sichtbar — Datum steuert die Abrechnung. Die
+              // Arbeitszeit steht seit Runde 5 oben in der Klappe.
               _sectionTitle(context, 'Zeiterfassung'),
               const SizedBox(height: 8),
-              ArbeitszeitBlock(
-                vonController: _arbeitVonController,
-                bisController: _arbeitBisController,
-                beginnMoeglich: _warGeplant,
-                laeuft: _arbeitBeginnLaeuft,
-                onBeginnen: _arbeitBeginnen,
-                onBeenden: _arbeitBeenden,
-                onGeaendert: markiereGeaendert,
-                zwischen: [
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: InkWell(
-                          onTap: () async {
-                            final picked = await zeigeDatumsauswahl(
-                              context,
-                              initial: _datum,
-                              erstes: DateTime(2024),
-                              letztes: DateTime.now().add(const Duration(days: 1)),
-                            );
-                            if (picked != null) {
-                              markiereGeaendert();
-                              setState(() => _datum = picked);
-                              _updatePikettAuto();
-                            }
-                          },
-                          child: InputDecorator(
-                            decoration: const InputDecoration(
-                              labelText: 'Datum',
-                              prefixIcon: Icon(Icons.calendar_today),
-                            ),
-                            child: Text(_formatDate(_datum)),
-                          ),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: InkWell(
+                      onTap: () async {
+                        final picked = await zeigeDatumsauswahl(
+                          context,
+                          initial: _datum,
+                          erstes: DateTime(2024),
+                          letztes: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) {
+                          markiereGeaendert();
+                          setState(() => _datum = picked);
+                          _updatePikettAuto();
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Datum',
+                          prefixIcon: Icon(Icons.calendar_today),
                         ),
+                        child: Text(_formatDate(_datum)),
                       ),
-                      if (!_istKilometerabrechnung) ...[
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _heinekennrController,
-                            decoration: const InputDecoration(
-                              labelText: 'Störungsnummer',
-                              prefixIcon: Icon(Icons.tag),
-                              isDense: true,
-                            ),
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                   if (!_istKilometerabrechnung) ...[
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _stoerungseingangController,
-                      decoration: const InputDecoration(
-                        labelText: 'Störungseingang (Uhrzeit)',
-                        prefixIcon: Icon(Icons.phone_callback),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _heinekennrController,
+                        decoration: const InputDecoration(
+                          labelText: 'Störungsnummer',
+                          prefixIcon: Icon(Icons.tag),
+                          isDense: true,
+                        ),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
                       ),
-                      textInputAction: TextInputAction.next,
-                      onChanged: (_) => _updatePikettAuto(),
                     ),
                   ],
-                  const SizedBox(height: 12),
                 ],
               ),
+              if (!_istKilometerabrechnung) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _stoerungseingangController,
+                  decoration: const InputDecoration(
+                    labelText: 'Störungseingang (Uhrzeit)',
+                    prefixIcon: Icon(Icons.phone_callback),
+                  ),
+                  textInputAction: TextInputAction.next,
+                  onChanged: (_) => _updatePikettAuto(),
+                ),
+              ],
               const SizedBox(height: 24),
 
               // === Störungsbereiche (nur bei normaler Störung) ===

@@ -581,6 +581,26 @@ void main() {
       );
     });
 
+    test('die Kette kommt im Ergebnis mit (Arbeitszeit-Vorschlag)', () {
+      final h = halte([
+        einsatz('r1', a, von: '08:00', bis: '08:30'),
+        einsatz('r2', b, von: '09:30', bis: '10:00'),
+      ]);
+      final t = tagesFahrten(
+        halte: h,
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      expect(t.halte, same(h));
+      expect(t.halte.map((x) => x.id).toList(), [
+        'domat_ems',
+        'betrieb-a',
+        'betrieb-b',
+        'domat_ems',
+      ]);
+    });
+
     test('Fahrten ganz ohne Distanz werden gemeldet', () {
       final t = tagesFahrten(
         halte: [betriebHalt('x', 480, 500), betriebHalt('y', 520, 540)],

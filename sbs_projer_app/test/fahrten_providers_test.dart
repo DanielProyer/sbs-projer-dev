@@ -1012,6 +1012,13 @@ void main() {
         expect(t.kmFahrten, 35.5);
         expect(t.kmZaehler, 40);
         expect(t.befunde, isEmpty); // 4.5 km Differenz liegt in der Toleranz
+        // Die Kette selbst (für den Arbeitszeit-Vorschlag beim Abschliessen).
+        expect(t.halte.map((h) => h.id).toList(), [
+          'chur',
+          'betrieb-a',
+          'betrieb-b',
+          'domat_ems',
+        ]);
         expect(
           await container.read(
             tagesFahrtenProvider(DateTime(2026, 9, 26)).future,

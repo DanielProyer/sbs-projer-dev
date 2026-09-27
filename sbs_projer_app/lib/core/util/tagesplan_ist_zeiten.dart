@@ -15,14 +15,20 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 /// - `hist_`-Einträge (tatsächliche Reinigungen vergangener Tage) matchen
 ///   exakt über ihre Reinigungs-Id — zwei Besuche am selben Betrieb behalten
 ///   so je ihre eigenen Zeiten.
-/// - Störung/Montage erledigt = Wegpunkt-Stempel desselben Betriebs am Tag;
-///   der Stempel markiert das ENDE, als Start dient Stempel minus Dauer.
+/// - Störung/Montage erledigt = erfasste Arbeitszeit `arbeit_von/bis` aus
+///   [arbeitszeiten] (Schlüssel = Plan-Id `s_<id>`/`m_<id>`, Werte aus
+///   [arbeitszeitMinuten]). Nur ohne sie der Rückfall auf den Wegpunkt-
+///   Stempel desselben Betriebs am Tag: Der Stempel markiert das ENDE, als
+///   Start dient Stempel minus Dauer — eine Schätzung, die danebenliegt,
+///   wenn der Stempel erst abends zuhause entstand (seit 27.09.2026 fragt
+///   das Formular beim Abschliessen nach der Zeit).
 Map<String, ({int von, int bis})> ermittleIstZeiten({
   required List<TourEintrag> eintraege,
   required DateTime datum,
   required bool erledigtePruefen,
   required List<ReinigungLocal> reinigungen,
   required List<WegpunktTag> wegpunkte,
+  required Map<String, ({int von, int bis})> arbeitszeiten,
   required int Function(TourEintrag) dauerFuer,
 }) {
   final istZeiten = <String, ({int von, int bis})>{};
@@ -53,8 +59,13 @@ Map<String, ({int von, int bis})> ermittleIstZeiten({
       final ist = e.betriebId != null ? heutigeJeBetrieb[e.betriebId!] : null;
       if (ist != null) istZeiten[e.id] = ist;
     } else {
-      // Uhrzeiten werden bei Störung/Montage nicht erfasst — grobe, aber
-      // ehrliche Annahme über die geplante Dauer.
+      final erfasst = arbeitszeiten[e.id];
+      if (erfasst != null) {
+        istZeiten[e.id] = erfasst;
+        continue;
+      }
+      // Ohne erfasste Arbeitszeit — grobe, aber ehrliche Annahme über die
+      // geplante Dauer.
       final quelle = e.typ == TourEintragTyp.stoerung ? 'stoerung' : 'montage';
       for (final w in wegpunkte) {
         if (w.quelle != quelle ||
@@ -70,4 +81,13 @@ Map<String, ({int von, int bis})> ermittleIstZeiten({
     }
   }
   return istZeiten;
+}
+
+/// `arbeit_von/bis` ('HH:mm' oder 'HH:mm:ss') → Minuten ab Mitternacht;
+/// `null`, wenn eine Zeit fehlt oder das Ende nicht nach dem Beginn liegt
+/// (über Mitternacht — dann bleibt der Stempel-Rückfall).
+({int von, int bis})? arbeitszeitMinuten(String? von, String? bis) {
+  final v = minutenAusHhmm(von), b = minutenAusHhmm(bis);
+  if (v == null || b == null || b <= v) return null;
+  return (von: v, bis: b);
 }
