@@ -56,6 +56,15 @@ IconData navIcon(NavZiel z) => switch (z) {
   NavZiel.mehr => Icons.apps,
 };
 
+/// Weitere Suchbegriffe eines Leisten-Ziels (klein, ohne Umlaute — wie die
+/// Stichwörter in `bereiche.dart`). Material brachte sie von Mehr mit, als
+/// es am 27.09.2026 in die Leiste zog; ohne sie fände die Suche «lager»
+/// nicht mehr.
+List<String> navStichwoerter(NavZiel z) => switch (z) {
+  NavZiel.material => const ['bestellung', 'lager', 'bestand'],
+  _ => const [],
+};
+
 String _ohneSchraegstrich(String pfad) => pfad.length > 1 && pfad.endsWith('/')
     ? pfad.substring(0, pfad.length - 1)
     : pfad;

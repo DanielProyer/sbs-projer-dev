@@ -11,10 +11,10 @@ import 'package:flutter/material.dart';
 
 /// Woher der Zähler eines Eintrags kommt. Es gibt bewusst keine neue
 /// Zähl-Logik: Alles stammt aus Providern, die es schon gibt.
+///
+/// «N niedrig» (Materialbestand) gab es bis 27.09.2026 — Material steht
+/// seither in der Leiste statt auf Mehr, und die Leiste zeigt keine Zähler.
 enum ZaehlerQuelle {
-  /// «N niedrig» — Materialbestand unter Mindestmenge.
-  materialNiedrig,
-
   /// Dieselbe Zahl wie die Glocke.
   aufgaben,
 
@@ -45,18 +45,16 @@ class BereichEintrag {
   });
 }
 
+/// Eine Gruppe von Zeilen unter einem Titel.
+///
+/// Bis 27.09.2026 konnte eine Gruppe auch als Kachel-Raster erscheinen
+/// («Unterwegs»). Daniel wollte alle Gruppen gleich als Zeilen — seither
+/// gibt es nur noch diese eine Darstellung.
 class BereichGruppe {
   final String? titel;
-
-  /// Kacheln im 2er-Raster statt Zeilen — nur für wenige, oft genutzte Ziele.
-  final bool alsKacheln;
   final List<BereichEintrag> eintraege;
 
-  const BereichGruppe({
-    this.titel,
-    this.alsKacheln = false,
-    required this.eintraege,
-  });
+  const BereichGruppe({this.titel, required this.eintraege});
 }
 
 class Bereich {
@@ -132,9 +130,11 @@ const kBereichMehr = Bereich(
   id: 'mehr',
   titel: 'Mehr',
   gruppen: [
+    // Material steht seit 27.09.2026 in der Leiste und deshalb nicht mehr
+    // hier — ein Ziel, zwei Einstiege auf derselben Seite (Wächter in
+    // bereiche_test.dart). Seine Stichwörter hängen an `navStichwoerter`.
     BereichGruppe(
       titel: 'Unterwegs',
-      alsKacheln: true,
       eintraege: [
         // Bis 27.09.2026 ein Ziel der Leiste — dort steht seither Material.
         BereichEintrag(
@@ -146,19 +146,14 @@ const kBereichMehr = Bereich(
         ),
         BereichEintrag(
           titel: 'Spesen',
+          untertitel: 'Beleg fotografieren',
           icon: Icons.receipt_long,
           ziel: '/spesen',
           stichwoerter: ['beleg', 'quittung', 'tanken', 'benzin', 'material', 'scanner'],
         ),
         BereichEintrag(
-          titel: 'Material',
-          icon: Icons.inventory_2,
-          ziel: '/materialien',
-          zaehler: ZaehlerQuelle.materialNiedrig,
-          stichwoerter: ['bestellung', 'lager', 'bestand'],
-        ),
-        BereichEintrag(
           titel: 'Aufgaben',
+          untertitel: 'Offen und erledigt',
           icon: Icons.task_alt,
           ziel: '/aufgaben',
           zaehler: ZaehlerQuelle.aufgaben,
@@ -166,11 +161,13 @@ const kBereichMehr = Bereich(
         ),
         BereichEintrag(
           titel: 'Events',
+          untertitel: 'Stände, Lageplan',
           icon: Icons.festival,
           ziel: '/events',
         ),
         BereichEintrag(
           titel: 'Google-Termine',
+          untertitel: 'Kalender',
           icon: Icons.event_note,
           ziel: '/google-termine',
           stichwoerter: ['google', 'kalender', 'termine zuordnen'],
@@ -221,6 +218,7 @@ const kBereichMehr = Bereich(
         ),
         BereichEintrag(
           titel: 'Dokumente',
+          untertitel: 'Ablage nach Bereich und Jahr',
           icon: Icons.folder_open,
           ziel: '/dokumente',
           zaehler: ZaehlerQuelle.bereich,

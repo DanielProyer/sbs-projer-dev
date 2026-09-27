@@ -53,7 +53,7 @@ final suchEingabeProvider = Provider<SuchEingabe>((ref) {
       untertitel: null,
       gruppe: 'Leiste',
       ziel: navPfad(z),
-      stichwoerter: const <String>[],
+      stichwoerter: navStichwoerter(z),
     ));
   }
   for (final e in kSuchZusatzZiele) {

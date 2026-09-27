@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/bereiche.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 
 /// Zählertext je Bereichs-Eintrag, `null` = kein Zähler.
 ///
@@ -11,7 +10,6 @@ import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 final bereichZaehlerProvider = Provider<String? Function(BereichEintrag)>((
   ref,
 ) {
-  final niedrig = ref.watch(niedrigCountProvider);
   final badge = ref.watch(aufgabenBadgeProvider);
   final liste = ref.watch(aufgabenListeProvider).valueOrNull ?? const [];
   final jeBereich = zaehleJeBereich(liste.map((a) => a.route));
@@ -20,8 +18,6 @@ final bereichZaehlerProvider = Provider<String? Function(BereichEintrag)>((
     switch (e.zaehler) {
       case null:
         return null;
-      case ZaehlerQuelle.materialNiedrig:
-        return niedrig > 0 ? '$niedrig niedrig' : null;
       case ZaehlerQuelle.aufgaben:
         return badge > 0 ? '$badge' : null;
       case ZaehlerQuelle.bereich:

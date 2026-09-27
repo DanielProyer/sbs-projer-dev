@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/config/bereiche.dart';
+import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
 
 void main() {
   group('bereichFuerPfad', () {
@@ -90,11 +91,11 @@ void main() {
         'Büro',
         'Einrichtung',
       ]);
-      expect(kBereichMehr.gruppen.first.alsKacheln, isTrue);
       expect(
         kBereichMehr.gruppen.first.eintraege.map((e) => e.titel).toList(),
-        ['Einsätze', 'Spesen', 'Material', 'Aufgaben', 'Events', 'Google-Termine'],
+        ['Einsätze', 'Spesen', 'Aufgaben', 'Events', 'Google-Termine'],
       );
+      expect(kBereichMehr.gruppen.first.eintraege.first.ziel, '/einsaetze');
       expect(
         kBereichMehr.gruppen[1].eintraege.map((e) => e.ziel).toList(),
         [
@@ -110,6 +111,24 @@ void main() {
         kBereichMehr.gruppen[2].eintraege.map((e) => e.ziel).toList(),
         ['/auswertungen', '/stammdaten', '/einstellungen'],
       );
+    });
+
+    test('Mehr fuehrt kein Ziel der Leiste ein zweites Mal (27.09.2026)', () {
+      // Material zog in die Leiste und verliess dafür «Unterwegs». Ein Ziel
+      // mit zwei Einstiegen auf demselben Bildschirm ist Ballast — und der
+      // Zähler einer der beiden Stellen stimmt früher oder später nicht.
+      final leiste = {for (final z in NavZiel.values) navPfad(z)};
+      for (final e in kBereichMehr.alleEintraege) {
+        expect(leiste.contains(e.ziel), isFalse, reason: e.ziel);
+      }
+    });
+
+    test('jeder Eintrag auf Mehr hat einen Untertitel', () {
+      // Einheitliche Zeilen: Titel und Untertitel, keine halb leeren.
+      for (final e in kBereichMehr.alleEintraege) {
+        expect(e.untertitel, isNotNull, reason: e.titel);
+        expect(e.untertitel!.trim(), isNotEmpty, reason: e.titel);
+      }
     });
 
     test('kein Ziel steht in zwei Bereichsseiten ausser Mehr', () {

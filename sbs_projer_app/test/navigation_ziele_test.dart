@@ -22,6 +22,20 @@ void main() {
       expect(navLabel(NavZiel.tour), 'Tour');
       expect(navLabel(NavZiel.mehr), 'Mehr');
     });
+
+    test('Material behaelt seine Suchbegriffe aus Mehr (27.09.2026)', () {
+      expect(
+        navStichwoerter(NavZiel.material),
+        containsAll(['lager', 'bestand', 'bestellung']),
+      );
+      for (final z in NavZiel.values) {
+        for (final s in navStichwoerter(z)) {
+          // Werden normalisiert verglichen — wie in bereiche_test.dart.
+          expect(s, s.toLowerCase(), reason: '$z: $s');
+          expect(RegExp('[äöüß]').hasMatch(s), isFalse, reason: '$z: $s');
+        }
+      }
+    });
   });
 
   group('aktivesZiel', () {
