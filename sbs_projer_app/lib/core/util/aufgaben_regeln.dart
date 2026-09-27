@@ -57,6 +57,18 @@ const kDiktatAktion = 'aktion:diktat';
 /// damit die Betriebe) neu lädt — siehe [ferienLadefehlerAufgabe].
 const kFerienNeuLadenAktion = 'aktion:ferien_neu_laden';
 
+/// Schlüssel der Aufgabe «Ferien nicht geladen» ([ferienLadefehlerAufgabe]).
+const kFerienLadefehlerKey = 'ferien_ladefehler';
+
+/// Aufgaben, die sich NICHT «später erinnern» lassen — weder per Knopf
+/// (`AufgabenEintrag.snoozebar`) noch über eine alte Snooze-Zeile.
+///
+/// WARUM (Review 27.09.2026, K3): Sie melden einen Zustand, der JETZT
+/// falsche Pläne erzeugt, und verschwinden von selbst, sobald er behoben
+/// ist. «Ferien nicht geladen» drei Tage wegzuschieben hiesse drei Tage
+/// Tourenplan ohne Ferien — genau das Warnsignal wäre stumm.
+const kNichtSnoozebar = {kFerienLadefehlerKey};
+
 /// Die Ferien-Tabelle `betrieb_ferien` liess sich nicht laden
 /// ([fehler] = Fehlertext aus `ferienLadefehlerProvider`, `null` = alles gut).
 ///
@@ -69,7 +81,7 @@ const kFerienNeuLadenAktion = 'aktion:ferien_neu_laden';
 Aufgabe? ferienLadefehlerAufgabe(String? fehler) => fehler == null
     ? null
     : const Aufgabe(
-        key: 'ferien_ladefehler',
+        key: kFerienLadefehlerKey,
         titel:
             'Ferien nicht geladen — Betriebe könnten geschlossen sein. '
             'Erneut laden',

@@ -6,13 +6,13 @@ import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
+import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
@@ -84,9 +84,9 @@ class AufgabenAktionen {
     // Ferien nicht geladen: Tabelle und Betriebe neu laden. Die Aufgabe
     // verschwindet von selbst, sobald `ferienLadefehlerProvider` wieder
     // `null` meldet; scheitert es erneut, bleibt sie stehen.
+    // Dieselbe Hilfsfunktion wie das Band im Tourenplan.
     if (route == kFerienNeuLadenAktion) {
-      ref.invalidate(ferienPeriodenProvider);
-      ref.invalidate(betriebeStreamProvider);
+      ferienNeuLaden(ref.invalidate);
       _neuLaden();
       return;
     }

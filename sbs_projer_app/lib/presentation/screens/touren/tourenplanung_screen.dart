@@ -29,6 +29,8 @@ import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/anlage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
+    show ferienLadefehlerProvider;
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
@@ -166,6 +168,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
       ref.watch(aufgabenZeilenProvider).valueOrNull ?? const [],
       _selectedDate,
     );
+    // Fehlertext, solange die Ferien-Tabelle nicht geladen ist (sonst null).
+    final ferienLadefehler = ref.watch(ferienLadefehlerProvider);
 
     // Reaktives Laden: gespeicherter Plan hat Vorrang vor Vorschlag.
     final gespeichertAsync = ref.watch(
@@ -397,6 +401,13 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
               ref.read(selectedFaelligkeitProvider.notifier).state = updated;
             },
           ),
+
+          // Ferien nicht geladen: Die Betriebe tragen dann KEINE Ferien — der
+          // Plan könnte zu einem geschlossenen Betrieb schicken (Review
+          // 27.09.2026, M3). Über beiden Tabs: Fällig-Liste UND Plan sind
+          // betroffen. Wächter: test/ferien_ladefehler_test.dart.
+          if (ferienLadefehler != null)
+            _ferienLadefehlerBand(ferienLadefehler),
 
           // Tab Content
           Expanded(
@@ -868,6 +879,57 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             icon: Icons.refresh,
             primaer: false,
             onTap: _planErneutLaden,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Band über beiden Tabs, solange die Ferien-Tabelle nicht geladen ist
+  /// (`ferienLadefehlerProvider`): Die Betriebe tragen dann keine Ferien,
+  /// Fällig-Liste und Plan könnten einen geschlossenen Betrieb enthalten.
+  /// Bis 27.09.2026 stand das nur als Aufgabe in Glocke und Heute-Karte —
+  /// im Tourenplan, wo es zählt, plante man ahnungslos weiter (Review M3).
+  /// «Erneut laden» = dieselbe Hilfsfunktion wie die Aufgabe.
+  Widget _ferienLadefehlerBand(String fehler) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(30),
+        border: Border.all(color: AppColors.error.withAlpha(100)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.event_busy, color: AppColors.error, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ferien nicht geladen — Betriebe könnten geschlossen sein',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  kurzeFehlermeldung(fehler),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TapKnopf(
+            text: 'Erneut laden',
+            icon: Icons.refresh,
+            primaer: false,
+            onTap: () => ferienNeuLaden(ref.invalidate),
           ),
         ],
       ),

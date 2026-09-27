@@ -6,6 +6,19 @@ import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
+/// Ferien-Tabelle und mit ihr die Betriebe neu laden — «Erneut laden» bei
+/// «Ferien nicht geladen», in der Aufgabenliste (`kFerienNeuLadenAktion`)
+/// wie im Band des Tourenplans. Eine Stelle, damit keiner der Wege nur die
+/// halbe Arbeit macht: Die Betriebe TRAGEN die Ferien
+/// ([betriebeStreamProvider]); nur die Tabelle neu zu holen, liesse sie
+/// ohne Perioden stehen.
+///
+/// [invalidate]: `ref.invalidate` (Widget) oder `container.invalidate`.
+void ferienNeuLaden(void Function(ProviderOrFamily provider) invalidate) {
+  invalidate(ferienPeriodenProvider);
+  invalidate(betriebeStreamProvider);
+}
+
 /// Lädt alle Datenquellen des Tourenplans neu und wartet, bis sie da sind.
 ///
 /// Hintergrund (Fall Bernina Bar/Viktoria, 29.08.2026): Auf Web laden die
@@ -17,8 +30,7 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 /// Auf Nativ liest das Neuladen nur die lokale Isar-Kopie neu — harmlos;
 /// der Server-Abgleich bleibt Sache des Sync.
 Future<void> tourenplanNeuLaden(ProviderContainer container) async {
-  container.invalidate(betriebeStreamProvider);
-  container.invalidate(ferienPeriodenProvider);
+  ferienNeuLaden(container.invalidate);
   container.invalidate(anlagenStreamProvider);
   container.invalidate(reinigungenStreamProvider);
   container.invalidate(stoerungenStreamProvider);

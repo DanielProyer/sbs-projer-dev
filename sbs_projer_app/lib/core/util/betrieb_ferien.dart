@@ -20,6 +20,21 @@ int ferienRueckfallZaehler = 0;
 /// Tourenplan (tausende Aufrufe je Aufbau) die Konsole nicht flutet.
 final Set<String> _rueckfallGemeldet = {};
 
+/// Steht, solange [betriebeMitFerien] die Ferien-Tabelle nicht laden konnte.
+/// Die Betriebe tragen dann ABSICHTLICH `ferienPerioden = null`
+/// («unbekannt»), und [ferienSlots] darf das nicht als Programmierfehler
+/// werten.
+///
+/// WARUM (Review 27.09.2026, M1): Ohne diese Marke warf das `assert` in
+/// [ferienSlots] im Debug-Modus in jedem `build`, der Ferien auswertet
+/// (Betriebsliste, Aufgabenliste) — und riss ausgerechnet die Aufgabe
+/// «Ferien nicht geladen» mit. Gesetzt im `catch` des Ladens,
+/// zurueckgesetzt erst, wenn eine Liste MIT Ferien ausgeliefert wird: Bis
+/// dahin kann ein Neuaufbau noch die alte Liste (Perioden `null`) lesen.
+/// Laut bleibt es trotzdem: `debugPrint`, [ferienRueckfallZaehler] und die
+/// Aufgabe `ferien_ladefehler`.
+bool ferienLadefehlerAktiv = false;
+
 /// Haengt die Ferien aus [map] an [b] und gibt [b] zurueck.
 ///
 /// Die EINE Stelle, an der eine geladene Ferien-Tabelle an Betriebe kommt
@@ -67,6 +82,7 @@ Stream<List<BetriebLocal>> _betriebeMitFerien(
   try {
     map = await ferien;
   } catch (e) {
+    ferienLadefehlerAktiv = true;
     debugPrint('[Ferien] Tabelle nicht geladen — Betriebe ohne Ferien: $e');
   }
   await for (final list in betriebe) {
@@ -77,7 +93,10 @@ Stream<List<BetriebLocal>> _betriebeMitFerien(
       }
       yield list;
     } else {
-      yield [for (final b in list) mitFerienPerioden(b, map)];
+      final mitFerien = [for (final b in list) mitFerienPerioden(b, map)];
+      // Erst jetzt: ab hier liest jeder Neuaufbau Betriebe MIT Ferien.
+      ferienLadefehlerAktiv = false;
+      yield mitFerien;
     }
   }
 }
@@ -102,6 +121,10 @@ Stream<List<BetriebLocal>> _betriebeMitFerien(
 /// Entwicklung) bricht ein `assert` sofort ab. Vergessene Ferien sind der
 /// schlimmste Fehlerfall — dann faehrt Daniel zu einem geschlossenen Betrieb.
 ///
+/// Ausnahme vom `assert`: der vorgesehene Ladefehler
+/// ([ferienLadefehlerAktiv]) — dort ist `null` Absicht, gemeldet wird er
+/// ueber die Aufgabe «Ferien nicht geladen».
+///
 /// Eine LEERE Liste heisst dagegen «geladen, keine Ferien».
 ///
 /// Prueft NICHT [BetriebLocal.keineBetriebsferien] — dafuer gibt es
@@ -114,7 +137,7 @@ List<FerienSlot> ferienSlots(BetriebLocal b) {
       debugPrint('[Ferien] Rückfall ohne Perioden: ${b.name}');
     }
     assert(
-      perioden != null,
+      perioden != null || ferienLadefehlerAktiv,
       'Ferien ohne geladene Perioden ausgewertet (${b.name}) — '
       'mitFerienPerioden() bzw. BetriebFerienRepository.periodenAnhaengen() '
       'vergessen?',

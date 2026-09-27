@@ -106,11 +106,13 @@ class AufgabenEintrag {
       quelle == AufgabenQuelle.termin ||
       (quelle == AufgabenQuelle.detektor && manuellErledigbar);
 
-  /// Einsätze werden nicht gesnoozt, sondern eingeplant.
+  /// Einsätze werden nicht gesnoozt, sondern eingeplant. Warnungen aus
+  /// [kNichtSnoozebar] («Ferien nicht geladen») ebenfalls nicht.
   bool get snoozebar =>
-      quelle == AufgabenQuelle.detektor ||
-      quelle == AufgabenQuelle.eigene ||
-      quelle == AufgabenQuelle.aenderungsVorschlag;
+      !kNichtSnoozebar.contains(key) &&
+      (quelle == AufgabenQuelle.detektor ||
+          quelle == AufgabenQuelle.eigene ||
+          quelle == AufgabenQuelle.aenderungsVorschlag);
 
   bool get einplanbar =>
       quelle == AufgabenQuelle.einsatz &&
@@ -187,7 +189,9 @@ List<AufgabenEintrag> baueAufgabenListe({
     final bis = DateTime.tryParse(z['snooze_bis'] as String? ?? '');
     if (z['key'] != null && bis != null) snoozes[z['key'] as String] = bis;
   }
-  bool gesnoozt(String key) => snoozeAktiv(snoozes[key], heute);
+  // Eine Snooze-Zeile blendet nie eine Aufgabe aus [kNichtSnoozebar] aus.
+  bool gesnoozt(String key) =>
+      !kNichtSnoozebar.contains(key) && snoozeAktiv(snoozes[key], heute);
 
   final liste = <AufgabenEintrag>[];
 

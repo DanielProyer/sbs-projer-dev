@@ -12,6 +12,9 @@ BetriebLocal _betrieb() => BetriebLocal()
   ..ferienPerioden = const [];
 
 void main() {
+  // Globale Marke — jeder Test beginnt ohne Ladefehler.
+  setUp(() => ferienLadefehlerAktiv = false);
+
   group('ferienSlots', () {
     test('geladen ohne Ferien: keine Slots', () {
       expect(ferienSlots(_betrieb()), isEmpty);
@@ -114,6 +117,50 @@ void main() {
       expect(() => istInFerien(b, DateTime(2026, 7, 15)),
           throwsA(isA<AssertionError>()));
       expect(ferienRueckfallZaehler, vorher + 2);
+    });
+
+    // Review 27.09.2026, M1: Beim vorgesehenen Ladefehler tragen die
+    // Betriebe absichtlich `null`. Das assert riss im Debug jeden build mit,
+    // der Ferien auswertet — auch die Aufgabe «Ferien nicht geladen».
+    test('vorgesehener Ladefehler: kein assert, Ferien «unbekannt» = []',
+        () async {
+      final b = (await betriebeMitFerien(
+        Stream.value([
+          BetriebLocal()
+            ..name = 'Offline'
+            ..serverId = 'b1',
+        ]),
+        Future<FerienPeriodenMap>.error(StateError('offline')),
+      ).first)
+          .single;
+      expect(b.ferienPerioden, isNull);
+      expect(ferienLadefehlerAktiv, isTrue);
+
+      final vorher = ferienRueckfallZaehler;
+      expect(ferienSlots(b), isEmpty);
+      expect(istInFerien(b, DateTime(2026, 7, 15)), isFalse);
+      // Laut bleibt es trotzdem: der Zähler zählt weiter.
+      expect(ferienRueckfallZaehler, vorher + 2);
+    });
+
+    test('nach erfolgreichem Laden gilt das assert wieder', () async {
+      ferienLadefehlerAktiv = true;
+      final geladen = await betriebeMitFerien(
+        Stream.value([
+          BetriebLocal()
+            ..name = 'Online'
+            ..serverId = 'b1',
+        ]),
+        Future<FerienPeriodenMap>.value(const {}),
+      ).first;
+      expect(geladen.single.ferienPerioden, isEmpty);
+      expect(ferienLadefehlerAktiv, isFalse);
+
+      // Ein Pfad, der die Perioden vergisst, fällt wieder sofort auf.
+      final vergessen = BetriebLocal()
+        ..userId = 'test'
+        ..name = 'Vergessen';
+      expect(() => ferienSlots(vergessen), throwsA(isA<AssertionError>()));
     });
 
     test('keineBetriebsferien: auch ungeladen kein Fehlalarm', () {
