@@ -35,6 +35,20 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 > zusammengezogen; jeder Punkt wurde vor der Aufnahme geprüft, die Zahlen sind
 > vom selben Tag. Erledigtes steht im Archiv, nichts wurde gelöscht.
 
+### ✅ Entscheide Daniel 27.09.2026 (einzeln abgefragt)
+
+| # | Thema | Entscheid | Stand |
+|---|---|---|---|
+| 1 | Isar | **einfrieren** — kein Nachziehen, Web-only-Repositories erlaubt; Android-Offline aus v2 | in Arbeit (v0.149) |
+| 2 | Statusmodell Rechnung | **jetzt umbauen**: Status nur offen/bezahlt/abgeschrieben, Zustellung aus versendet_am/uebergeben_am, Mahnstufe aus mahnung_stufe, Heineken `freigegeben_am`; Migration 211 mit Snapshot | in Arbeit (v0.149) |
+| 3 | Mahnwesen | Kurzsymbol «mahnen» auch für zugestellte offene Rechnungen; Kopie aus dem Reinigungsdetail verlängert die Frist NICHT | mit 2 |
+| 4 | Rechnungsliste | Vorgabe «Unbezahlt», Filter «Offen» heisst «Nicht zugestellt» | mit 2 |
+| 5 | Events | **weiter pflegen** (aktives Modul) | – |
+| 6 | Störungs-/Montageformular | Planungsblock («Erst geplant») eingeklappt, erscheint nur bei eingeschaltetem Schalter oder geplantem Einsatz (korrigiert: die Frage betraf das Formular, nicht die Startseite) | in Arbeit (v0.149) |
+| 7 | Tote Zeitfelder | zusammen mit Ferien Phase 2 (ab ~04.10.2026) | offen |
+| 8 | Zeiterfassung Störung/Montage | beim Abschliessen ohne von/bis einmal fragen, Vorschlag aus dem Tagesplan | in Arbeit (v0.149) |
+| 9 | Aufgaben | Betriebsbezug (Migration 212), Formular, Diktat, Betriebsseite, Tourenplan | in Arbeit (v0.149) |
+
 ### ⏳ Mit Frist
 
 | | Frist | Stand |
