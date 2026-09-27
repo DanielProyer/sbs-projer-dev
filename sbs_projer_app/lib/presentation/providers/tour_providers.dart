@@ -1433,6 +1433,25 @@ TagesplanAnsicht tagesplanAnsicht({
   return ladefehler ? TagesplanAnsicht.ladefehler : TagesplanAnsicht.laedt;
 }
 
+/// Hinweisband «Plan konnte nicht geladen werden» mit «Erneut laden» ÜBER
+/// der Ist-Ansicht eines vergangenen (oder abgeschlossenen) Tages.
+///
+/// WARUM: Dort zeigt [tagesplanAnsicht] die tatsächlichen Reinigungen,
+/// auch wenn der Plan nicht geladen werden konnte — die brauchen ihn nicht.
+/// Das «+» im Fällig-Tab schreibt aber in den Plan und verlangt dann
+/// «zuerst Erneut laden»; den Knopf gab es an solchen Tagen nirgends
+/// (Review 27.09.2026). Ein Band statt der Fehleransicht, weil die
+/// Ist-Daten unabhängig vom Plan stimmen — ein hartnäckiger Ladefehler
+/// soll sie nicht verdecken.
+///
+/// Gleiche Bedingung wie die Meldung in `_planBereit` (Tourenplan):
+/// Plan gehört nicht zum Tag UND der Ladeversuch ist gescheitert.
+bool tagesplanLadefehlerBand({
+  required bool nurIst,
+  required bool planGehoertZumTag,
+  required bool ladefehler,
+}) => nurIst && !planGehoertZumTag && ladefehler;
+
 // ─── Tagesplan Persistierung (Supabase) ───
 
 /// Sichtbar für Tests (`test/tour_eintrag_json_test.dart`) — deckt die

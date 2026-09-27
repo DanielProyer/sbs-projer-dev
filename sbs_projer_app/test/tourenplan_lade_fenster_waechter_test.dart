@@ -173,6 +173,30 @@ void main() {
     expect(ohneKommentare(leiste), isNot(contains('Duration(days')));
   });
 
+  // Review 27.09.2026: An vergangenen Tagen zeigt der Tab die Ist-Ansicht —
+  // auch bei einem Ladefehler. «Erneut laden» muss dort als Band stehen,
+  // sonst verlangt das Fällig-«+» einen Knopf, den es nicht gibt.
+  test('vergangener Tag mit Ladefehler: Band mit «Erneut laden»', () {
+    final zustand = screen.substring(
+      screen.indexOf('class _TourenplanungScreenState'),
+    );
+    final build = _rumpf(zustand, 'Widget build(BuildContext context)');
+    expect(build, contains('tagesplanLadefehlerBand('));
+    expect(build, contains('if (ladefehlerBand)'));
+    expect(build, contains('_planLadefehlerBand('));
+
+    final band = _rumpf(zustand, 'Widget _planLadefehlerBand(');
+    expect(band, contains('TapKnopf('));
+    expect(band, contains("'Erneut laden'"));
+    expect(band, contains('onTap: _planErneutLaden'));
+    final laden = zustand.indexOf('void _planErneutLaden() =>');
+    expect(laden, greaterThanOrEqualTo(0));
+    expect(
+      zustand.substring(laden, zustand.indexOf(';', laden)),
+      contains('ref.invalidate(gespeicherterTagesplanProvider(_selectedDate))'),
+    );
+  });
+
   test('gespeicherterTagesplanProvider reicht Ladefehler weiter', () {
     final quelle = File(
       'lib/presentation/providers/tour_providers.dart',

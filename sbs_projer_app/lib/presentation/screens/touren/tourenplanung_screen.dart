@@ -284,10 +284,17 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final planGehoertZumTag = ref
         .read(tagesplanProvider.notifier)
         .gehoertZu(_selectedDate);
+    final ladefehler = gespeichertAsync.hasError && !gespeichertAsync.isLoading;
     final ansicht = tagesplanAnsicht(
       nurIst: istVergangenTag,
       planGehoertZumTag: planGehoertZumTag,
-      ladefehler: gespeichertAsync.hasError && !gespeichertAsync.isLoading,
+      ladefehler: ladefehler,
+    );
+    // Vergangener Tag: Ist-Ansicht bleibt, «Erneut laden» als Band darüber.
+    final ladefehlerBand = tagesplanLadefehlerBand(
+      nurIst: istVergangenTag,
+      planGehoertZumTag: planGehoertZumTag,
+      ladefehler: ladefehler,
     );
 
     final bereitsImPlan = planGehoertZumTag
@@ -399,6 +406,8 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
                       ),
                     ),
                     _ArbeitstagZeile(datum: _selectedDate),
+                    if (ladefehlerBand)
+                      _planLadefehlerBand(gespeichertAsync.error),
                     if (autoTermine.isNotEmpty)
                       SaisonTermineSektion(
                         eintraege: autoTermine,
@@ -780,12 +789,65 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
             TapKnopf(
               text: 'Erneut laden',
               icon: Icons.refresh,
-              onTap: () => ref.invalidate(
-                gespeicherterTagesplanProvider(_selectedDate),
-              ),
+              onTap: _planErneutLaden,
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Den gespeicherten Plan des angezeigten Tages neu holen — ein Ladefehler
+  /// bliebe sonst im (nicht autoDispose) Cache stehen.
+  void _planErneutLaden() =>
+      ref.invalidate(gespeicherterTagesplanProvider(_selectedDate));
+
+  /// Band über der Ist-Ansicht, wenn der Plan eines vergangenen Tages nicht
+  /// geladen werden konnte ([tagesplanLadefehlerBand]): Die Ist-Daten
+  /// bleiben sichtbar, und «Erneut laden» ist dort, wo das «+» im
+  /// Fällig-Tab hinverweist.
+  Widget _planLadefehlerBand(Object? fehler) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: AppColors.error.withAlpha(30),
+        border: Border.all(color: AppColors.error.withAlpha(100)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off, color: AppColors.error, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Plan konnte nicht geladen werden',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+                if (fehler != null)
+                  Text(
+                    kurzeFehlermeldung(fehler),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          TapKnopf(
+            text: 'Erneut laden',
+            icon: Icons.refresh,
+            primaer: false,
+            onTap: _planErneutLaden,
+          ),
+        ],
       ),
     );
   }
@@ -803,7 +865,10 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         duration: const Duration(seconds: 3),
         content: Text(
           laden.hasError && !laden.isLoading
-              ? 'Plan konnte nicht geladen werden — zuerst «Erneut laden»'
+              // Der Knopf steht im Tab «Tagesplan» — an vergangenen Tagen
+              // als Band über der Ist-Ansicht (tagesplanLadefehlerBand).
+              ? 'Plan konnte nicht geladen werden — zuerst «Erneut laden» '
+                    'im Tab Tagesplan'
               : 'Plan wird noch geladen — bitte gleich nochmals',
         ),
       ),

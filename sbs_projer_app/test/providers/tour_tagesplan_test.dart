@@ -273,6 +273,88 @@ void main() {
     });
   });
 
+  // Review 27.09.2026: An vergangenen Tagen verlangte das Fällig-«+» bei
+  // einem Ladefehler «zuerst Erneut laden» — den Knopf gab es dort nicht,
+  // weil der Tab die Ist-Ansicht statt des Fehlers zeigt.
+  group('tagesplanLadefehlerBand (Ist-Ansicht mit Ladefehler)', () {
+    bool band({
+      required bool nurIst,
+      required bool planGehoertZumTag,
+      required bool ladefehler,
+    }) => tagesplanLadefehlerBand(
+      nurIst: nurIst,
+      planGehoertZumTag: planGehoertZumTag,
+      ladefehler: ladefehler,
+    );
+
+    test('vergangener Tag, Plan nicht geladen, Fehler → Band', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: false, ladefehler: true),
+        isTrue,
+      );
+    });
+
+    test('vergangener Tag, Plan lädt noch → kein Band', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: false, ladefehler: false),
+        isFalse,
+      );
+    });
+
+    test('Nachladefehler bei geladenem Plan → kein Band (Plan-Aktionen '
+        'gehen)', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: true, ladefehler: true),
+        isFalse,
+      );
+    });
+
+    test('heutiger/künftiger Tag → kein Band, dort zeigt der Tab den '
+        'Fehler selbst', () {
+      expect(
+        band(nurIst: false, planGehoertZumTag: false, ladefehler: true),
+        isFalse,
+      );
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: false,
+          ladefehler: true,
+        ),
+        TagesplanAnsicht.ladefehler,
+      );
+    });
+
+    test('jede Lage, in der das «+» «Erneut laden» verlangt, hat einen '
+        'Knopf', () {
+      for (final nurIst in [false, true]) {
+        for (final gehoert in [false, true]) {
+          // `_planBereit` verlangt «Erneut laden» genau dann:
+          const ladefehler = true;
+          final verlangt = !gehoert && ladefehler;
+          if (!verlangt) continue;
+          final fehleransicht =
+              tagesplanAnsicht(
+                nurIst: nurIst,
+                planGehoertZumTag: gehoert,
+                ladefehler: ladefehler,
+              ) ==
+              TagesplanAnsicht.ladefehler;
+          expect(
+            fehleransicht ||
+                band(
+                  nurIst: nurIst,
+                  planGehoertZumTag: gehoert,
+                  ladefehler: ladefehler,
+                ),
+            isTrue,
+            reason: 'nurIst=$nurIst',
+          );
+        }
+      }
+    });
+  });
+
   // M4 (Review 26.09.2026): Die Arbeitstag-Schreiber schreiben Beginn, Ende
   // und km IMMER. Bei einem Ladefehler hiess der erfasste Beginn `null` — ein
   // Tipp auf «Pause» löschte ihn.
