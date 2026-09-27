@@ -1,6 +1,7 @@
 // Supabase Edge Function: fahrzeit-route
 // Liefert die Fahrzeit (Minuten) zwischen zwei Betrieben fuer den
-// Tourenplan (Spec "Tourenplan-Zeitachse", Task 2).
+// Tourenplan (Spec "Tourenplan-Zeitachse", Task 2) und seit Migration 210
+// auch die Strecke (km) fuer die Fahrtenerkennung ("Fahrten aus der Kette").
 //
 // Kaskaden-Einordnung:
 //   1. Cache-Lookup in Tabelle `fahrzeiten` -- erst die gespeicherte
@@ -8,9 +9,14 @@
 //      Reinigungshistorie beobachtete ('beobachtet') als auch zuvor per
 //      Route berechnete ('route') Fahrzeiten und ist damit der schnellste,
 //      verlaesslichste Weg.
+//      Fehlt der gefundenen Zeile noch die Distanz (alle Zeilen von vor
+//      Migration 210), wird OSRM EINMAL nach der Strecke gefragt und die
+//      Zeile ergaenzt. Die Minuten bleiben dabei die gespeicherten -- eine
+//      Beobachtung wird nie durch die Route ersetzt. Scheitert das Routing,
+//      kommt der Cache-Treffer wie bisher zurueck (distanzKm: null).
 //   2. Kein Cache-Treffer: Route via OSRM anhand der Betriebs-Koordinaten
-//      berechnen und das Ergebnis als quelle='route' cachen, damit derselbe
-//      Betriebspfad kuenftig direkt aus dem Cache kommt.
+//      berechnen und das Ergebnis als quelle='route' cachen (samt Distanz),
+//      damit derselbe Betriebspfad kuenftig direkt aus dem Cache kommt.
 //   3. Schlaegt auch das fehl (keine Koordinaten, OSRM nicht erreichbar,
 //      Timeout, keine Route gefunden): Function liefert ok:false mit
 //      Fehlercode -- die App faellt dann auf ihre eigene Heuristik
@@ -19,10 +25,10 @@
 //
 // Warum der OSRM-Demo-Server (router.project-osrm.org): kostenlos, kein
 // API-Key noetig. Dank des Caches in `fahrzeiten` wird er pro Betriebspaar
-// nur EINMAL angefragt -- die Fair-Use-Grenzen des Demo-Servers werden
-// dadurch praktisch nie erreicht. Sollte das doch noetig werden, ist der
-// Wechsel auf einen Anbieter mit API-Key (z.B. OpenRouteService) auf diese
-// Datei begrenzt.
+// nur EINMAL angefragt (bei Altzeilen ein zweites Mal fuer die Strecke) --
+// die Fair-Use-Grenzen des Demo-Servers werden dadurch praktisch nie
+// erreicht. Sollte das doch noetig werden, ist der Wechsel auf einen
+// Anbieter mit API-Key (z.B. OpenRouteService) auf diese Datei begrenzt.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -39,6 +45,12 @@ const CORS = {
 interface FahrzeitRow {
   minuten: number;
   quelle: "beobachtet" | "route";
+  // numeric(6,1) -- kann je nach Client als Zahl oder String ankommen.
+  distanz_km: number | string | null;
+  // Richtung der GEFUNDENEN Zeile (bei Treffer in der Gegenrichtung die
+  // umgekehrte der Anfrage) -- die Distanz wird genau dort nachgetragen.
+  von_betrieb_id: string;
+  nach_betrieb_id: string;
 }
 
 interface BetriebRow {
@@ -91,9 +103,23 @@ Deno.serve(async (req: Request) => {
       vonBetriebId,
       nachBetriebId,
     );
-    if (cached) {
-      return json({ ok: true, minuten: cached.minuten, quelle: cached.quelle });
+    const cachedDistanz = cached ? zahlOderNull(cached.distanz_km) : null;
+    if (cached && cachedDistanz != null) {
+      return json({
+        ok: true,
+        minuten: cached.minuten,
+        quelle: cached.quelle,
+        distanzKm: cachedDistanz,
+      });
     }
+    // Cache-Treffer ohne Distanz: Jeder Fehlschlag beim Nachholen der
+    // Strecke liefert den Treffer wie vor Migration 210 (ok:true).
+    const nurCache = (c: FahrzeitRow) =>
+      json({ ok: true, minuten: c.minuten, quelle: c.quelle, distanzKm: null });
+
+    // Richtung fuers Routing: bei Altzeile die der Zeile, sonst die Anfrage.
+    const routeVonId = cached ? cached.von_betrieb_id : vonBetriebId;
+    const routeNachId = cached ? cached.nach_betrieb_id : nachBetriebId;
 
     // 2) Koordinaten beider Betriebe laden.
     const { data: betriebeData, error: betriebeError } = await admin
@@ -103,15 +129,17 @@ Deno.serve(async (req: Request) => {
       .in("id", [vonBetriebId, nachBetriebId]);
     if (betriebeError) {
       console.error("fahrzeit-route betriebe", betriebeError);
+      if (cached) return nurCache(cached);
       return json({ ok: false, error: "db_error" }, 500);
     }
     const betriebe = (betriebeData ?? []) as BetriebRow[];
-    const von = betriebe.find((b) => b.id === vonBetriebId);
-    const nach = betriebe.find((b) => b.id === nachBetriebId);
+    const von = betriebe.find((b) => b.id === routeVonId);
+    const nach = betriebe.find((b) => b.id === routeNachId);
     if (
       !von || !nach || von.latitude == null || von.longitude == null ||
       nach.latitude == null || nach.longitude == null
     ) {
+      if (cached) return nurCache(cached);
       return json({ ok: false, error: "no_gps" });
     }
 
@@ -122,13 +150,46 @@ Deno.serve(async (req: Request) => {
     let osrmData: Any;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return json({ ok: false, error: "osrm_http_error" });
+      if (!res.ok) {
+        if (cached) return nurCache(cached);
+        return json({ ok: false, error: "osrm_http_error" });
+      }
       osrmData = await res.json();
     } catch (e) {
       console.error("fahrzeit-route osrm", e);
+      if (cached) return nurCache(cached);
       return json({ ok: false, error: "osrm_unreachable" });
     }
     const durationSec = osrmData?.routes?.[0]?.duration;
+    const distanceM = osrmData?.routes?.[0]?.distance;
+    // Meter -> km mit einer Nachkommastelle (Spalte numeric(6,1)).
+    const distanzKm = typeof distanceM === "number"
+      ? Math.round(distanceM / 100) / 10
+      : null;
+
+    // 3a) Altzeile ohne Distanz: NUR die Strecke nachtragen. Minuten,
+    // Quelle und Referenz bleiben unangetastet (Beobachtung > Route).
+    if (cached) {
+      if (distanzKm != null) {
+        const { error: distanzError } = await admin
+          .from("fahrzeiten")
+          .update({ distanz_km: distanzKm, distanz_quelle: "osrm" })
+          .eq("user_id", user.id)
+          .eq("von_betrieb_id", cached.von_betrieb_id)
+          .eq("nach_betrieb_id", cached.nach_betrieb_id)
+          .is("distanz_km", null);
+        if (distanzError) {
+          console.error("fahrzeit-route distanz nachtragen", distanzError);
+        }
+      }
+      return json({
+        ok: true,
+        minuten: cached.minuten,
+        quelle: cached.quelle,
+        distanzKm,
+      });
+    }
+
     if (typeof durationSec !== "number") {
       return json({ ok: false, error: "osrm_no_route" });
     }
@@ -150,6 +211,9 @@ Deno.serve(async (req: Request) => {
         // von Beobachtungen NIE ueberschrieben.
         referenz_minuten: minuten,
         referenz_quelle: "osrm",
+        // Strecke (Migration 210) fuer die Fahrtenerkennung.
+        distanz_km: distanzKm,
+        distanz_quelle: distanzKm != null ? "osrm" : null,
         updated_at: new Date().toISOString(),
       },
       {
@@ -167,13 +231,23 @@ Deno.serve(async (req: Request) => {
       .eq("von_betrieb_id", vonBetriebId)
       .eq("nach_betrieb_id", nachBetriebId)
       .is("referenz_minuten", null);
+    // Gleiches fuer die Strecke (Migration 210): nur wo sie noch fehlt.
+    if (distanzKm != null) {
+      await admin
+        .from("fahrzeiten")
+        .update({ distanz_km: distanzKm, distanz_quelle: "osrm" })
+        .eq("user_id", user.id)
+        .eq("von_betrieb_id", vonBetriebId)
+        .eq("nach_betrieb_id", nachBetriebId)
+        .is("distanz_km", null);
+    }
     if (upsertError) {
       // Nur loggen: Die Route wurde erfolgreich berechnet, die Antwort an
       // die App bleibt gueltig -- nur der Cache wird evtl. nicht befuellt.
       console.error("fahrzeit-route upsert", upsertError);
     }
 
-    return json({ ok: true, minuten, quelle: "route" });
+    return json({ ok: true, minuten, quelle: "route", distanzKm });
   } catch (e) {
     console.error("fahrzeit-route", e);
     return json(
@@ -183,14 +257,23 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+// numeric-Spalte (Zahl oder String) -> Zahl; null/unlesbar -> null.
+function zahlOderNull(v: number | string | null | undefined): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function cacheLookup(
   admin: Any,
   userId: string,
   vonBetriebId: string,
   nachBetriebId: string,
 ): Promise<FahrzeitRow | null> {
+  const spalten =
+    "minuten, quelle, distanz_km, von_betrieb_id, nach_betrieb_id";
   const { data: hin } = await admin.from("fahrzeiten")
-    .select("minuten, quelle")
+    .select(spalten)
     .eq("user_id", userId)
     .eq("von_betrieb_id", vonBetriebId)
     .eq("nach_betrieb_id", nachBetriebId)
@@ -198,7 +281,7 @@ async function cacheLookup(
   if (hin) return hin as FahrzeitRow;
 
   const { data: rueck } = await admin.from("fahrzeiten")
-    .select("minuten, quelle")
+    .select(spalten)
     .eq("user_id", userId)
     .eq("von_betrieb_id", nachBetriebId)
     .eq("nach_betrieb_id", vonBetriebId)
