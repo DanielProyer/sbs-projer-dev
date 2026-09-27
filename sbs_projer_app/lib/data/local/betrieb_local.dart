@@ -89,10 +89,13 @@ class BetriebLocal {
   DateTime? ruhetageBestaetigtAm;
 
   /// Ferien-Perioden aus der Tabelle `betrieb_ferien` (nicht gespeichert,
-  /// wird vom Provider nach dem Laden gesetzt). Ersetzt schrittweise die
-  /// obigen fuenf festen Spaltenpaare — siehe core/util/betrieb_ferien.dart.
-  /// `null` = noch nicht geladen (dann greifen die alten Spalten),
-  /// leere Liste = geladen und dieser Betrieb hat keine Ferien.
+  /// wird beim Laden gesetzt: `betriebeStreamProvider`/`mitFerienPerioden`
+  /// bzw. `BetriebFerienRepository.periodenAnhaengen`). Die einzige
+  /// Ferien-Quelle — die obigen fuenf Spaltenpaare sind seit 27.09.2026
+  /// eingefrorener Altbestand, den niemand mehr liest oder schreibt (DROP
+  /// nach Beobachtung), siehe core/util/betrieb_ferien.dart.
+  /// `null` = nicht geladen — beim Auswerten ein Programmierfehler (laut:
+  /// debugPrint + Zaehler + assert), leere Liste = geladen, keine Ferien.
   @ignore
   List<({DateTime von, DateTime bis})>? ferienPerioden;
   String? oeffnungszeitenJson;

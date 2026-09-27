@@ -42,12 +42,12 @@ class _HeinekenRasterScreenState extends ConsumerState<HeinekenRasterScreen> {
 
     try {
       final allBetriebe = await BetriebRepository.getAll();
-      // Ferien aus der Tabelle — sonst liest ferienSlots die eingefrorenen
-      // Altspalten (Analyse R7, Erkundung 26.09.2026).
+      // Ferien aus der Tabelle (Analyse R7) — ohne sie meldete ferienSlots
+      // seit 27.09.2026 einen Rückfall und das Raster zeigte keine Ferien.
+      // mitFerienPerioden setzt auch bei Betrieben ohne serverId eine Liste.
       final ferienMap = await ref.read(ferienPeriodenProvider.future);
       for (final b in allBetriebe) {
-        final id = b.serverId;
-        if (id != null) b.ferienPerioden = ferienMap[id] ?? const [];
+        mitFerienPerioden(b, ferienMap);
       }
       final meineKunden = allBetriebe.where((b) => b.istMeinKunde).toList();
 

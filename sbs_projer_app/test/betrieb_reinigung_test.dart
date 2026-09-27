@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 BetriebLocal _b() => BetriebLocal()
   ..userId = 't'
   ..name = 'Calanda'
+  ..ferienPerioden = const []
   ..ort = 'Chur';
 
 /// Fester Bezugstag für alle Struktur-Tests: sonst fielen die Termine
@@ -54,8 +55,7 @@ void main() {
 
     test('abgelaufene Ferien ergeben keinen Vorschlag', () {
       final b = _b()
-        ..ferienStart = DateTime(2026, 7, 10)
-        ..ferienEnde = DateTime(2026, 7, 20);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 10), bis: DateTime(2026, 7, 20))];
       expect(betriebReinigungen(b, heute: DateTime(2026, 9, 8)), isEmpty);
     });
   });
@@ -78,8 +78,7 @@ void main() {
 
   test('Ferien-Slot → Endreinigung=Start-1, Eröffnung=Ende+1', () {
     final b = _b()
-      ..ferienStart = DateTime(2026, 7, 10)
-      ..ferienEnde = DateTime(2026, 7, 20);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 10), bis: DateTime(2026, 7, 20))];
     final r = betriebReinigungen(b, heute: _heute);
     final end = r.firstWhere((x) => x.slotKey == 'ferien_2026-07-10_endreinigung');
     final auf = r.firstWhere((x) => x.slotKey == 'ferien_2026-07-10_eroeffnung');
@@ -90,15 +89,13 @@ void main() {
   test('keineBetriebsferien → Ferien ignoriert', () {
     final b = _b()
       ..keineBetriebsferien = true
-      ..ferienStart = DateTime(2026, 7, 10)
-      ..ferienEnde = DateTime(2026, 7, 20);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 10), bis: DateTime(2026, 7, 20))];
     expect(betriebReinigungen(b, heute: _heute), isEmpty);
   });
 
   test('nur belegte Ferien-Slots', () {
     final b = _b()
-      ..ferien2Start = DateTime(2026, 8, 1)
-      ..ferien2Ende = DateTime(2026, 8, 10);
+      ..ferienPerioden = [(von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 10))];
     final keys = betriebReinigungen(b, heute: _heute).map((x) => x.slotKey).toSet();
     expect(keys, {'ferien_2026-08-01_endreinigung', 'ferien_2026-08-01_eroeffnung'});
   });
@@ -109,8 +106,7 @@ void main() {
       ..sommerSaisonAktiv = true
       ..sommerStartDatum = DateTime(2026, 5, 1)
       ..sommerEndeDatum = DateTime(2026, 9, 30)
-      ..ferienStart = DateTime(2026, 7, 10)
-      ..ferienEnde = DateTime(2026, 7, 20);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 10), bis: DateTime(2026, 7, 20))];
     final ds = betriebReinigungen(b, heute: _heute).map((x) => x.datum).toList();
     final sorted = [...ds]..sort();
     expect(ds, sorted);

@@ -626,25 +626,22 @@ class _BetriebFormScreenState extends ConsumerState<BetriebFormScreen>
       // Saison-/Ferien-Reinigungen optional in den Google Kalender eintragen
       // (mit Bestätigungs-Dialog, nur wenn Google verbunden).
       final betriebSid = betrieb.serverId;
-      // Ferien aus der Tabelle — sonst schlüge ferienSlots die eingefrorenen
-      // Altspalten für den Kalender vor (Analyse R7). Schlägt das Laden fehl,
-      // lieber keine Ferien-Termine vorschlagen als eingefrorene — und dann
-      // auch nichts aufräumen lassen (alleFerienKeys = null), sonst löschte
-      // die Edge Function wegen eines Netzfehlers alle Ferien-Termine.
+      // Ferien aus der Tabelle (Analyse R7) — getById liefert keine, und
+      // ferienSlots fällt seit 27.09.2026 nicht mehr auf die Altspalten
+      // zurück. periodenAnhaengen setzt auch beim neuen Betrieb (noch ohne
+      // serverId) eine leere Liste. Schlägt das Laden fehl, bewusst keine
+      // Ferien-Termine vorschlagen — und dann auch nichts aufräumen lassen
+      // (alleFerienKeys = null), sonst löschte die Edge Function wegen eines
+      // Netzfehlers alle Ferien-Termine.
       Set<String>? alleFerienKeys;
-      if (betriebSid != null && betriebSid.isNotEmpty) {
-        try {
-          final ferien = await BetriebFerienRepository.getFuerBetrieb(
-            betriebSid,
-          );
-          betrieb.ferienPerioden = [
-            for (final f in ferien) (von: f.von, bis: f.bis),
-          ];
+      try {
+        await BetriebFerienRepository.periodenAnhaengen(betrieb);
+        if (betriebSid != null && betriebSid.isNotEmpty) {
           alleFerienKeys = alleFerienSlotKeys(betrieb);
-        } catch (e) {
-          debugPrint('[Betrieb] Ferien nicht geladen: $e');
-          betrieb.ferienPerioden = const [];
         }
+      } catch (e) {
+        debugPrint('[Betrieb] Ferien nicht geladen: $e');
+        betrieb.ferienPerioden = const [];
       }
       final reinigungen = betriebReinigungen(betrieb);
       if (mounted &&

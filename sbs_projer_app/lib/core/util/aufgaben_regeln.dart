@@ -53,6 +53,31 @@ class Aufgabe {
 /// (das Sheet ist ein Modal ohne eigene Adresse).
 const kDiktatAktion = 'aktion:diktat';
 
+/// «Dorthin»-Ziel, das keine Route ist, sondern die Ferien-Tabelle (und
+/// damit die Betriebe) neu lädt — siehe [ferienLadefehlerAufgabe].
+const kFerienNeuLadenAktion = 'aktion:ferien_neu_laden';
+
+/// Die Ferien-Tabelle `betrieb_ferien` liess sich nicht laden
+/// ([fehler] = Fehlertext aus `ferienLadefehlerProvider`, `null` = alles gut).
+///
+/// WARUM dringend und draussen (27.09.2026): Seit die Altspalten nicht mehr
+/// als Rückfall dienen, tragen die Betriebe dann KEINE Ferien — der
+/// Tourenplan könnte zu einem geschlossenen Betrieb schicken. Die Betriebe
+/// bleiben bewusst sichtbar (Störung, Rechnung, Suche); diese Aufgabe auf
+/// Heute-Karte und Glocke ist das laute Gegenstück. «Erneut laden» lädt
+/// Ferien und Betriebe neu ([kFerienNeuLadenAktion]).
+Aufgabe? ferienLadefehlerAufgabe(String? fehler) => fehler == null
+    ? null
+    : const Aufgabe(
+        key: 'ferien_ladefehler',
+        titel:
+            'Ferien nicht geladen — Betriebe könnten geschlossen sein. '
+            'Erneut laden',
+        dringend: true,
+        route: kFerienNeuLadenAktion,
+        draussen: true,
+      );
+
 String _zwei(int n) => n.toString().padLeft(2, '0');
 
 /// Eine lokal gesicherte, nicht abgeschlossene Reinigung

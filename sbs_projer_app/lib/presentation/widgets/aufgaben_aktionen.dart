@@ -12,6 +12,7 @@ import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
@@ -78,6 +79,15 @@ class AufgabenAktionen {
           ? router.routerDelegate.navigatorKey.currentContext
           : context;
       if (ziel != null && ziel.mounted) zeigeDiktatSheet(ziel);
+      return;
+    }
+    // Ferien nicht geladen: Tabelle und Betriebe neu laden. Die Aufgabe
+    // verschwindet von selbst, sobald `ferienLadefehlerProvider` wieder
+    // `null` meldet; scheitert es erneut, bleibt sie stehen.
+    if (route == kFerienNeuLadenAktion) {
+      ref.invalidate(ferienPeriodenProvider);
+      ref.invalidate(betriebeStreamProvider);
+      _neuLaden();
       return;
     }
     router.push(route);

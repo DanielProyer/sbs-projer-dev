@@ -1,38 +1,127 @@
+import 'package:flutter/foundation.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 
 /// Ein Ferien-Slot (Start/Ende koennen einzeln null sein).
 typedef FerienSlot = ({DateTime? start, DateTime? ende});
 
-/// Alle Ferien-Slots eines Betriebs.
+/// Ferien-Perioden aus der Tabelle `betrieb_ferien`, gruppiert nach
+/// `betrieb_id` (== [BetriebLocal.serverId]).
+typedef FerienPeriodenMap = Map<String, List<({DateTime von, DateTime bis})>>;
+
+/// Wie oft [ferienSlots] einen Betrieb OHNE geladene Perioden gesehen hat.
 ///
-/// Liest aus [BetriebLocal.ferienPerioden] (Tabelle `betrieb_ferien`),
-/// sobald diese geladen sind. `null` heisst «noch nicht geladen» — dann
-/// faellt die Funktion auf die alten 5 festen Spaltenpaare zurueck.
+/// Nur zur Beobachtung waehrend der Woche vor dem DROP der Altspalten: Steht
+/// der Zaehler nach einer Tour-Planung nicht auf 0, gibt es noch einen Pfad,
+/// der Betriebe ohne [mitFerienPerioden] bzw.
+/// `BetriebFerienRepository.periodenAnhaengen` auswertet.
+int ferienRueckfallZaehler = 0;
+
+/// Betriebe, fuer die der Rueckfall schon gemeldet wurde — damit der
+/// Tourenplan (tausende Aufrufe je Aufbau) die Konsole nicht flutet.
+final Set<String> _rueckfallGemeldet = {};
+
+/// Haengt die Ferien aus [map] an [b] und gibt [b] zurueck.
 ///
-/// Der Unterschied zwischen `null` und einer LEEREN Liste ist wesentlich:
-/// - `null` = unbekannt → alte Spalten lesen. Das macht die Umstellung
-///   gefahrlos: Wo die Perioden noch nicht da sind, verhaelt sich die App
-///   wie bisher, statt Ferien stillschweigend zu "vergessen" — vergessene
-///   Ferien waeren der schlimmste Fehlerfall, dann faehrt Daniel zu einem
-///   geschlossenen Betrieb.
-/// - leere Liste = geladen, dieser Betrieb hat keine Ferien → die alten
-///   Spalten werden NICHT gelesen. Sonst kaeme eine geloeschte Periode
-///   ueber den Altbestand zurueck und liesse sich nie entfernen.
+/// Die EINE Stelle, an der eine geladene Ferien-Tabelle an Betriebe kommt
+/// (Betriebsliste, Heineken-Raster). Setzt IMMER eine Liste, nie `null`:
+/// - Betrieb mit Eintraegen → seine Perioden,
+/// - Betrieb ohne Eintraege → leere Liste (geladen, keine Ferien),
+/// - Betrieb ohne `serverId` (nativ noch nicht synchronisiert) → leere
+///   Liste: `betrieb_ferien.betrieb_id` verweist auf `betriebe.id`, ein
+///   solcher Betrieb kann also noch keine Perioden haben.
+BetriebLocal mitFerienPerioden(BetriebLocal b, FerienPeriodenMap map) {
+  final id = b.serverId;
+  b.ferienPerioden = id == null ? const [] : (map[id] ?? const []);
+  return b;
+}
+
+/// Verbindet einen Betriebe-Strom mit der Ferien-Tabelle: Jede Liste kommt
+/// erst, wenn [ferien] fertig ist, und jeder Betrieb traegt dann seine
+/// Perioden ([mitFerienPerioden]). Grundlage von `betriebeStreamProvider`.
+/// Nativ sendet der Isar-Strom bei jeder Aenderung neu; jede Sendung bekommt
+/// die Ferien angehaengt.
+///
+/// Schlaegt [ferien] fehl, kommen die Betriebe TROTZDEM — mit
+/// `ferienPerioden = null` («unbekannt»). Betriebe sind der Kern der App
+/// (Stoerung erfassen, Rechnung, Suche); ein Ferien-Ladefehler darf sie
+/// nicht ausblenden (Entscheid 27.09.2026). Still bleibt es trotzdem nicht:
+/// Jede Ferien-Auswertung meldet den Rueckfall ([ferienSlots]), und die
+/// Aufgabe «Ferien nicht geladen» steht auf der Heute-Karte und in der
+/// Glocke (`ferienLadefehlerProvider`).
+Stream<List<BetriebLocal>> betriebeMitFerien(
+  Stream<List<BetriebLocal>> betriebe,
+  Future<FerienPeriodenMap> ferien,
+) {
+  // Ein Ladefehler kann eintreffen, bevor jemand den Strom abonniert — er
+  // soll dann nicht als «unbehandelt» in der Zone landen (das `await` unten
+  // bekommt ihn trotzdem).
+  ferien.ignore();
+  return _betriebeMitFerien(betriebe, ferien);
+}
+
+Stream<List<BetriebLocal>> _betriebeMitFerien(
+  Stream<List<BetriebLocal>> betriebe,
+  Future<FerienPeriodenMap> ferien,
+) async* {
+  FerienPeriodenMap? map;
+  try {
+    map = await ferien;
+  } catch (e) {
+    debugPrint('[Ferien] Tabelle nicht geladen — Betriebe ohne Ferien: $e');
+  }
+  await for (final list in betriebe) {
+    if (map == null) {
+      // Ausdruecklich «unbekannt», nicht «keine Ferien» (leere Liste).
+      for (final b in list) {
+        b.ferienPerioden = null;
+      }
+      yield list;
+    } else {
+      yield [for (final b in list) mitFerienPerioden(b, map)];
+    }
+  }
+}
+
+/// Alle Ferien-Slots eines Betriebs — ausschliesslich aus
+/// [BetriebLocal.ferienPerioden] (Tabelle `betrieb_ferien`).
+///
+/// WARUM kein Rueckfall mehr auf die fuenf Altspalten `ferien*_start/ende`
+/// (seit 27.09.2026): Die Tabelle ist seit 26.09.2026 vollstaendig — alle 47
+/// vollstaendigen Alt-Slots stehen darin, die Altspalten sind eingefroren
+/// (niemand schreibt sie mehr) und werden nach einer Woche Beobachtung
+/// entfernt (DROP). Der Rueckfall war nur fuer die Umstellung da; er hielt
+/// aber jeden Pfad am Leben, der die Perioden vergass, und haette nach dem
+/// DROP still «keine Ferien» geliefert.
+///
+/// `null` in [BetriebLocal.ferienPerioden] heisst «nicht geladen» und ist
+/// jetzt ein Programmierfehler: Jeder Pfad, der Ferien auswertet, laedt die
+/// Perioden vorher ([mitFerienPerioden], `betriebeStreamProvider`,
+/// `BetriebFerienRepository.periodenAnhaengen`). Tritt er trotzdem auf,
+/// liefert die Funktion `[]` — aber LAUT: `debugPrint` je Betrieb,
+/// [ferienRueckfallZaehler] zaehlt mit, und im Debug-Modus (Tests,
+/// Entwicklung) bricht ein `assert` sofort ab. Vergessene Ferien sind der
+/// schlimmste Fehlerfall — dann faehrt Daniel zu einem geschlossenen Betrieb.
+///
+/// Eine LEERE Liste heisst dagegen «geladen, keine Ferien».
 ///
 /// Prueft NICHT [BetriebLocal.keineBetriebsferien] — dafuer gibt es
 /// [wirksameFerienSlots], ueber das alle auswertenden Leser gehen.
 List<FerienSlot> ferienSlots(BetriebLocal b) {
   final perioden = b.ferienPerioden;
-  if (perioden != null) {
-    return [for (final p in perioden) (start: p.von, ende: p.bis)];
+  if (perioden == null) {
+    ferienRueckfallZaehler++;
+    if (_rueckfallGemeldet.add(b.name)) {
+      debugPrint('[Ferien] Rückfall ohne Perioden: ${b.name}');
+    }
+    assert(
+      perioden != null,
+      'Ferien ohne geladene Perioden ausgewertet (${b.name}) — '
+      'mitFerienPerioden() bzw. BetriebFerienRepository.periodenAnhaengen() '
+      'vergessen?',
+    );
+    return const [];
   }
-  return [
-    (start: b.ferienStart, ende: b.ferienEnde),
-    (start: b.ferien2Start, ende: b.ferien2Ende),
-    (start: b.ferien3Start, ende: b.ferien3Ende),
-    (start: b.ferien4Start, ende: b.ferien4Ende),
-    (start: b.ferien5Start, ende: b.ferien5Ende),
-  ];
+  return [for (final p in perioden) (start: p.von, ende: p.bis)];
 }
 
 /// Die Ferien-Slots, die tatsaechlich gelten: leer, sobald der Schalter

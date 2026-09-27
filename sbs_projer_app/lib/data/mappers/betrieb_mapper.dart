@@ -121,16 +121,12 @@ class BetriebMapper {
           .first,
       'latitude': local.latitude,
       'longitude': local.longitude,
-      'ferien_start': local.ferienStart?.toIso8601String().split('T').first,
-      'ferien_ende': local.ferienEnde?.toIso8601String().split('T').first,
-      'ferien2_start': local.ferien2Start?.toIso8601String().split('T').first,
-      'ferien2_ende': local.ferien2Ende?.toIso8601String().split('T').first,
-      'ferien3_start': local.ferien3Start?.toIso8601String().split('T').first,
-      'ferien3_ende': local.ferien3Ende?.toIso8601String().split('T').first,
-      'ferien4_start': local.ferien4Start?.toIso8601String().split('T').first,
-      'ferien4_ende': local.ferien4Ende?.toIso8601String().split('T').first,
-      'ferien5_start': local.ferien5Start?.toIso8601String().split('T').first,
-      'ferien5_ende': local.ferien5Ende?.toIso8601String().split('T').first,
+      // Die fünf Altspalten `ferien*_start/ende` schreibt die App seit
+      // 27.09.2026 NICHT mehr — Ferien leben nur noch in `betrieb_ferien`.
+      // Ein Upsert ohne diese Schlüssel lässt die eingefrorenen Werte in der
+      // DB unberührt (kein Datenverlust), und nach dem DROP COLUMN scheitert
+      // das Speichern eines Betriebs nicht an unbekannten Spalten.
+      // fromDto liest sie bis zum DROP weiter mit (harmlos).
       'keine_betriebsferien': local.keineBetriebsferien,
       'keine_herbstpause': local.keineHerbstpause,
       'ferien_bestaetigt_am': local.ferienBestaetigtAm?.toIso8601String(),
