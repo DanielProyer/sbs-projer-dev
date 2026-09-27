@@ -67,8 +67,9 @@ Future<_Aufrufe> _zeige(
   bool bearbeitbar = true,
   Future<void> Function(double)? onBestand,
   Future<void> Function(bool)? onVormerken,
+  Size groesse = const Size(360, 800),
 }) async {
-  tester.view.physicalSize = const Size(360, 800);
+  tester.view.physicalSize = groesse;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -102,6 +103,22 @@ void main() {
     expect(find.text('Unter Mindestbestand'), findsNothing);
     // Ohne Foto: Platzhalter statt leerer Fläche.
     expect(find.byIcon(Icons.inventory_2), findsOneWidget);
+  });
+
+  testWidgets('Bestand vor der Beschreibung, Foto kleiner auf kleinem Handy',
+      (tester) async {
+    await _zeige(tester, _lager(), groesse: const Size(360, 640));
+    expect(
+      tester.getRect(find.text('5')).top,
+      lessThan(tester.getRect(find.text('Chromhahn mit Kompensator')).top),
+    );
+    final foto = tester.getRect(find
+        .descendant(
+          of: find.byType(MaterialKarte),
+          matching: find.byType(ClipRRect),
+        )
+        .first);
+    expect(foto.height, lessThanOrEqualTo(640 * 0.22));
   });
 
   testWidgets('«+» speichert 6 und zeigt 6 ohne Neuladen', (tester) async {

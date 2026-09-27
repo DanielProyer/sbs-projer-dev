@@ -37,16 +37,19 @@ final _lager = [
 Future<void> _zeige(
   WidgetTester tester, {
   Map<String, Object> prefs = const {},
+  List<Lager>? lager,
+  Size groesse = const Size(360, 800),
 }) async {
   SharedPreferences.setMockInitialValues(prefs);
-  tester.view.physicalSize = const Size(360, 800);
+  tester.view.physicalSize = groesse;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        materialienStreamProvider.overrideWith((ref) => Stream.value(_lager)),
+        materialienStreamProvider
+            .overrideWith((ref) => Stream.value(lager ?? _lager)),
         kategorienProvider.overrideWith((ref) async => _kategorien),
       ],
       child: const MaterialApp(home: MaterialienListScreen(istGast: false)),
@@ -161,6 +164,32 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
     await _tippe(tester, find.byTooltip('Liste'));
     expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
+  testWidgets('kleines Handy (360×640): «+» ohne Scrollen sichtbar',
+      (tester) async {
+    // Bestand ± ist die Hauptaktion im Auto. Unter AppBar, Suche, Chips und
+    // Zähler bleibt der Karte wenig Höhe — ein langer Name und zwei Zeilen
+    // Beschreibung dürfen die Knöpfe nicht unter den Rand schieben.
+    await _zeige(
+      tester,
+      groesse: const Size(360, 640),
+      lager: [
+        Lager(
+          id: 'x1',
+          userId: 'u',
+          name: 'Zapfhahn Chrom mit Kompensator und Tropfschale',
+          beschreibung: 'Standardhahn für Tresenanlagen, Kompensator stufenlos, '
+              'Dichtungssatz dabei',
+        ),
+      ],
+    );
+    await _tippe(tester, find.byTooltip('Karten'));
+    final plus = find.descendant(
+      of: find.byType(MaterialKarte),
+      matching: find.byIcon(Icons.add),
+    );
+    expect(tester.getRect(plus).bottom, lessThanOrEqualTo(640));
   });
 
   testWidgets('Karten lassen sich auch mit der Maus wischen (PC-Browser)',

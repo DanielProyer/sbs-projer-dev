@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/lager.dart';
@@ -134,12 +136,16 @@ class _MaterialKarteState extends State<MaterialKarte> {
 
     // Scrollbar, damit lange Beschreibungen auf kleinen Handys nicht
     // überlaufen; horizontal wischt der PageView darum herum.
+    //
+    // Reihenfolge: Bestand ± ist die Hauptaktion im Auto und steht deshalb
+    // VOR der Beschreibung — auf einem 640er-Handy rutschten die Knöpfe
+    // sonst unter den sichtbaren Rand.
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _foto(),
+          _foto(math.min(180, MediaQuery.sizeOf(context).height * 0.22)),
           const SizedBox(height: 12),
           Text(
             l.name,
@@ -158,8 +164,10 @@ class _MaterialKarteState extends State<MaterialKarte> {
               ),
             ),
           ],
+          const SizedBox(height: 16),
+          _bestandBlock(theme),
           if (beschreibung.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Text(
               beschreibung,
               maxLines: 4,
@@ -167,8 +175,6 @@ class _MaterialKarteState extends State<MaterialKarte> {
               style: theme.textTheme.bodyMedium,
             ),
           ],
-          const SizedBox(height: 16),
-          _bestandBlock(theme),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -189,7 +195,9 @@ class _MaterialKarteState extends State<MaterialKarte> {
     );
   }
 
-  Widget _foto() {
+  /// [hoehe]: höchstens 180 px, auf kleinen Handys 22 % der Bildschirmhöhe —
+  /// das Foto soll den Bestand nicht aus dem Bild drücken.
+  Widget _foto(double hoehe) {
     final platzhalter = Center(
       child: Icon(
         Icons.inventory_2,
@@ -200,7 +208,7 @@ class _MaterialKarteState extends State<MaterialKarte> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        height: 180,
+        height: hoehe,
         color: AppColors.divider.withAlpha(60),
         child: FutureBuilder<String?>(
           future: widget.fotoUrl,
@@ -211,7 +219,7 @@ class _MaterialKarteState extends State<MaterialKarte> {
               url,
               fit: BoxFit.cover,
               width: double.infinity,
-              height: 180,
+              height: hoehe,
               errorBuilder: (_, _, _) => platzhalter,
             );
           },
