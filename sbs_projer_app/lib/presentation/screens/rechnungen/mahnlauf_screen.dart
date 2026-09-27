@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -760,7 +761,7 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     final anzeige = ref.watch(betriebAnzeigeMapProvider)[r.betriebId] ?? '—';
     final fristBis = r.mahnFristBis;
     final zusatz = frist
-        ? '${_statusText(r.zahlungsstatus)}${fristBis != null ? ' · Frist bis ${_datum(fristBis)}' : ''}'
+        ? '${anzeigeStatus(r)}${fristBis != null ? ' · Frist bis ${_datum(fristBis)}' : ''}'
         : r.guthabenVerrechnet > 0
             ? '${_datum(r.rechnungsdatum)} · zu zahlen CHF '
                 '${r.zuZahlen.toStringAsFixed(2)} (Guthaben '
@@ -1142,11 +1143,4 @@ String _kanalText(MahnKanal k) => switch (k.kanal) {
       'mail' => 'Mail',
       'mail_und_druck' => 'Mail + PDF zum Einschreiben',
       _ => 'Druck — keine Mailadresse',
-    };
-
-String _statusText(String s) => switch (s) {
-      'erinnert' => 'Erinnert',
-      'mahnung_1' => '1. Mahnung',
-      'mahnung_2' => 'Letzte Mahnung',
-      _ => s,
     };

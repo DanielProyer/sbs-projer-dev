@@ -9,6 +9,7 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/mahn_hinweis.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/data/repositories/mahnfall_repository.dart';
@@ -22,15 +23,6 @@ import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/rechnung/barzahlung_service.dart';
 
 final _ddMMyyyy = DateFormat('dd.MM.yyyy');
-
-String _statusText(String s) => switch (s) {
-  'offen' => 'Offen',
-  'gesendet' => 'Gesendet',
-  'erinnert' => 'Erinnert',
-  'mahnung_1' => '1. Mahnung',
-  'mahnung_2' => 'Letzte Mahnung',
-  _ => s,
-};
 
 /// Hinweis beim Service (Mahnwesen Teil 3, Spec §6): Band oben in Reinigung,
 /// Störung und Montage, sobald der Betrieb gemahnte Rechnungen hat — orange
@@ -387,7 +379,7 @@ class _OffeneRechnungenSheetState
                         ),
                         Text(
                           '${_ddMMyyyy.format(r.rechnungsdatum)} · '
-                          '${_statusText(r.zahlungsstatus)}',
+                          '${anzeigeStatus(r)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.grey,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -38,27 +39,7 @@ const _monatNamen = [
   'Dezember',
 ];
 
-String _statusLabel(String status) {
-  switch (status) {
-    case 'offen':
-      return 'Offen';
-    case 'bezahlt':
-      return 'Bezahlt';
-    case 'erinnert':
-      return 'Erinnert';
-    case 'mahnung_1':
-      return 'Mahnung 1';
-    case 'mahnung_2':
-      return 'Mahnung 2';
-    case 'abgeschrieben':
-      return 'Abgeschrieben';
-    case 'mahnfaellig':
-      return 'Mahnfällig';
-    default:
-      return status;
-  }
-}
-
+/// Farbe zu einem Status bzw. Anzeige-Schlüssel ([anzeigeSchluessel]).
 Color _statusColor(String status) {
   switch (status) {
     case 'offen':
@@ -1141,7 +1122,7 @@ class _RechnungListItem extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32),
               ),
-            _StatusChip(status: rechnung.zahlungsstatus),
+            _StatusChip(rechnung: rechnung),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, size: 20),
           ],
@@ -1181,14 +1162,16 @@ class _RechnungListItem extends StatelessWidget {
   }
 }
 
+/// Text und Farbe aus derselben Ableitung ([anzeigeSchluessel]) — sonst
+/// stünde «1. Mahnung» in der Farbe von «gesendet».
 class _StatusChip extends StatelessWidget {
-  final String status;
+  final Rechnung rechnung;
 
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.rechnung});
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(status);
+    final color = _statusColor(anzeigeSchluessel(rechnung));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -1196,7 +1179,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        _statusLabel(status),
+        anzeigeStatus(rechnung),
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w600,

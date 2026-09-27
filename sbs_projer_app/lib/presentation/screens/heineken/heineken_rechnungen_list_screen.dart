@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
@@ -144,7 +145,7 @@ class _HeinekenRechnungenListScreenState
                                     ),
                                     trailing: Chip(
                                       label: Text(
-                                        _statusLabel(r.zahlungsstatus),
+                                        anzeigeStatus(r),
                                         style: TextStyle(
                                           fontSize: 12,
                                           color:
@@ -200,18 +201,6 @@ class _HeinekenRechnungenListScreenState
         ),
       ),
     );
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'offen': return 'Offen';
-      case 'bezahlt': return 'Bezahlt';
-      case 'erinnert': return 'Erinnert';
-      case 'mahnung_1': return 'Mahnung 1';
-      case 'mahnung_2': return 'Mahnung 2';
-      case 'abgeschrieben': return 'Abgeschrieben';
-      default: return status;
-    }
   }
 
   Color _statusColor(String status) {
