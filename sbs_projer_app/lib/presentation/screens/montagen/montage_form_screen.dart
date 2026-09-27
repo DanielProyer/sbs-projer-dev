@@ -6,7 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_block.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_nachfrage.dart';
 import 'package:sbs_projer_app/core/util/arbeitszeit_vorschlag.dart';
+import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show montageWarVorOrt;
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -600,6 +604,44 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
     final schliesstJetztAb = warGeplant && !_geplant;
     final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
 
+    // Wird die Montage jetzt ohne jede Arbeitszeit erledigt, einmal nach der
+    // Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid Daniel
+    // 27.09.2026). VOR dem automatischen Nachtragen des Endes unten — danach
+    // fehlte nie mehr beides. `dauerStunden` (Abrechnungsfeld) bleibt davon
+    // unberührt. Nicht bei Spesen/Aufwandsentschädigung (kein Besuch) und
+    // Anlass (mehrere Tage in den Slots — ein Von–bis passt dort nicht).
+    final nachfrage = await arbeitszeitBeimAbschliessen(
+      context,
+      ref,
+      noetig: arbeitszeitNachfrageNoetig(
+        wirdErledigt: !_geplant,
+        vorOrt: montageWarVorOrt('abgeschlossen', _montageTyp) && !_isAnlass,
+        arbeitVon: _arbeitVonController.text,
+        arbeitBis: _arbeitBisController.text,
+      ),
+      planId: _existing != null ? 'm_${_existing!.routeId}' : null,
+      // Beim Abschluss einer geplanten Montage zählt heute (m.datum unten).
+      datum: schliesstJetztAb ? DateTime.now() : _datum,
+      betriebId: _betriebDisabled ? null : _betriebId,
+      geplanteDauerMin:
+          _existing?.geplantDauerMin ??
+          einsatzDauerVorgabe(art: 'montage', montageTyp: _montageTyp),
+    );
+    if (!mounted) return;
+    switch (nachfrage.wahl) {
+      case ArbeitszeitWahl.abgebrochen:
+        setState(() => _isLoading = false);
+        return;
+      case ArbeitszeitWahl.uebernommen:
+        markiereGeaendert();
+        _arbeitVonController.text = nachfrage.von!;
+        _arbeitBisController.text = nachfrage.bis!;
+      case ArbeitszeitWahl.ohneZeit:
+      case ArbeitszeitWahl.nichtGefragt:
+        break;
+    }
+    final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
+
     try {
       final m = _existing ?? MontageLocal();
 
@@ -728,7 +770,13 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
       m.material5Id = _materialIds[4];
       m.material5Menge = _materialIds[4] != null ? _materialMengen[4] : null;
 
+      // «Ohne Zeit» bei einer neuen Montage: Die Id wird fürs Merken
+      // gebraucht, auf Web vergibt sie sonst erst die Datenbank (und `save`
+      // liefert sie nicht zurück).
+      if (verzichtMerken && kIsWeb) m.serverId ??= const Uuid().v4();
+
       await MontageRepository.save(m);
+      if (verzichtMerken) await arbeitszeitVerzichtMerken('m_${m.routeId}');
       // Eine erledigte Montage gehört in die Ist-Ansicht, nicht mehr in den
       // Plan — sonst steht die (jetzt abgeschlossene) Montage als
       // „Geisterblock" weiter in der Zeitachse des Tages, für den sie

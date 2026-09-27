@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_block.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_nachfrage.dart';
+import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
+import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/presentation/widgets/einsatz/betrieb_feld.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
@@ -390,6 +393,45 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
     final schliesstJetztAb = warGeplant && !_geplant;
     final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
 
+    // Wird die Störung jetzt ohne jede Arbeitszeit erledigt, einmal nach
+    // der Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid Daniel
+    // 27.09.2026). VOR dem automatischen Nachtragen des Endes unten — danach
+    // fehlte nie mehr beides.
+    final nachfrage = await arbeitszeitBeimAbschliessen(
+      context,
+      ref,
+      noetig: arbeitszeitNachfrageNoetig(
+        wirdErledigt: !_geplant,
+        vorOrt: !_istKilometerabrechnung,
+        arbeitVon: _arbeitVonController.text,
+        arbeitBis: _arbeitBisController.text,
+      ),
+      planId: _existing != null ? 's_${_existing!.routeId}' : null,
+      // Beim Abschluss eines geplanten Einsatzes zählt heute (s.datum unten).
+      datum: schliesstJetztAb ? DateTime.now() : _datum,
+      betriebId: _betriebId,
+      geplanteDauerMin:
+          _existing?.geplantDauerMin ??
+          einsatzDauerVorgabe(
+            art: 'stoerung',
+            stoerungBereiche: _stoerungBereiche,
+          ),
+    );
+    if (!mounted) return;
+    switch (nachfrage.wahl) {
+      case ArbeitszeitWahl.abgebrochen:
+        setState(() => _isLoading = false);
+        return;
+      case ArbeitszeitWahl.uebernommen:
+        markiereGeaendert();
+        _arbeitVonController.text = nachfrage.von!;
+        _arbeitBisController.text = nachfrage.bis!;
+      case ArbeitszeitWahl.ohneZeit:
+      case ArbeitszeitWahl.nichtGefragt:
+        break;
+    }
+    final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
+
     try {
       final s = _existing ?? StoerungLocal();
 
@@ -501,7 +543,13 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
         erledigtWert: 'behoben',
       );
 
+      // «Ohne Zeit» bei einer neuen Störung: Die Id wird fürs Merken
+      // gebraucht, auf Web vergibt sie sonst erst die Datenbank (und `save`
+      // liefert sie nicht zurück).
+      if (verzichtMerken && kIsWeb) s.serverId ??= const Uuid().v4();
+
       await StoerungRepository.save(s);
+      if (verzichtMerken) await arbeitszeitVerzichtMerken('s_${s.routeId}');
       // Ein erledigter Einsatz gehört in die Ist-Ansicht, nicht mehr in den
       // Plan — sonst steht die (jetzt behobene) Störung als „Geisterblock"
       // weiter in der Zeitachse des Tages, für den sie geplant war (Daniel
