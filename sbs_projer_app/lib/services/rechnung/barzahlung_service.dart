@@ -2,6 +2,7 @@ import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -65,9 +66,7 @@ class BarzahlungService {
   /// null, wenn sie frei ist. Unterscheidet «schon erledigt» vom halben
   /// Zustand «Zahlung gebucht, Status nicht nachgezogen» (Review I-2).
   static String? kassierSperre(Rechnung r, {required bool hatZahlung}) {
-    if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
-      return 'bereits bezahlt/abgeschrieben';
-    }
+    if (!istOffen(r)) return 'bereits bezahlt/abgeschrieben';
     if (hatZahlung) {
       return 'Zahlung bereits gebucht (Rechnung noch nicht bezahlt) — '
           'im Rechnungsdetail prüfen';

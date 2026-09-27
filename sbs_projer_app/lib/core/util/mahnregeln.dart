@@ -7,6 +7,7 @@
 library;
 
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
@@ -62,8 +63,7 @@ DateTime _plus(DateTime d, int tage) => _tag(d).add(Duration(days: tage));
 bool imMahnbereich(Rechnung r) =>
     (r.rechnungstyp == 'kundenrechnung' || r.rechnungstyp == 'jahresrechnung') &&
     !_tag(r.rechnungsdatum).isBefore(kMahnStart) &&
-    r.zahlungsstatus != 'bezahlt' &&
-    r.zahlungsstatus != 'abgeschrieben' &&
+    istOffen(r) &&
     // I-3 (Review 23.09.2026): Ein bereits vermerkter Zahlungseingang darf
     // nie ins Mahnsystem, auch wenn der Status noch nicht auf «bezahlt»
     // nachgezogen wurde — sonst mahnt der Lauf schneller, als der Mensch

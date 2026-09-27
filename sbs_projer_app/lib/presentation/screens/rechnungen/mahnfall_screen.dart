@@ -457,9 +457,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
   // ─── Betreibung ───
 
   Widget _betreibungBlock(Mahnfall f, List<Rechnung> rechnungen) {
-    final offen = rechnungen
-        .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
-        .toList();
+    final offen = rechnungen.where(istOffen).toList();
     final summe = offen.fold(0.0, (s, r) => s + r.zuZahlen);
     final fenster = f.zahlungsbefehlAm == null ? null : fortsetzungsFenster(f.zahlungsbefehlAm!);
     return Column(

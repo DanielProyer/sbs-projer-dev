@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/core/util/scor_referenz.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -663,8 +664,7 @@ class MahnlaufService {
     // Bezahlt/abgeschrieben geht IMMER vor — auch wenn zusätzlich die Stufe
     // abweicht (z. B. bezahlt NACH der letzten Mahnung): Das ist der Fall,
     // den es um jeden Preis zu vermeiden gilt.
-    if (aktuell['zahlungsstatus'] == 'bezahlt' ||
-        aktuell['zahlungsstatus'] == 'abgeschrieben') {
+    if (Zahlungsstatus.erledigt.contains(aktuell['zahlungsstatus'])) {
       return (erlaubt: false, grund: 'inzwischen bezahlt');
     }
     // Stufe vor dem generischen Status-Vergleich: Eine Eskalation ändert

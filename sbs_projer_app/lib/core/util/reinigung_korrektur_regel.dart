@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 /// Warum eine abgeschlossene Reinigung NICHT mehr preisrelevant geändert
@@ -19,9 +20,6 @@ enum KorrekturSperre {
   abgeschlossenesJahr,
 }
 
-const _bezahltStatus = {'bezahlt', 'abgeschrieben'};
-const _gemahntStatus = {'erinnert', 'mahnung_1', 'mahnung_2'};
-
 KorrekturSperre korrekturSperre({
   required Rechnung? rechnung,
   required bool hatZahlungsbuchung,
@@ -29,7 +27,7 @@ KorrekturSperre korrekturSperre({
   required DateTime nachbuchGrenze,
 }) {
   if (rechnung == null) return KorrekturSperre.keine;
-  if (_bezahltStatus.contains(rechnung.zahlungsstatus) ||
+  if (Zahlungsstatus.erledigt.contains(rechnung.zahlungsstatus) ||
       rechnung.zahlungEingegangenAm != null ||
       hatZahlungsbuchung) {
     return KorrekturSperre.bezahlt;
@@ -41,7 +39,7 @@ KorrekturSperre korrekturSperre({
   }
   if (imMahnfall) return KorrekturSperre.mahnfall;
   if (rechnung.mahnungStufe > 0 ||
-      _gemahntStatus.contains(rechnung.zahlungsstatus)) {
+      Zahlungsstatus.gemahnt.contains(rechnung.zahlungsstatus)) {
     return KorrekturSperre.gemahnt;
   }
   if (rechnung.versendetAm != null || rechnung.uebergebenAm != null) {

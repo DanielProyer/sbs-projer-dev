@@ -526,10 +526,7 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
     final jahrSumme = filtered.fold(0.0, (sum, r) => sum + r.betragBrutto);
 
     // Summary für offene Rechnungen
-    final offene = rechnungen.where(
-      (r) =>
-          r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben',
-    );
+    final offene = rechnungen.where(istOffen);
     final offenSumme = offene.fold(0.0, (sum, r) => sum + r.betragBrutto);
     final ueberfaellige = offene
         .where((r) => r.faelligkeitsdatum.isBefore(DateTime.now()))

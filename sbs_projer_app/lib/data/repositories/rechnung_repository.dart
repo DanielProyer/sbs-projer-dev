@@ -96,17 +96,26 @@ class RechnungRepository {
   /// deshalb `is.null` im `or`: ein reines `in` liesse NULL-Zeilen still
   /// wegfallen (NULL-Falle wie bei `neq`).
   static Future<int> countOffene() async {
-    final offen = Zahlungsstatus.alle.difference(Zahlungsstatus.erledigt);
     final res = await SupabaseService.client
         .from('rechnungen')
         .select('id')
         .eq('user_id', _userId)
-        .or('zahlungsstatus.is.null,zahlungsstatus.in.(${offen.join(',')})')
+        .or(_offenFilter)
         .count(CountOption.exact);
     return res.count;
   }
 
+  /// PostgREST-`or` für «offen»: jeder Status ausser
+  /// [Zahlungsstatus.erledigt], dazu NULL (die Spalte ist nullbar; `fromJson`
+  /// macht daraus 'offen'). Ein `not in (bezahlt, abgeschrieben)` liesse
+  /// NULL-Zeilen still wegfallen — die NULL-Falle wie bei `neq`.
+  static String get _offenFilter {
+    final offen = Zahlungsstatus.alle.difference(Zahlungsstatus.erledigt);
+    return 'zahlungsstatus.is.null,zahlungsstatus.in.(${offen.join(',')})';
+  }
+
   /// Alle offenen Rechnungen (nicht bezahlt/abgeschrieben), älteste zuerst.
+  /// Dieselbe Menge wie [countOffene].
   static Future<List<Rechnung>> getOffene() async {
     final all = <Map<String, dynamic>>[];
     const pageSize = 1000;
@@ -116,7 +125,7 @@ class RechnungRepository {
           .from('rechnungen')
           .select()
           .eq('user_id', _userId)
-          .not('zahlungsstatus', 'in', '("bezahlt","abgeschrieben")')
+          .or(_offenFilter)
           .order('rechnungsdatum')
           .order('id') // stabile Pagination
           .range(from, from + pageSize - 1);
