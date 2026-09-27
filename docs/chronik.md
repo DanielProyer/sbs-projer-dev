@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.149.0 Entscheide-Runde: Statusmodell-Zielbild (Migration 211), Isar eingefroren, Zeit-Nachfrage beim Abschluss, Aufgaben mit Betrieb (212), Planung-Klappe
 - 27.09.2026 — v0.148.0 Bau-Runde «ohne Entscheid»: Statusmodell-Zwischenschritt, Ferien-Altspalten Phase 1, Tourenplan-Reste, Fahrten heute, Aufgaben im Tourenplan
 - 27.09.2026 — v0.147.0 Fahrten aus der Kette (Fahrtenerkennung Stufe 1): Fahrten je Tag mit km und Zähler-Kontrolle
 - 26.09.2026 — v0.146.0 Restposten-Runde: analyze 0, Datumsauswahl deutsch, CanvasKit-Ratsche 83, Tourenplan-Ladefenster, Altlasten
@@ -34,6 +35,55 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.149.0 Entscheide-Runde (neun Entscheide, einzeln abgefragt)
+
+Entscheide Daniel 27.09. (Tabelle in ToDo.md). Vier Implementer in Worktrees,
+zwei Reviews, Browser-Prüfung. **Migrationen 211 und 212**, Edge Functions
+`send-rechnung-mail`, `google-calendar-sync` neu deployt.
+
+- **Statusmodell-Zielbild (Migration 211, Entscheide 2–4):**
+  `rechnungen.zahlungsstatus` kennt nur noch `offen`, `bezahlt`,
+  `abgeschrieben` (Default offen, NOT NULL). Zustellung = `versendet_am` /
+  `uebergeben_am`, Mahnstufe = `mahnung_stufe` (NOT NULL, 0–3), Heineken-
+  Freigabe = neue Spalte `freigegeben_am`. Werte umgeschrieben (43 gesendet,
+  1 freigegeben, 0 gemahnt am 27.09.), Snapshot in Schema
+  `snapshot_status_umbau` mit Rückweg. Neu definiert: `zahlung_erfassen`
+  (Heineken nur mit `freigegeben_am`; prüft Mahnstufe statt Status),
+  `zahlung_zuruecknehmen`, `abschreibung_lauf_zuruecknehmen`,
+  `view_mahnwesen_dashboard`. App: Mahnlauf schreibt nur noch die Stufe
+  (optimistische Sperre `erwarteteStufe`), Versand schreibt nur `versendet_am`
+  (Function setzt keinen Status mehr), Heineken freigeben = buchen + Datum,
+  Rücknahme gesperrt bei Buchungen; Rechnungsliste öffnet auf «Unbezahlt»,
+  «Offen» heisst «Nicht zugestellt», Mahn-Kurzsymbol für jede zugestellte
+  offene Rechnung; Kopie aus dem Reinigungsdetail verlängert die Frist nicht.
+  Ratsche roher Statusvergleiche 21 → 11. CLAUDE.md-Abschnitt neu.
+- **Isar eingefroren (Entscheid 1):** kein Nachziehen mehr, neue Entities nur
+  Web/Supabase (CLAUDE.md-Checkliste 7 statt 13 Schritte), Ratsche
+  `isar_eingefroren_waechter_test` (28 Models, 172 statics).
+- **Zeiterfassung Störung/Montage (Entscheid 8):** Beim Abschliessen ohne
+  `arbeit_von/bis` einmal «Arbeitszeit? Von – bis» mit Vorschlag aus der
+  Tageskette (Betrieb als Halt → dessen Zeiten; sonst grösste Lücke; heute
+  ohne Feierabend → «jetzt − Dauer bis jetzt»), «Ohne Zeit» merkt sich den
+  Verzicht lokal. Zeitachse nimmt `arbeit_von/bis` vor dem Stempel.
+- **Planung-Klappe im Störungsformular (Entscheid 6, korrigiert):** «Erst
+  geplant» und der Arbeitszeit-Block liegen eingeklappt unter «Planung &
+  Arbeitszeit»; offen bei Schalter an, gesetzter Zeit oder Tipp. Datum und
+  Störungseingang bleiben sichtbar. Montage unverändert.
+- **Aufgaben mit Betrieb (Migration 212, Entscheid 9):** `aufgaben.betrieb_id`;
+  Dialog mit Betriebsfeld — und erstmals **Bearbeiten** (vorher nur Anlegen);
+  Diktat übernimmt den erkannten Betrieb (Function lieferte ihn schon, das
+  Sheet verwarf ihn); Betriebsseite «Aufgaben (n)», Tourenplan und Liste mit
+  Betriebsname; Kalender-Eintrag «SBS · Aufgabe: … · Betrieb» mit Adresse.
+- Events bleiben aktives Modul (Entscheid 5); tote Zeitfelder mit Ferien
+  Phase 2 (Entscheid 7).
+- Review (Opus) vor der Migration; Befunde eingebaut (siehe Commit-Log).
+- Browser geprüft (360 px, nach Migration 211): Rechnungsliste (Vorgabe
+  Unbezahlt, Chips, Kurzsymbol), Heineken-Detail, Störungsformular (Klappe,
+  Nachfrage-Dialog), Betriebsseite «Aufgaben», Aufgaben-Dialog.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 

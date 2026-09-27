@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.148.0 live** (Bau-Runde ohne Entscheid: Statusmodell-Zwischenschritt, Ferien Phase 1, Tourenplan-Reste; davor v0.147.0 Fahrten aus der Kette) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **210** · **2873 Tests grün**.
+**Stand:** **v0.149.0 live** (Entscheide-Runde: Statusmodell-Zielbild 211, Isar eingefroren, Zeit-Nachfrage, Aufgaben mit Betrieb 212; davor v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3042 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -39,15 +39,15 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 
 | # | Thema | Entscheid | Stand |
 |---|---|---|---|
-| 1 | Isar | **einfrieren** — kein Nachziehen, Web-only-Repositories erlaubt; Android-Offline aus v2 | in Arbeit (v0.149) |
-| 2 | Statusmodell Rechnung | **jetzt umbauen**: Status nur offen/bezahlt/abgeschrieben, Zustellung aus versendet_am/uebergeben_am, Mahnstufe aus mahnung_stufe, Heineken `freigegeben_am`; Migration 211 mit Snapshot | in Arbeit (v0.149) |
+| 1 | Isar | **einfrieren** — kein Nachziehen, Web-only-Repositories erlaubt; Android-Offline aus v2 | ✅ v0.149.0 |
+| 2 | Statusmodell Rechnung | **jetzt umbauen**: Status nur offen/bezahlt/abgeschrieben, Zustellung aus versendet_am/uebergeben_am, Mahnstufe aus mahnung_stufe, Heineken `freigegeben_am`; Migration 211 mit Snapshot | ✅ v0.149.0 |
 | 3 | Mahnwesen | Kurzsymbol «mahnen» auch für zugestellte offene Rechnungen; Kopie aus dem Reinigungsdetail verlängert die Frist NICHT | mit 2 |
 | 4 | Rechnungsliste | Vorgabe «Unbezahlt», Filter «Offen» heisst «Nicht zugestellt» | mit 2 |
 | 5 | Events | **weiter pflegen** (aktives Modul) | – |
-| 6 | Störungs-/Montageformular | Planungsblock («Erst geplant») eingeklappt, erscheint nur bei eingeschaltetem Schalter oder geplantem Einsatz (korrigiert: die Frage betraf das Formular, nicht die Startseite) | in Arbeit (v0.149) |
+| 6 | Störungs-/Montageformular | Planungsblock («Erst geplant») eingeklappt, erscheint nur bei eingeschaltetem Schalter oder geplantem Einsatz (korrigiert: die Frage betraf das Formular, nicht die Startseite) | ✅ v0.149.0 |
 | 7 | Tote Zeitfelder | zusammen mit Ferien Phase 2 (ab ~04.10.2026) | offen |
-| 8 | Zeiterfassung Störung/Montage | beim Abschliessen ohne von/bis einmal fragen, Vorschlag aus dem Tagesplan | in Arbeit (v0.149) |
-| 9 | Aufgaben | Betriebsbezug (Migration 212), Formular, Diktat, Betriebsseite, Tourenplan | in Arbeit (v0.149) |
+| 8 | Zeiterfassung Störung/Montage | beim Abschliessen ohne von/bis einmal fragen, Vorschlag aus dem Tagesplan | ✅ v0.149.0 |
+| 9 | Aufgaben | Betriebsbezug (Migration 212), Formular, Diktat, Betriebsseite, Tourenplan | ✅ v0.149.0 |
 
 ### ⏳ Mit Frist
 
@@ -213,6 +213,15 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.149.0** — Rechnungsliste öffnet auf «Unbezahlt»; Chips und Filter
+  «Nicht zugestellt/Gesendet/Übergeben/Erinnert/…»; Mahn-Kurzsymbol bei
+  gemailten Rechnungen; Heineken August: Menü «Auf nicht versendet
+  zurücksetzen», Freigabe-Rücknahme gesperrt; Störung abschliessen ohne Zeit →
+  Dialog «Arbeitszeit?» (Vorschlag), «Ohne Zeit» fragt nicht nochmals;
+  Störungsformular: Klappe «Planung & Arbeitszeit»; Aufgabe mit Betrieb
+  anlegen/bearbeiten, Diktat «Beim Rössli den Hahn mitnehmen» → Betrieb
+  erkannt; Betriebsseite Sektion «Aufgaben»; Kalender-Eintrag mit Betrieb.
 
 - **v0.148.0** — Feierabend erfassen → Zeile «Fahrten heute» auf der
   Startseite, antippen; Tourenplan an einem Tag mit fälliger Aufgabe → Sektion
@@ -722,6 +731,17 @@ false`, `preis_brutto > 0` und den Ausschluss der Heineken-Betriebe. Ohne diese
 vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 
 ### 🔭 Beobachten
+
+- **Entscheid Daniel (nach v0.149.0):** «Offen pro Betrieb» zählt eine
+  Tresen-Rechnung ohne `uebergeben_am` weiter als «ohne Zustellnachweis»
+  (streng, Fall Blue Cinema), die Rechnungsliste zeigt sie seit v0.149.0 als
+  «Übergeben» (Mahnlauf ebenso). Eine Regel für beide? Betroffen: 240 offene
+  Tresen-Rechnungen ohne Übergabedatum (200 aus dem Excel-Import).
+- **Ferien Phase 2 + tote Zeitfelder:** ab ~04.10.2026, wenn der
+  Rückfall-Zähler leer blieb (Konsole `[Ferien] Rückfall`).
+- **Statusmodell nach 211:** eine Woche beobachten — Mahnlauf-Vorschläge,
+  Bankabgleich, Heineken-Freigabe; Rückweg steht am Ende der Migration
+  (nur für Zeilen, die noch offen sind).
 
 - **Tourenplan-Restfenster (Review 26.09.2026, gering):** Nach dem Zurück aus
   einer zweiten Tourenplan-Instanz wendet `.when` einen noch nachladenden Plan
