@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -202,10 +203,11 @@ class _HeinekenRechnungDetailScreenState
       );
 
       // Bleibt als Rückfall neben dem serverseitigen Vermerk; beide idempotent.
-      await RechnungRepository.update(widget.rechnungId, {
-        'zahlungsstatus': 'gesendet',
-        'versendet_am': DateTime.now().toIso8601String().split('T').first,
-      });
+      // Status nur offen → gesendet, geprüft gegen den DB-Stand (B3): Ein
+      // Versand aus einem veralteten Bildschirmstand drehte eine
+      // freigegebene (gebuchte) oder bezahlte Monatsrechnung sonst auf
+      // «gesendet» zurück — am Buchungsschutz von _updateStatus vorbei.
+      await ReinigungRechnungVersand.vermerkeVersand(_rechnung!);
 
       ref.invalidate(heinekenRechnungenProvider);
       _load();

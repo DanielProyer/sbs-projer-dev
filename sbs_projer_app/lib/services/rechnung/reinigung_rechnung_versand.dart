@@ -110,6 +110,9 @@ class ReinigungRechnungVersand {
   /// `.eq(zahlungsstatus, offen)` gegen den DB-Stand, nicht gegen den
   /// (vielleicht veralteten) Stand im Speicher. Dieselbe Regel gilt
   /// serverseitig in `send-rechnung-mail`.
+  ///
+  /// Auch die Heineken-Monatsrechnung vermerkt ihren Versand hier (B3): Ihr
+  /// `freigegeben`/`bezahlt` darf ein Versand ebenso wenig zurückdrehen.
   static Future<void> vermerkeVersand(Rechnung rechnung) async {
     await RechnungRepository.update(rechnung.id, {
       'versendet_am': DateTime.now().toIso8601String().split('T').first,

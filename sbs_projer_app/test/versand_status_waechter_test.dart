@@ -11,10 +11,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// `ReinigungRechnungVersand.vermerkeVersand` / `hebeStatusNachVersand`
 /// (nur `offen` → `gesendet`, abgesichert per `.eq('zahlungsstatus','offen')`).
 ///
-/// Ausgenommen: die Heineken-Monatsrechnung (eigener Workflow
-/// offen → gesendet → freigegeben → bezahlt).
+/// Seit B3 (27.09.2026) gilt das auch für die Heineken-Monatsrechnung: Ihr
+/// Mailversand schrieb `gesendet` ebenfalls pauschal — ein Versand aus einem
+/// veralteten Bildschirmstand hätte eine freigegebene (gebuchte) oder
+/// bezahlte Monatsrechnung auf `gesendet` zurückgedreht, am Buchungsschutz
+/// von `_updateStatus` vorbei.
 void main() {
-  test('kein pauschales zahlungsstatus: gesendet ausserhalb Heineken', () {
+  test('kein pauschales zahlungsstatus: gesendet — auch nicht Heineken', () {
     final muster = RegExp(r"'zahlungsstatus'\s*:\s*'gesendet'");
     final treffer = <String>[];
     for (final f in Directory('lib')
@@ -22,7 +25,6 @@ void main() {
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart'))) {
       final pfad = f.path.replaceAll('\\', '/');
-      if (pfad.contains('/screens/heineken/')) continue;
       final zeilen = f.readAsLinesSync();
       for (var i = 0; i < zeilen.length; i++) {
         final k = zeilen[i].indexOf('//');
