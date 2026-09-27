@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.149.1 «Offen pro Betrieb» nutzt dieselbe Zustell-Regel wie die Rechnungsliste (Tresen = übergeben)
 - 27.09.2026 — v0.149.0 Entscheide-Runde: Statusmodell-Zielbild (Migration 211), Isar eingefroren, Zeit-Nachfrage beim Abschluss, Aufgaben mit Betrieb (212), Planung-Klappe
 - 27.09.2026 — v0.148.0 Bau-Runde «ohne Entscheid»: Statusmodell-Zwischenschritt, Ferien-Altspalten Phase 1, Tourenplan-Reste, Fahrten heute, Aufgaben im Tourenplan
 - 27.09.2026 — v0.147.0 Fahrten aus der Kette (Fahrtenerkennung Stufe 1): Fahrten je Tag mit km und Zähler-Kontrolle
@@ -35,6 +36,17 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.149.1 Eine Zustell-Regel für alle
+
+Entscheid Daniel: «Offen pro Betrieb» zählt eine Tresen-Rechnung ohne
+`uebergeben_am` nicht mehr als «ohne Zustellnachweis» — dieselbe Regel
+`istZugestellt` wie Rechnungsliste und Mahnlauf (Tresen gilt als übergeben).
+Betroffen waren 240 offene Tresen-Rechnungen, 200 davon aus dem Excel-Import.
+Der Verdachtsfall «nie gestellt» (Blue Cinema) bleibt: Mail-Rechnungen ohne
+Versanddatum. Test ergänzt.
 
 ---
 

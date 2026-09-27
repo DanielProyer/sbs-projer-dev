@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.149.0 live** (Entscheide-Runde: Statusmodell-Zielbild 211, Isar eingefroren, Zeit-Nachfrage, Aufgaben mit Betrieb 212; davor v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3042 Tests grün**.
+**Stand:** **v0.149.1 live** (eine Zustell-Regel;  (Entscheide-Runde: Statusmodell-Zielbild 211, Isar eingefroren, Zeit-Nachfrage, Aufgaben mit Betrieb 212; davor v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3042 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -732,11 +732,9 @@ vier Bedingungen bekommt man 13 Treffer, von denen 13 in Ordnung sind.
 
 ### 🔭 Beobachten
 
-- **Entscheid Daniel (nach v0.149.0):** «Offen pro Betrieb» zählt eine
-  Tresen-Rechnung ohne `uebergeben_am` weiter als «ohne Zustellnachweis»
-  (streng, Fall Blue Cinema), die Rechnungsliste zeigt sie seit v0.149.0 als
-  «Übergeben» (Mahnlauf ebenso). Eine Regel für beide? Betroffen: 240 offene
-  Tresen-Rechnungen ohne Übergabedatum (200 aus dem Excel-Import).
+- ✅ **Eine Zustell-Regel (v0.149.1, Entscheid Daniel 27.09.):** «Offen pro
+  Betrieb» nutzt `istZugestellt` wie Rechnungsliste und Mahnlauf; Tresen gilt
+  als übergeben.
 - **Ferien Phase 2 + tote Zeitfelder:** ab ~04.10.2026, wenn der
   Rückfall-Zähler leer blieb (Konsole `[Ferien] Rückfall`).
 - **Statusmodell nach 211:** eine Woche beobachten — Mahnlauf-Vorschläge,

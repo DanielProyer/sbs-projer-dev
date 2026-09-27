@@ -6,7 +6,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/offene_pro_betrieb.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart'
-    show anzeigeStatus;
+    show anzeigeStatus, istZugestellt;
 import 'package:sbs_projer_app/core/util/rechnung_zustellung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:printing/printing.dart';
@@ -452,8 +452,9 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
     // Frage «kam sie an?» beantwortet — eine bezahlte Tresen-Rechnung ohne
     // Stempel orange zu färben wäre ein Fehlalarm und liesse die echten Fälle
     // in der Masse untergehen.
-    final nieZugestellt =
-        istOffen(r) && r.uebergebenAm == null && r.versendetAm == null;
+    // Dieselbe Zustell-Regel wie Rechnungsliste und Mahnlauf (istZugestellt:
+    // Tresen gilt als übergeben) — Entscheid Daniel 27.09.2026.
+    final nieZugestellt = istOffen(r) && !istZugestellt(r);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.push('/rechnungen/${r.id}'),

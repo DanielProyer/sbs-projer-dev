@@ -309,6 +309,36 @@ void main() {
       expect(r.single.anzahl, 3);
       expect(r.single.ohneZustellung, 1);
     });
+
+    test('Tresen-Rechnung ohne Übergabedatum gilt als zugestellt', () {
+      // Entscheid Daniel 27.09.2026: EINE Zustell-Regel für die ganze App
+      // (istZugestellt) — die Rechnungsliste zeigt eine Tresen-Rechnung als
+      // «Übergeben», also darf diese Übersicht sie nicht als «ohne
+      // Zustellung» zählen. Nur die Mail-Rechnung ohne Versanddatum bleibt.
+      final r = rechnungenProBetrieb(
+        alle: [
+          rg(
+            id: 'tresen',
+            betriebId: 'b1',
+            datum: DateTime(2026, 1, 1),
+            brutto: 10,
+            versandart: 'rechnung_tresen',
+          ),
+          rg(
+            id: 'mail',
+            betriebId: 'b1',
+            datum: DateTime(2026, 1, 2),
+            brutto: 10,
+            versandart: 'rechnung_mail',
+          ),
+        ],
+        jahr: 2026,
+        namen: namen,
+        orte: orte,
+      );
+      expect(r.single.anzahl, 2);
+      expect(r.single.ohneZustellung, 1);
+    });
   });
 
   group('Auswahl: offen gegen alle', () {

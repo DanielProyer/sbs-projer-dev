@@ -67,11 +67,14 @@ class BetriebRechnungen {
   /// Bezahlte Rechnungen zählen bewusst NICHT mit: Ist das Geld da, ist die
   /// Frage «kam sie an?» beantwortet, auch ohne Stempel. Sonst meldete die
   /// Liste hunderte Tresen-Rechnungen, die längst erledigt sind.
-  int get ohneZustellung => rechnungen
-      .where(
-        (r) => istOffen(r) && r.uebergebenAm == null && r.versendetAm == null,
-      )
-      .length;
+  ///
+  /// Zustellung = EINE Regel für die ganze App ([istZugestellt], wie die
+  /// Rechnungsliste und der Mahnlauf): Eine Tresen-Rechnung gilt auch ohne
+  /// `uebergeben_am` als übergeben (Entscheid Daniel 27.09.2026 — vorher
+  /// zählte diese Übersicht sie streng als «ohne Zustellnachweis», die Liste
+  /// zeigte sie als «Übergeben»).
+  int get ohneZustellung =>
+      rechnungen.where((r) => istOffen(r) && !istZugestellt(r)).length;
 }
 
 /// Bündelt [alle] Rechnungen pro Betrieb.
