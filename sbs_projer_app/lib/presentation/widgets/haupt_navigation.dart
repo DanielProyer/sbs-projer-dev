@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/config/router.dart' as app show router;
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 
 /// Die untere Navigationsleiste (B1) — reine Darstellung, ohne
 /// Router-Wissen.
@@ -15,7 +17,18 @@ class HauptNavigation extends StatelessWidget {
   final NavZiel? aktiv;
   final ValueChanged<NavZiel> onZiel;
 
-  const HauptNavigation({super.key, required this.aktiv, required this.onZiel});
+  /// Zahl im roten Kreis am Symbol eines Ziels; fehlt oder 0 = kein Badge.
+  /// Heute nur Material: «N niedrig» (Bestand unter Mindestmenge) stand
+  /// bis 27.09.2026 auf der Material-Kachel von Mehr und zog mit in die
+  /// Leiste, damit der Hinweis nicht verloren geht.
+  final Map<NavZiel, int> zaehler;
+
+  const HauptNavigation({
+    super.key,
+    required this.aktiv,
+    required this.onZiel,
+    this.zaehler = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +50,23 @@ class HauptNavigation extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          navIcon(z),
-                          size: 22,
-                          color: z == aktiv
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Icon(
+                              navIcon(z),
+                              size: 22,
+                              color: z == aktiv
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                            ),
+                            if ((zaehler[z] ?? 0) > 0)
+                              Positioned(
+                                right: -8,
+                                top: -5,
+                                child: _ZaehlerPunkt(zaehler[z]!),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -65,6 +89,33 @@ class HauptNavigation extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Roter Zähler am Symbol — derselbe Stil wie die Zahl an der
+/// Aufgaben-Glocke (`aufgaben_glocke.dart`), damit «da ist etwas» überall
+/// gleich aussieht. Reiner Container + Text, CanvasKit-sicher.
+class _ZaehlerPunkt extends StatelessWidget {
+  final int anzahl;
+  const _ZaehlerPunkt(this.anzahl);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: AppColors.error,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$anzahl',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -104,9 +155,15 @@ class HauptNavigationLeiste extends StatelessWidget {
         }
         final pfad = delegate.state.uri.path;
         if (!zeigtNavigation(pfad)) return const SizedBox.shrink();
-        return HauptNavigation(
-          aktiv: aktivesZiel(pfad),
-          onZiel: (z) => router.go(navPfad(z)),
+        // `Consumer` erst hier, nach den Sichtbarkeits-Prüfungen: Auf dem
+        // Anmeldebildschirm soll der Materialbestand gar nicht erst geladen
+        // werden (ohne Anmeldung liefe die Abfrage ins Leere).
+        return Consumer(
+          builder: (context, ref, _) => HauptNavigation(
+            aktiv: aktivesZiel(pfad),
+            onZiel: (z) => router.go(navPfad(z)),
+            zaehler: {NavZiel.material: ref.watch(niedrigCountProvider)},
+          ),
         );
       },
     );

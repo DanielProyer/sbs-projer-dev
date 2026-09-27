@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/presentation/providers/material_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/haupt_navigation.dart';
 
 /// Die Leiste folgt dem Router auch über Weiterleitungen (22.09.2026).
@@ -36,18 +38,30 @@ GoRouter _router({required bool angemeldet, String start = '/'}) => GoRouter(
   ],
 );
 
-Future<void> _pump(WidgetTester tester, GoRouter r) async {
+/// Wie oft die Leiste den Materialbestand gelesen hat (Badge «N niedrig»).
+var _niedrigGelesen = 0;
+
+Future<void> _pump(WidgetTester tester, GoRouter r, {int niedrig = 0}) async {
+  _niedrigGelesen = 0;
   await tester.pumpWidget(
-    MaterialApp.router(
-      routerConfig: r,
-      // Wie in app.dart: Leiste unter dem Router-Inhalt. Das Material
-      // liefert dort die AufgabenGlocke darüber.
-      builder: (context, child) => Material(
-        child: Column(
-          children: [
-            Expanded(child: child ?? const SizedBox.shrink()),
-            HauptNavigationLeiste(goRouter: r),
-          ],
+    ProviderScope(
+      overrides: [
+        niedrigCountProvider.overrideWith((ref) {
+          _niedrigGelesen++;
+          return niedrig;
+        }),
+      ],
+      child: MaterialApp.router(
+        routerConfig: r,
+        // Wie in app.dart: Leiste unter dem Router-Inhalt. Das Material
+        // liefert dort die AufgabenGlocke darüber.
+        builder: (context, child) => Material(
+          child: Column(
+            children: [
+              Expanded(child: child ?? const SizedBox.shrink()),
+              HauptNavigationLeiste(goRouter: r),
+            ],
+          ),
         ),
       ),
     ),
@@ -65,6 +79,23 @@ void main() {
     expect(find.text('Seite /login'), findsOneWidget);
     expect(find.text('Heute'), findsNothing);
     expect(find.text('Mehr'), findsNothing);
+    // Ohne Anmeldung wird der Materialbestand gar nicht erst abgefragt.
+    expect(_niedrigGelesen, 0);
+  });
+
+  testWidgets('Badge «N niedrig» am Material-Reiter aus dem Provider', (
+    tester,
+  ) async {
+    await _pump(tester, _router(angemeldet: true), niedrig: 3);
+    expect(find.text('Material'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    expect(_niedrigGelesen, greaterThan(0));
+  });
+
+  testWidgets('0 niedrig: kein Badge', (tester) async {
+    await _pump(tester, _router(angemeldet: true));
+    expect(find.text('Material'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
   });
 
   testWidgets('nach der Weiterleitung vom Login ist die Leiste da', (

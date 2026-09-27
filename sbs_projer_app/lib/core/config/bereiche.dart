@@ -12,8 +12,9 @@ import 'package:flutter/material.dart';
 /// Woher der Zähler eines Eintrags kommt. Es gibt bewusst keine neue
 /// Zähl-Logik: Alles stammt aus Providern, die es schon gibt.
 ///
-/// «N niedrig» (Materialbestand) gab es bis 27.09.2026 — Material steht
-/// seither in der Leiste statt auf Mehr, und die Leiste zeigt keine Zähler.
+/// «N niedrig» (Materialbestand) stand bis 27.09.2026 hier — seither ist
+/// Material ein Ziel der Leiste und zeigt die Zahl dort als Badge
+/// (`haupt_navigation.dart`, gespeist aus `niedrigCountProvider`).
 enum ZaehlerQuelle {
   /// Dieselbe Zahl wie die Glocke.
   aufgaben,
