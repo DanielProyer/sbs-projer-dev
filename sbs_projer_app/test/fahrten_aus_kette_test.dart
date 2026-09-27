@@ -41,6 +41,8 @@ List<Halt> halte(
   String? arbeitsende = '17:00',
   String startortMorgen = 'domat_ems',
   String startortAbend = 'domat_ems',
+  ({double lat, double lng})? beginnUnterwegs,
+  ({double lat, double lng})? endeUnterwegs,
 }) => halteAusKette(
   arbeitsbeginn: arbeitsbeginn,
   arbeitsende: arbeitsende,
@@ -49,7 +51,17 @@ List<Halt> halte(
   einsaetze: einsaetze,
   datum: datum,
   startorte: startorte,
+  beginnUnterwegs: beginnUnterwegs,
+  endeUnterwegs: endeUnterwegs,
 );
+
+/// ~200 m bzw. ~400 m nördlich (1° Breite ≈ 111 km).
+({double lat, double lng}) nahBei(double lat, double lng) =>
+    (lat: lat + 0.0018, lng: lng);
+({double lat, double lng}) knappDaneben(double lat, double lng) =>
+    (lat: lat + 0.0036, lng: lng);
+
+const zuerich = (lat: 47.37, lng: 8.54);
 
 /// Nachschlag ohne Treffer — jede Fahrt fällt auf die Luftlinie zurück.
 ({double km, String quelle})? keinTreffer(Halt von, Halt nach) => null;
@@ -280,6 +292,110 @@ void main() {
       expect(h.last.name, 'Chur');
       expect(h.last.lat, startorte['chur']!.lat);
     });
+
+    group('Arbeitsbeginn/Feierabend unterwegs', () {
+      test('Arbeitsbeginn fern vom ersten Betrieb → GPS-Halt', () {
+        final h = halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], beginnUnterwegs: zuerich);
+        final s = h.first;
+        expect(s.typ, HaltTyp.startort);
+        expect(s.id, kGpsStartId);
+        expect(s.name, 'Arbeitsbeginn unterwegs');
+        expect(s.lat, zuerich.lat);
+        expect(s.lng, zuerich.lng);
+        expect(s.ankunftMin, isNull);
+        expect(s.abfahrtMin, 7 * 60 + 30);
+        expect(s.quelle, 'arbeitsbeginn');
+        expect(h.last.id, 'domat_ems'); // abends normal
+      });
+
+      test('Arbeitsbeginn ≤ 300 m vom ersten Betrieb → dessen Id/Name', () {
+        final h = halte([
+          einsatz('r2', c, von: '10:00', bis: '10:30'),
+          einsatz('r1', b, von: '08:00', bis: '08:30'),
+        ], beginnUnterwegs: nahBei(b.lat, b.lng));
+        expect(h.first.id, b.id);
+        expect(h.first.name, 'Holländer');
+        expect(h.first.typ, HaltTyp.startort);
+        // Gleiche Id wie der erste Betrieb → keine Anfahrt.
+        final f = fahrtenAusHalten(h, keinTreffer);
+        expect(f.map((x) => '${x.von.id}>${x.nach.id}'), [
+          '${b.id}>${c.id}',
+          '${c.id}>domat_ems',
+        ]);
+      });
+
+      test('~400 m vom ersten Betrieb → GPS-Halt, eigene Fahrt', () {
+        final h = halte([
+          einsatz('r1', b, von: '08:00', bis: '08:30'),
+        ], beginnUnterwegs: knappDaneben(b.lat, b.lng));
+        expect(h.first.id, kGpsStartId);
+        final f = fahrtenAusHalten(h, keinTreffer);
+        expect(f.first.kmQuelle, kKmQuelleLuftlinie);
+      });
+
+      test('Feierabend fern vom letzten Betrieb → GPS-Halt', () {
+        final h = halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], endeUnterwegs: zuerich);
+        final e = h.last;
+        expect(e.typ, HaltTyp.startort);
+        expect(e.id, kGpsEndeId);
+        expect(e.name, 'Feierabend unterwegs');
+        expect(e.ankunftMin, 17 * 60);
+        expect(e.abfahrtMin, isNull);
+        expect(e.quelle, 'feierabend');
+        expect(h.first.id, 'domat_ems');
+      });
+
+      test('Feierabend ≤ 300 m vom letzten Betrieb → dessen Id/Name', () {
+        final h = halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', c, von: '10:00', bis: '10:30'),
+        ], endeUnterwegs: nahBei(c.lat, c.lng));
+        expect(h.last.id, c.id);
+        expect(h.last.name, 'Linden');
+        expect(fahrtenAusHalten(h, keinTreffer).last.nach.id, c.id);
+        expect(fahrtenAusHalten(h, keinTreffer), hasLength(2));
+      });
+
+      test('ohne Einsätze: GPS-Halt, nicht an einem Betrieb', () {
+        final h = halte(const [], beginnUnterwegs: zuerich);
+        expect(h.map((x) => x.id).toList(), [kGpsStartId, 'domat_ems']);
+      });
+    });
+  });
+
+  group('stempelAmBetrieb', () {
+    StempelRoh s(double? lat, double? lng) => (
+      zeitpunkt: DateTime(2026, 9, 25, 11, 0),
+      quelle: 'stoerung',
+      betriebId: b.id,
+      referenzId: null,
+      lat: lat,
+      lng: lng,
+    );
+    final ort = (lat: b.lat, lng: b.lng);
+
+    test('Radius 300 m', () => expect(kStempelRadiusKm, 0.3));
+
+    test('~200 m → am Betrieb, ~400 m → nicht', () {
+      final nah = nahBei(b.lat, b.lng), weit = knappDaneben(b.lat, b.lng);
+      expect(stempelAmBetrieb(s(b.lat, b.lng), ort), isTrue);
+      expect(stempelAmBetrieb(s(nah.lat, nah.lng), ort), isTrue);
+      expect(stempelAmBetrieb(s(weit.lat, weit.lng), ort), isFalse);
+    });
+
+    test('ohne Koordinaten auf einer Seite → nicht am Betrieb', () {
+      expect(stempelAmBetrieb(s(null, null), ort), isFalse);
+      expect(stempelAmBetrieb(s(b.lat, null), ort), isFalse);
+      expect(
+        stempelAmBetrieb(s(b.lat, b.lng), (lat: null, lng: null)),
+        isFalse,
+      );
+      expect(stempelAmBetrieb(s(b.lat, b.lng), null), isFalse);
+    });
   });
 
   group('fahrtenAusHalten', () {
@@ -494,6 +610,128 @@ void main() {
         arbeitsbeginnErfasst: false,
       );
       expect(t.befunde, ['Kein Arbeitsbeginn erfasst — Anfahrt fehlt']);
+    });
+
+    test('positive Differenz + Einsätze ohne Zeit: «davon evtl.»', () {
+      final eins = tagMitKm(
+        132,
+        kmEnde: 50148,
+        ohneZeit: [einsatz('s1', b, typ: 'stoerung')],
+      );
+      expect(
+        eins.befunde.first,
+        'Zähler 148 km, Fahrten 132 km — 16 km unerklärt (privat oder '
+        'Umweg?), davon evtl. 1 Einsatz ohne Zeit',
+      );
+      final zwei = tagMitKm(
+        132,
+        kmEnde: 50148,
+        ohneZeit: [
+          einsatz('s1', b, typ: 'stoerung'),
+          einsatz('m1', c, typ: 'montage'),
+        ],
+      );
+      expect(zwei.befunde.first, endsWith('davon evtl. 2 Einsätze ohne Zeit'));
+      // Negative Differenz: Einsätze ohne Zeit erklären nichts.
+      final minus = tagMitKm(
+        160,
+        kmEnde: 50148,
+        ohneZeit: [einsatz('s1', b, typ: 'stoerung')],
+      );
+      expect(minus.befunde.first, isNot(contains('davon evtl.')));
+    });
+
+    test('Einsatz nach Feierabend → «Zeit prüfen» mit Betriebsname', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz(
+            's1',
+            b,
+            typ: 'stoerung',
+            stempel: DateTime(2026, 9, 25, 19, 56),
+          ),
+        ], arbeitsende: '17:30'),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      expect(
+        t.befunde,
+        contains(
+          'Einsatz 19:56 bei Holländer nach Feierabend 17:30 — Zeit prüfen',
+        ),
+      );
+      expect(t.befunde.where((x) => x.contains('Peppino')), isEmpty);
+    });
+
+    test('Einsatz vor Arbeitsbeginn → «Zeit prüfen» mit Betriebsname', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '06:10', bis: '06:40'),
+        ], arbeitsbeginn: '07:00'),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      expect(
+        t.befunde,
+        contains(
+          'Einsatz 06:10 bei Peppino vor Arbeitsbeginn 07:00 — Zeit prüfen',
+        ),
+      );
+    });
+
+    test('Einsatz genau zu Beginn/Feierabend → kein Zeit-Befund', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '07:30', bis: '08:00'),
+          einsatz('r2', c, von: '17:00', bis: '17:00'),
+        ]),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      expect(t.befunde.where((x) => x.contains('Zeit prüfen')), isEmpty);
+    });
+
+    test('Arbeitsbeginn/Feierabend unterwegs werden gemeldet', () {
+      final fern = tagesFahrten(
+        halte: halte(
+          [einsatz('r1', a, von: '08:00', bis: '08:30')],
+          beginnUnterwegs: zuerich,
+          endeUnterwegs: zuerich,
+        ),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+        arbeitsbeginnUnterwegs: true,
+        feierabendUnterwegs: true,
+      );
+      expect(fern.befunde, contains('Arbeitsbeginn nicht am Startort'));
+      expect(fern.befunde, contains('Feierabend nicht am Startort'));
+
+      final amBetrieb = tagesFahrten(
+        halte: halte(
+          [einsatz('r1', a, von: '08:00', bis: '08:30')],
+          beginnUnterwegs: nahBei(a.lat, a.lng),
+          endeUnterwegs: nahBei(a.lat, a.lng),
+        ),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+        arbeitsbeginnUnterwegs: true,
+        feierabendUnterwegs: true,
+      );
+      expect(
+        amBetrieb.befunde,
+        contains('Arbeitsbeginn nicht am Startort — bei Peppino'),
+      );
+      expect(
+        amBetrieb.befunde,
+        contains('Feierabend nicht am Startort — bei Peppino'),
+      );
+      expect(amBetrieb.fahrten, isEmpty);
     });
 
     test('km-Summe ohne Gleitkomma-Rauschen', () {

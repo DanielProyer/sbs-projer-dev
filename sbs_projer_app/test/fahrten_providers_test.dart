@@ -70,17 +70,42 @@ EinsatzRoh einsatz(
   bis: bis,
 );
 
+/// Ein Wegpunkt-Stempel. Position standardmässig genau am Betrieb (nur
+/// Stempel ≤ 300 m vom Betrieb zählen); [pos] setzt sie ausdrücklich,
+/// [ohneGps] lässt sie weg.
 StempelRoh stempel(
   DateTime zeitpunkt, {
   String quelle = 'stoerung',
   String? betriebId,
   String? referenzId,
-}) => (
-  zeitpunkt: zeitpunkt,
-  quelle: quelle,
-  betriebId: betriebId,
-  referenzId: referenzId,
-);
+  ({double lat, double lng})? pos,
+  bool ohneGps = false,
+}) {
+  final b = betriebId == null ? null : betriebe[betriebId];
+  final amBetrieb = (b == null || b.lat == null || b.lng == null)
+      ? null
+      : (lat: b.lat!, lng: b.lng!);
+  final ort = ohneGps ? null : (pos ?? amBetrieb);
+  return (
+    zeitpunkt: zeitpunkt,
+    quelle: quelle,
+    betriebId: betriebId,
+    referenzId: referenzId,
+    lat: ort?.lat,
+    lng: ort?.lng,
+  );
+}
+
+/// ~200 m bzw. ~400 m nördlich von [p] (1° Breite ≈ 111 km).
+({double lat, double lng}) nahBei(({double lat, double lng}) p) =>
+    (lat: p.lat + 0.0018, lng: p.lng);
+({double lat, double lng}) knappDaneben(({double lat, double lng}) p) =>
+    (lat: p.lat + 0.0036, lng: p.lng);
+
+({double lat, double lng}) ortVon(String betriebId) =>
+    (lat: betriebe[betriebId]!.lat!, lng: betriebe[betriebId]!.lng!);
+
+const zuerich = (lat: 47.37, lng: 8.54);
 
 Map<DateTime, TagesFahrten> bauen({
   Map<DateTime, TagesplanRoh>? tagesplaene,
@@ -250,14 +275,12 @@ void main() {
       expect(t.fahrten.last.nach.id, 'domat_ems');
     });
 
-    test('Position weit weg von beiden Startorten → Domat/Ems', () {
+    test('ohne GPS beim Arbeitsbeginn → Rückfall Domat/Ems, kein Befund', () {
       final t = bauen(
-        tagesplaene: {
-          tag: plan(start: (lat: 47.37, lng: 8.54)), // Zürich
-        },
         einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
       )[tag]!;
       expect(t.fahrten.first.von.id, 'domat_ems');
+      expect(t.befunde.where((b) => b.contains('nicht am Startort')), isEmpty);
     });
 
     test('ohne Feierabend kein Heimweg, Befund', () {
@@ -331,6 +354,389 @@ void main() {
         t.befunde,
         contains('2 Fahrten ohne Distanz (Koordinaten fehlen)'),
       );
+    });
+  });
+
+  // Störungs-/Montage-Stempel entstehen beim Abschliessen — oft abends
+  // zuhause (17 von 28 Störungs-Stempeln in Domat/Ems, Stand 27.09.2026).
+  // Ein solcher Stempel ist keine Ankunftszeit am Betrieb.
+  group('monatsFahrtenBauen — Stempel nur am Betrieb (≤ 300 m)', () {
+    List<String> ohneZeitIds(TagesFahrten t) =>
+        t.ohneZeit.map((e) => e.einsatzId).toList();
+
+    test('Stempel ~200 m vom Betrieb → Punkt-Halt', () {
+      final t = bauen(
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 11, 20),
+            betriebId: 'betrieb-b',
+            pos: nahBei(ortVon('betrieb-b')),
+          ),
+        ],
+      )[tag]!;
+      expect(t.ohneZeit, isEmpty);
+      expect(t.fahrten.first.nach.id, 'betrieb-b');
+      expect(t.fahrten.first.ankunftMin, 11 * 60 + 20);
+      expect(t.fahrten.first.nach.quelle, 'wegpunkt');
+    });
+
+    // Keine Fahrt, und auch kein «nach Feierabend»-Befund: Der Einsatz ist
+    // gar nicht in der Kette.
+    test('Stempel 19:56 zuhause → ohne Zeit', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(ende: '17:30')},
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 19, 56),
+            betriebId: 'betrieb-b',
+            pos: startorte['domat_ems'],
+          ),
+        ],
+      )[tag]!;
+      expect(ohneZeitIds(t), ['s1']);
+      expect(t.fahrten, isEmpty); // Domat/Ems → Domat/Ems
+      expect(t.befunde.where((b) => b.contains('Zeit prüfen')), isEmpty);
+    });
+
+    test('Stempel ohne GPS → ohne Zeit', () {
+      final t = bauen(
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 11, 20),
+            betriebId: 'betrieb-b',
+            ohneGps: true,
+          ),
+        ],
+      )[tag]!;
+      expect(ohneZeitIds(t), ['s1']);
+    });
+
+    test('Stempel ~400 m daneben → ohne Zeit', () {
+      final t = bauen(
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 11, 20),
+            betriebId: 'betrieb-b',
+            pos: knappDaneben(ortVon('betrieb-b')),
+          ),
+        ],
+      )[tag]!;
+      expect(ohneZeitIds(t), ['s1']);
+    });
+
+    test('früher Stempel weit weg, späterer nah: der nahe zählt', () {
+      final t = bauen(
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 9, 0),
+            betriebId: 'betrieb-b',
+            pos: startorte['domat_ems'],
+          ),
+          stempel(
+            DateTime(2026, 9, 25, 11, 30),
+            betriebId: 'betrieb-b',
+            pos: nahBei(ortVon('betrieb-b')),
+          ),
+        ],
+      )[tag]!;
+      expect(t.ohneZeit, isEmpty);
+      expect(t.fahrten.first.ankunftMin, 11 * 60 + 30);
+    });
+
+    test('auch ein Referenz-Stempel muss am Betrieb liegen', () {
+      final t = bauen(
+        einsaetze: [einsatz('m1', 'betrieb-b', typ: 'montage')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 18, 40),
+            quelle: 'montage',
+            referenzId: 'm1',
+            pos: startorte['domat_ems'],
+          ),
+        ],
+      )[tag]!;
+      expect(ohneZeitIds(t), ['m1']);
+    });
+
+    test('Einsatz ohne Betrieb / Betrieb ohne Koordinaten → ohne Zeit', () {
+      final t = bauen(
+        einsaetze: [
+          einsatz('s1', null, typ: 'stoerung'),
+          einsatz('s2', 'betrieb-x', typ: 'stoerung'),
+        ],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 0),
+            referenzId: 's1',
+            pos: ortVon('betrieb-a'),
+          ),
+          stempel(
+            DateTime(2026, 9, 25, 11, 0),
+            betriebId: 'betrieb-x',
+            pos: ortVon('betrieb-a'),
+          ),
+        ],
+      )[tag]!;
+      expect(ohneZeitIds(t), ['s1', 's2']);
+    });
+
+    test('Zähler-Befund nennt die Einsätze ohne Zeit als mögliche Ursache', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(kmStart: 50000, kmEnde: 50060)},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('s1', 'betrieb-b', typ: 'stoerung'),
+          einsatz('s2', 'betrieb-c', typ: 'stoerung'),
+        ],
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 10.0},
+        },
+      )[tag]!;
+      expect(
+        t.befunde.first,
+        'Zähler 60 km, Fahrten 20 km — 40 km unerklärt (privat oder '
+        'Umweg?), davon evtl. 2 Einsätze ohne Zeit',
+      );
+    });
+  });
+
+  // An 6 von 33 Tagen lag die Startposition > 5 km von beiden Startorten
+  // (z. B. 18.09. 05:38, 82 km von zuhause, 0,8 km vom ersten Betrieb).
+  // Domat/Ems anzunehmen erfand dort ~100 km Anfahrt.
+  group('monatsFahrtenBauen — Arbeitsbeginn/Feierabend unterwegs', () {
+    List<String> wege(TagesFahrten t) =>
+        t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList();
+
+    test('Arbeitsbeginn fern von Startorten → Halt an der GPS-Position', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(start: zuerich)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        // Die Anfahrt ab Domat/Ems darf nicht greifen — er startete anderswo.
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0},
+        },
+      )[tag]!;
+      final erste = t.fahrten.first;
+      expect(erste.von.id, kGpsStartId);
+      expect(erste.von.name, 'Arbeitsbeginn unterwegs');
+      expect(erste.von.typ, HaltTyp.startort);
+      expect(erste.von.lat, zuerich.lat);
+      expect(erste.von.abfahrtMin, 7 * 60 + 30);
+      expect(erste.nach.id, 'betrieb-a');
+      expect(erste.kmQuelle, kKmQuelleLuftlinie);
+      final a = ortVon('betrieb-a');
+      final luft = haversineKm(zuerich.lat, zuerich.lng, a.lat, a.lng);
+      expect(erste.km, (luftlinieStreckeKm(luft) * 10).round() / 10);
+      expect(t.befunde, contains('Arbeitsbeginn nicht am Startort'));
+    });
+
+    test('Arbeitsbeginn ≤ 300 m vom ersten Betrieb → keine Anfahrt', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(start: nahBei(ortVon('betrieb-b')))},
+        einsaetze: [
+          einsatz('r1', 'betrieb-b', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-c', von: '10:00', bis: '10:30'),
+        ],
+      )[tag]!;
+      expect(wege(t), ['betrieb-b>betrieb-c', 'betrieb-c>domat_ems']);
+      expect(
+        t.befunde,
+        contains('Arbeitsbeginn nicht am Startort — bei Holländer'),
+      );
+    });
+
+    test('Feierabend fern von Startorten → Halt an der GPS-Position', () {
+      final t = bauen(
+        tagesplaene: {
+          tag: plan(start: startorte['domat_ems'], endPos: zuerich),
+        },
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0},
+        },
+      )[tag]!;
+      expect(t.fahrten.first.kmQuelle, kKmQuelleAnfahrt); // morgens normal
+      final letzte = t.fahrten.last;
+      expect(letzte.nach.id, kGpsEndeId);
+      expect(letzte.nach.name, 'Feierabend unterwegs');
+      expect(letzte.nach.ankunftMin, 17 * 60);
+      expect(letzte.kmQuelle, kKmQuelleLuftlinie);
+      expect(t.befunde, contains('Feierabend nicht am Startort'));
+    });
+
+    test('Feierabend ≤ 300 m vom letzten Betrieb → kein Heimweg', () {
+      final t = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: startorte['domat_ems'],
+            endPos: nahBei(ortVon('betrieb-b')),
+          ),
+        },
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '10:30'),
+        ],
+      )[tag]!;
+      expect(wege(t), ['domat_ems>betrieb-a', 'betrieb-a>betrieb-b']);
+      expect(
+        t.befunde,
+        contains('Feierabend nicht am Startort — bei Holländer'),
+      );
+    });
+
+    test('ohne Zeit für Arbeitsbeginn kein «unterwegs»-Befund', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(beginn: null, start: zuerich)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+      )[tag]!;
+      expect(t.befunde, isNot(contains('Arbeitsbeginn nicht am Startort')));
+      expect(t.befunde, contains('Kein Arbeitsbeginn erfasst — Anfahrt fehlt'));
+    });
+  });
+
+  group('monatsFahrtenBauen — Tage ohne Einsätze, Zeiten ausserhalb', () {
+    test('Einsatz-Stempel nach Feierabend → «Zeit prüfen»', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(ende: '17:30')},
+        einsaetze: [einsatz('s1', 'betrieb-b', typ: 'stoerung')],
+        stempelListe: [
+          stempel(DateTime(2026, 9, 25, 19, 56), betriebId: 'betrieb-b'),
+        ],
+      )[tag]!;
+      expect(
+        t.befunde,
+        contains(
+          'Einsatz 19:56 bei Holländer nach Feierabend 17:30 — Zeit prüfen',
+        ),
+      );
+    });
+
+    test('Reinigung vor Arbeitsbeginn → «Zeit prüfen»', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(beginn: '07:00')},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '06:10', bis: '06:50')],
+      )[tag]!;
+      expect(
+        t.befunde,
+        contains(
+          'Einsatz 06:10 bei Peppino vor Arbeitsbeginn 07:00 — Zeit prüfen',
+        ),
+      );
+    });
+
+    test('Tag ohne Einsätze: keine Fahrt, Zähler-km unerklärt', () {
+      final t = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: startorte['domat_ems'],
+            endPos: startorte['domat_ems'],
+            kmEnde: 50040,
+          ),
+        },
+      )[tag]!;
+      expect(t.fahrten, isEmpty);
+      expect(t.kmFahrten, 0);
+      expect(t.befunde, [
+        'Zähler 40 km, Fahrten 0 km — 40 km unerklärt (privat oder Umweg?)',
+      ]);
+    });
+
+    test('zwei Startorte ohne Einsätze: Domat/Ems → Chur als Luftlinie', () {
+      final t = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: startorte['domat_ems'],
+            endPos: startorte['chur'],
+            kmEnde: null,
+          ),
+        },
+      )[tag]!;
+      final f = t.fahrten.single;
+      expect(f.von.id, 'domat_ems');
+      expect(f.nach.id, 'chur');
+      expect(f.kmQuelle, kKmQuelleLuftlinie);
+      final d = startorte['domat_ems']!, c = startorte['chur']!;
+      expect(
+        f.km,
+        (luftlinieStreckeKm(haversineKm(d.lat, d.lng, c.lat, c.lng)) * 10)
+                .round() /
+            10,
+      );
+    });
+  });
+
+  // Leerfahrt («War geschlossen»): kein Einsatz, aber ein Besuch vor Ort —
+  // der Wegpunkt `quelle='vergeblich'` ist ein Punkt-Halt.
+  group('monatsFahrtenBauen — Leerfahrt', () {
+    test('Leerfahrt-Stempel am Betrieb ist ein Punkt-Halt', () {
+      final t = bauen(
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 15),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+          ),
+        ],
+      )[tag]!;
+      expect(t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList(), [
+        'domat_ems>betrieb-a',
+        'betrieb-a>betrieb-c',
+        'betrieb-c>domat_ems',
+      ]);
+      expect(t.fahrten[1].nach.name, 'Linden');
+      expect(t.fahrten[1].ankunftMin, 10 * 60 + 15);
+      expect(t.ohneZeit, isEmpty);
+    });
+
+    test('Leerfahrt-Stempel weit weg vom Betrieb → ohne Zeit', () {
+      final t = bauen(
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 19, 0),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+            pos: startorte['domat_ems'],
+          ),
+        ],
+      )[tag]!;
+      expect(t.ohneZeit.single.typ, 'vergeblich');
+      expect(t.ohneZeit.single.betriebName, 'Linden');
+    });
+
+    test('Leerfahrt gibt keinem Einsatz am selben Betrieb die Zeit', () {
+      final t = bauen(
+        einsaetze: [einsatz('s1', 'betrieb-c', typ: 'stoerung')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 15),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+          ),
+        ],
+      )[tag]!;
+      expect(t.ohneZeit.map((e) => e.einsatzId), ['s1']);
+      expect(t.fahrten.map((f) => f.nach.id), ['betrieb-c', 'domat_ems']);
+    });
+
+    test('Tag nur mit einer Leerfahrt (ohne Tagesplan) erscheint', () {
+      final ergebnis = bauen(
+        tagesplaene: const {},
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 0),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+          ),
+        ],
+      );
+      expect(ergebnis.keys, [tag]);
+      expect(ergebnis[tag]!.fahrten, isEmpty); // nur ein Halt
     });
   });
 

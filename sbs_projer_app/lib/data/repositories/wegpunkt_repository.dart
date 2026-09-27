@@ -53,21 +53,33 @@ class WegpunktRepository {
     }
   }
 
-  /// Einsatz-Stempel (Reinigung/Störung/Montage) eines Monats — Zeitquelle
-  /// für Einsätze ohne erfasste Arbeitszeit in «Fahrten aus der Kette».
+  /// Einsatz-Stempel (Reinigung/Störung/Montage) und Leerfahrten
+  /// (`vergeblich`, «War geschlossen») eines Monats — Zeitquelle für
+  /// Einsätze ohne erfasste Arbeitszeit in «Fahrten aus der Kette»; eine
+  /// Leerfahrt ist dort ein eigener Punkt-Halt.
+  ///
+  /// Mit Position (`lat`/`lng`): Ein Stempel zählt nur, wenn er am Betrieb
+  /// gesetzt wurde (`stempelAmBetrieb`, ≤ 300 m) — Störungen/Montagen werden
+  /// oft erst abends zuhause abgeschlossen.
   ///
   /// Monatsgrenzen in LOKALER Zeit (ein Stempel um 00:30 gehört zum neuen
   /// Tag), Zeitpunkte als `toLocal()` zurück — die Kette rechnet mit
   /// `hour * 60 + minute`. Rund 170 Stempel im stärksten Monat (Stand
   /// 27.09.2026), also weit unter dem PostgREST-Deckel; `.order('id')`
   /// zuletzt für eine stabile Reihenfolge (CLAUDE.md).
+  ///
+  /// Nur Supabase-Pfad: `wegpunkte` hat (wie der ganze Wegpunkt-Strom) kein
+  /// Isar-Gegenstück. Für die Android-Vorlage nachzuziehen (lokale Tabelle
+  /// oder Abfrage mit Online-Pflicht) — die Kette braucht die Stempel samt
+  /// Position.
   static Future<List<StempelRoh>> getStempelImMonat(int jahr, int monat) async {
     final von = DateTime(jahr, monat, 1);
     final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
     final rows = await SupabaseService.client
         .from('wegpunkte')
-        .select('id, zeitpunkt, quelle, betrieb_id, referenz_id')
-        .inFilter('quelle', ['reinigung', 'stoerung', 'montage'])
+        .select('id, zeitpunkt, quelle, betrieb_id, referenz_id, lat, lng')
+        // 'vergeblich' kennt der CHECK seit Migration 160.
+        .inFilter('quelle', ['reinigung', 'stoerung', 'montage', 'vergeblich'])
         .gte('zeitpunkt', von.toUtc().toIso8601String())
         .lt('zeitpunkt', bis.toUtc().toIso8601String())
         .order('zeitpunkt')
@@ -79,9 +91,18 @@ class WegpunktRepository {
           quelle: r['quelle'] as String,
           betriebId: r['betrieb_id'] as String?,
           referenzId: r['referenz_id'] as String?,
+          lat: _zahl(r['lat']),
+          lng: _zahl(r['lng']),
         ),
     ];
   }
+
+  /// numeric kommt je nach Wert als Zahl oder als String zurück.
+  static double? _zahl(Object? v) => switch (v) {
+    num n => n.toDouble(),
+    String s => double.tryParse(s),
+    _ => null,
+  };
 
   /// Lag zwischen [von] und [bis] (lokale Zeit) eine Störung oder Montage?
   ///

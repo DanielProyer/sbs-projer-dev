@@ -21,7 +21,7 @@ import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart'
 import 'package:sbs_projer_app/core/util/fahrzeit.dart'
     show haversineKm, umwegFaktor;
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart'
-    show minutenAusHhmm;
+    show hhmmAusMinuten, minutenAusHhmm;
 
 enum HaltTyp { startort, betrieb }
 
@@ -41,6 +41,28 @@ const kVerschmelzenBisMin = 15;
 /// Geroutete Strecken treffen den gefahrenen Weg nie auf den Kilometer.
 const kDifferenzToleranzKm = 5.0;
 const kDifferenzToleranzAnteil = 0.05;
+
+/// Ein Wegpunkt-Stempel zählt nur als Zeit eines Einsatzes, wenn er höchstens
+/// so weit vom Betrieb entfernt gesetzt wurde. Störungs-/Montage-Stempel
+/// entstehen beim Abschliessen — oft abends zuhause (17 von 28
+/// Störungs-Stempeln in Domat/Ems, 14 von 36 nach dem Feierabend; Stand
+/// 27.09.2026). Ein solcher Stempel ist keine Ankunftszeit am Betrieb.
+///
+/// Derselbe Radius entscheidet, ob ein Arbeitsbeginn/Feierabend unterwegs
+/// «am ersten/letzten Betrieb» liegt.
+const kStempelRadiusKm = 0.3;
+
+/// Halt-Ids für Arbeitsbeginn/Feierabend an einer GPS-Position, die zu
+/// keinem Startort passt (siehe [halteAusKette]).
+const kGpsStartId = 'gps_start';
+const kGpsEndeId = 'gps_ende';
+
+/// Einsatz-Typ einer Leerfahrt («War geschlossen», Wegpunkt
+/// `quelle='vergeblich'`): kein Einsatz-Datensatz, aber ein Besuch vor Ort.
+const kTypLeerfahrt = 'vergeblich';
+
+/// Halte-Id-Präfix für Einsätze ohne Betrieb.
+const _ohneBetriebPraefix = 'einsatz:';
 
 /// Herkunft der km einer [Fahrt].
 const kKmQuelleAnfahrt = 'anfahrt'; // anfahrtszeiten.distanz_km
@@ -63,7 +85,9 @@ class Halt {
   final HaltTyp typ;
 
   /// Startort-Schlüssel (`'domat_ems'`/`'chur'`) oder betriebId. Einsätze
-  /// ohne Betrieb bekommen `'einsatz:<einsatzId>'`.
+  /// ohne Betrieb bekommen `'einsatz:<einsatzId>'`, Arbeitsbeginn/Feierabend
+  /// unterwegs [kGpsStartId]/[kGpsEndeId] (oder die betriebId, wenn die
+  /// Position am ersten/letzten Betrieb liegt).
   final String id;
   final String name;
   final double? lat, lng;
@@ -98,7 +122,7 @@ class EinsatzHalt {
 
   final String einsatzId;
 
-  /// 'reinigung' | 'stoerung' | 'montage'.
+  /// 'reinigung' | 'stoerung' | 'montage' | [kTypLeerfahrt].
   final String typ;
   final String? betriebId, betriebName;
   final double? lat, lng;
@@ -205,6 +229,19 @@ typedef KmNachschlag =
 /// Einsätze ohne auflösbare Zeit fehlen hier (siehe [einsaetzeOhneZeit]).
 /// Aufeinanderfolgende Halte am selben Betrieb mit Lücke ≤
 /// [verschmelzenBisMin] werden zu einem verschmolzen.
+///
+/// Arbeitsbeginn/Feierabend unterwegs: [beginnUnterwegs]/[endeUnterwegs] ist
+/// die GPS-Position, wenn sie zu KEINEM Startort passt (der Aufrufer
+/// entscheidet das mit `startortSchluessel`). Dann steht dort ein Halt an
+/// dieser Position ([kGpsStartId] «Arbeitsbeginn unterwegs» bzw.
+/// [kGpsEndeId] «Feierabend unterwegs») statt [startortMorgen]/
+/// [startortAbend] — liegt sie höchstens [kStempelRadiusKm] vom ersten
+/// (letzten) Betrieb, trägt der Halt dessen Id und Namen, und es entsteht
+/// keine Fahrt dorthin. Befund 27.09.2026: An 6 von 33 Tagen lag die
+/// Startposition > 5 km von beiden Startorten, an 4 davon ≤ 0,8 km vom
+/// ersten Betrieb; mit Domat/Ems als Annahme entstanden ~100 km erfundene
+/// Anfahrt. km für diese Halte gibt es nur per Luftlinie (kein Eintrag in
+/// `anfahrtszeiten`).
 List<Halt> halteAusKette({
   required String? arbeitsbeginn,
   required String? arbeitsende,
@@ -213,6 +250,8 @@ List<Halt> halteAusKette({
   required List<EinsatzHalt> einsaetze,
   required DateTime datum,
   required Map<String, ({double lat, double lng})> startorte,
+  ({double lat, double lng})? beginnUnterwegs,
+  ({double lat, double lng})? endeUnterwegs,
   int verschmelzenBisMin = kVerschmelzenBisMin,
 }) {
   final betriebsHalte = <Halt>[];
@@ -222,7 +261,7 @@ List<Halt> halteAusKette({
     betriebsHalte.add(
       Halt(
         typ: HaltTyp.betrieb,
-        id: e.betriebId ?? 'einsatz:${e.einsatzId}',
+        id: e.betriebId ?? '$_ohneBetriebPraefix${e.einsatzId}',
         name: e.betriebName ?? _typName(e.typ),
         lat: e.lat,
         lng: e.lng,
@@ -237,13 +276,23 @@ List<Halt> halteAusKette({
   final kette = <Halt>[];
   final beginn = minutenAusHhmm(arbeitsbeginn);
   if (beginn != null) {
+    final pos = beginnUnterwegs;
     kette.add(
-      _startortHalt(
-        startortMorgen,
-        startorte,
-        abfahrtMin: beginn,
-        quelle: 'arbeitsbeginn',
-      ),
+      pos == null
+          ? _startortHalt(
+              startortMorgen,
+              startorte,
+              abfahrtMin: beginn,
+              quelle: 'arbeitsbeginn',
+            )
+          : _unterwegsHalt(
+              pos,
+              betriebsHalte.isEmpty ? null : betriebsHalte.first,
+              id: kGpsStartId,
+              name: 'Arbeitsbeginn unterwegs',
+              abfahrtMin: beginn,
+              quelle: 'arbeitsbeginn',
+            ),
     );
   }
 
@@ -274,13 +323,23 @@ List<Halt> halteAusKette({
 
   final ende = minutenAusHhmm(arbeitsende);
   if (ende != null) {
+    final pos = endeUnterwegs;
     kette.add(
-      _startortHalt(
-        startortAbend,
-        startorte,
-        ankunftMin: ende,
-        quelle: 'feierabend',
-      ),
+      pos == null
+          ? _startortHalt(
+              startortAbend,
+              startorte,
+              ankunftMin: ende,
+              quelle: 'feierabend',
+            )
+          : _unterwegsHalt(
+              pos,
+              betriebsHalte.isEmpty ? null : betriebsHalte.last,
+              id: kGpsEndeId,
+              name: 'Feierabend unterwegs',
+              ankunftMin: ende,
+              quelle: 'feierabend',
+            ),
     );
   }
   return kette;
@@ -339,6 +398,14 @@ List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
 /// [feierabendErfasst]/[arbeitsbeginnErfasst]: ob der Tagesplan die Zeit
 /// kennt (sonst fehlen Heimweg bzw. Anfahrt in der Kette — das erklärt eine
 /// positive Differenz und wird deshalb eigens gemeldet).
+///
+/// [arbeitsbeginnUnterwegs]/[feierabendUnterwegs]: die GPS-Position passte
+/// zu keinem Startort (Halt an der Position, siehe [halteAusKette]) — wird
+/// als Befund gemeldet, mit dem Betrieb, falls sie dort lag.
+///
+/// Einsätze, die vor dem Arbeitsbeginn beginnen oder nach dem Feierabend
+/// liegen, sind fast immer eine falsch erfasste Zeit (Arbeitsbeginn zu spät
+/// gedrückt, Einsatz abends nachgetragen) — Befund «Zeit prüfen».
 TagesFahrten tagesFahrten({
   required List<Halt> halte,
   required List<EinsatzHalt> ohneZeit,
@@ -347,6 +414,8 @@ TagesFahrten tagesFahrten({
   int? kmEnde,
   required bool feierabendErfasst,
   bool arbeitsbeginnErfasst = true,
+  bool arbeitsbeginnUnterwegs = false,
+  bool feierabendUnterwegs = false,
 }) {
   final fahrten = fahrtenAusHalten(halte, km);
   final summe = _eineStelle(fahrten.fold<double>(0, (s, f) => s + (f.km ?? 0)));
@@ -362,10 +431,17 @@ TagesFahrten tagesFahrten({
     if (differenzIstAuffaellig(kmZaehler: zaehler, differenz: differenz)) {
       // Mit der gerundeten Summe rechnen, damit die Zahlen im Text aufgehen.
       final fahrtenKm = summe.round();
+      // Einsätze ohne Zeit fehlen in den Fahrten — sie können einen Teil
+      // der unerklärten km sein (nur bei positiver Differenz).
+      final n = ohneZeit.length;
+      final davon = n == 0
+          ? ''
+          : ', davon evtl. $n ${n == 1 ? 'Einsatz' : 'Einsätze'} ohne Zeit';
       befunde.add(
         differenz > 0
             ? 'Zähler $zaehler km, Fahrten $fahrtenKm km — '
                   '${zaehler - fahrtenKm} km unerklärt (privat oder Umweg?)'
+                  '$davon'
             : 'Fahrten $fahrtenKm km liegen über dem Zähler $zaehler km — '
                   'Zählerstand prüfen',
       );
@@ -386,6 +462,43 @@ TagesFahrten tagesFahrten({
   if (!feierabendErfasst) {
     befunde.add('Kein Feierabend erfasst — Heimweg fehlt');
   }
+
+  final beginnHalt = (halte.isNotEmpty && halte.first.quelle == 'arbeitsbeginn')
+      ? halte.first
+      : null;
+  final endeHalt = (halte.isNotEmpty && halte.last.quelle == 'feierabend')
+      ? halte.last
+      : null;
+  String nichtAmStartort(String was, Halt? h, String gpsId) =>
+      (h == null || h.id == gpsId)
+      ? '$was nicht am Startort'
+      : '$was nicht am Startort — bei ${h.name}';
+  if (arbeitsbeginnUnterwegs) {
+    befunde.add(nichtAmStartort('Arbeitsbeginn', beginnHalt, kGpsStartId));
+  }
+  if (feierabendUnterwegs) {
+    befunde.add(nichtAmStartort('Feierabend', endeHalt, kGpsEndeId));
+  }
+
+  final beginnMin = beginnHalt?.abfahrtMin;
+  final endeMin = endeHalt?.ankunftMin;
+  for (final h in halte) {
+    final an = h.ankunftMin;
+    if (h.typ != HaltTyp.betrieb || an == null) continue;
+    final bei = h.id.startsWith(_ohneBetriebPraefix) ? '' : ' bei ${h.name}';
+    if (beginnMin != null && an < beginnMin) {
+      befunde.add(
+        'Einsatz ${hhmmAusMinuten(an)}$bei vor Arbeitsbeginn '
+        '${hhmmAusMinuten(beginnMin)} — Zeit prüfen',
+      );
+    } else if (endeMin != null && an > endeMin) {
+      befunde.add(
+        'Einsatz ${hhmmAusMinuten(an)}$bei nach Feierabend '
+        '${hhmmAusMinuten(endeMin)} — Zeit prüfen',
+      );
+    }
+  }
+
   if (ohneZeit.isNotEmpty) {
     final n = ohneZeit.length;
     befunde.add(
@@ -441,8 +554,10 @@ String kmText(double km) => '${km.toStringAsFixed(1)} km';
 // (`test/fahrten_providers_test.dart`) — die Provider in
 // `fahrten_providers.dart` beschaffen nur die Daten.
 
-/// Rückfall-Startort, wenn die GPS-Position fehlt oder zu keinem der
-/// Startorte passt (`startortSchluessel` liefert dann `null`).
+/// Rückfall-Startort, NUR wenn die GPS-Position fehlt. Passt eine
+/// vorhandene Position zu keinem Startort, beginnt (endet) der Tag dort
+/// (Halt «unterwegs», siehe [halteAusKette]) — Domat/Ems anzunehmen hätte
+/// eine Anfahrt erfunden.
 const kStartortRueckfall = 'domat_ems';
 
 /// Ein Einsatz aus den Monatsabfragen, vor dem Betriebs-Nachschlag.
@@ -462,13 +577,28 @@ typedef EinsatzRoh = ({
 });
 
 /// Ein Wegpunkt-Stempel (`wegpunkte`). [zeitpunkt] MUSS lokal sein
-/// (`toLocal()`), siehe [EinsatzHalt.stempel].
+/// (`toLocal()`), siehe [EinsatzHalt.stempel]. [lat]/[lng] = GPS beim
+/// Stempeln, `null` ohne Standort — dann zählt der Stempel nie
+/// ([stempelAmBetrieb]).
 typedef StempelRoh = ({
   DateTime zeitpunkt,
   String quelle,
   String? betriebId,
   String? referenzId,
+  double? lat,
+  double? lng,
 });
+
+/// Wurde der Stempel am Betrieb gesetzt (≤ [kStempelRadiusKm])? Ohne
+/// Koordinaten auf einer der beiden Seiten `false` — ein Stempel, dessen Ort
+/// man nicht kennt, ist keine Ankunftszeit am Betrieb.
+bool stempelAmBetrieb(StempelRoh s, ({double? lat, double? lng})? betrieb) {
+  final sLat = s.lat, sLng = s.lng, bLat = betrieb?.lat, bLng = betrieb?.lng;
+  if (sLat == null || sLng == null || bLat == null || bLng == null) {
+    return false;
+  }
+  return haversineKm(sLat, sLng, bLat, bLng) <= kStempelRadiusKm;
+}
 
 /// Name und Koordinaten eines Betriebs (aus den Stammdaten).
 typedef BetriebOrt = ({String name, double? lat, double? lng});
@@ -529,16 +659,24 @@ KmNachschlag kmNachschlagAus({
 /// Baut die Tages-Fahrten eines Monats (Schlüssel: Datum ohne Uhrzeit).
 ///
 /// Ein Tag erscheint, sobald sein Tagesplan etwas erfasst hat (Zeit oder
-/// km-Stand) oder ein Einsatz auf ihn fällt. Tagesplan-Zeilen ohne jede
-/// Erfassung sind bloss geplant und fallen weg.
+/// km-Stand), ein Einsatz auf ihn fällt oder eine Leerfahrt gestempelt ist.
+/// Tagesplan-Zeilen ohne jede Erfassung sind bloss geplant und fallen weg.
 ///
 /// Startort morgens/abends aus der GPS-Position via [startortFuer]
-/// (`startortSchluessel`), ohne Treffer [kStartortRueckfall].
+/// (`startortSchluessel`); ohne GPS [kStartortRueckfall]; mit GPS, aber
+/// ohne passenden Startort ein Halt «unterwegs» an der Position.
 ///
-/// Einsatz-Zeit: von/bis, sonst der früheste Stempel desselben Tages —
-/// zuerst über `referenz_id` = Einsatz-Id, sonst gleiche Einsatzart am
-/// selben Betrieb (Störungs-Stempel tragen in der Praxis keine Referenz:
-/// 0 von 33 seit August, Stand 27.09.2026).
+/// Einsatz-Zeit: von/bis, sonst der früheste Stempel desselben Tages, der
+/// AM BETRIEB gesetzt wurde ([stempelAmBetrieb]) — zuerst über
+/// `referenz_id` = Einsatz-Id, sonst gleiche Einsatzart am selben Betrieb
+/// (Störungs-Stempel tragen in der Praxis keine Referenz: 0 von 33 seit
+/// August, Stand 27.09.2026). Erst filtern, dann den frühesten nehmen: Ein
+/// früher Stempel weit weg darf einen späteren am Betrieb nicht verdrängen.
+/// Einsätze ohne Betrieb, ohne GPS-Stempel oder mit Betrieb ohne
+/// Koordinaten bleiben «ohne Zeit».
+///
+/// Leerfahrten (Wegpunkt `quelle='vergeblich'`) sind Punkt-Halte am
+/// Betrieb, nach derselben Ortsregel.
 Map<DateTime, TagesFahrten> monatsFahrtenBauen({
   required Map<DateTime, TagesplanRoh> tagesplaene,
   required List<EinsatzRoh> einsaetze,
@@ -566,6 +704,8 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
     for (final e in plaene.entries)
       if (_hatRahmen(e.value)) e.key,
     ...einsaetzeJeTag.keys,
+    for (final e in stempelJeTag.entries)
+      if (e.value.any((s) => s.quelle == kTypLeerfahrt)) e.key,
   };
   final km = kmNachschlagAus(anfahrten: anfahrten, routen: routen);
 
@@ -576,15 +716,28 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
     final einsatzHalte = [
       for (final e in einsaetzeJeTag[tag] ?? const <EinsatzRoh>[])
         _einsatzHalt(e, betriebe, stempelDesTages),
+      for (final s in stempelDesTages)
+        if (s.quelle == kTypLeerfahrt) _leerfahrtHalt(s, betriebe),
     ];
+
+    // GPS vorhanden, aber an keinem Startort: Der Tag beginnt (endet) dort.
+    // Rückfall Domat/Ems nur ohne GPS.
+    final startPos = plan?.startPosition, endPos = plan?.endPosition;
+    final startSchluessel = startortFuer(startPos);
+    final endSchluessel = startortFuer(endPos);
+    final beginnUnterwegs = startSchluessel == null ? startPos : null;
+    final endeUnterwegs = endSchluessel == null ? endPos : null;
+
     final halte = halteAusKette(
       arbeitsbeginn: plan?.beginn,
       arbeitsende: plan?.ende,
-      startortMorgen: startortFuer(plan?.startPosition) ?? kStartortRueckfall,
-      startortAbend: startortFuer(plan?.endPosition) ?? kStartortRueckfall,
+      startortMorgen: startSchluessel ?? kStartortRueckfall,
+      startortAbend: endSchluessel ?? kStartortRueckfall,
       einsaetze: einsatzHalte,
       datum: tag,
       startorte: startorte,
+      beginnUnterwegs: beginnUnterwegs,
+      endeUnterwegs: endeUnterwegs,
     );
     ergebnis[tag] = tagesFahrten(
       halte: halte,
@@ -594,6 +747,8 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
       kmEnde: plan?.kmEnde,
       arbeitsbeginnErfasst: plan?.beginn != null,
       feierabendErfasst: plan?.ende != null,
+      arbeitsbeginnUnterwegs: beginnUnterwegs != null && plan?.beginn != null,
+      feierabendUnterwegs: endeUnterwegs != null && plan?.ende != null,
     );
   }
   return ergebnis;
@@ -655,13 +810,26 @@ EinsatzHalt _einsatzHalt(
     lng: betrieb?.lng,
     von: e.von,
     bis: e.bis,
-    stempel: _stempelFuer(e, stempelDesTages),
+    stempel: _stempelFuer(e, stempelDesTages, betrieb),
   );
 }
 
-/// Frühester passender Stempel: über die Referenz, sonst gleiche
-/// Einsatzart am selben Betrieb.
-DateTime? _stempelFuer(EinsatzRoh e, List<StempelRoh> desTages) {
+/// Frühester passender Stempel AM BETRIEB: zuerst nach Ort filtern
+/// ([stempelAmBetrieb]), dann über die Referenz, sonst gleiche Einsatzart am
+/// selben Betrieb. Ohne Betrieb (oder unbekannten Betrieb) `null` — ohne Ort
+/// lässt sich kein Stempel prüfen.
+DateTime? _stempelFuer(
+  EinsatzRoh e,
+  List<StempelRoh> desTages,
+  BetriebOrt? betrieb,
+) {
+  if (betrieb == null) return null;
+  final ort = (lat: betrieb.lat, lng: betrieb.lng);
+  final amBetrieb = [
+    for (final s in desTages)
+      if (stempelAmBetrieb(s, ort)) s,
+  ];
+
   DateTime? fruehester(Iterable<StempelRoh> kandidaten) {
     DateTime? best;
     for (final s in kandidaten) {
@@ -670,12 +838,29 @@ DateTime? _stempelFuer(EinsatzRoh e, List<StempelRoh> desTages) {
     return best;
   }
 
-  final perReferenz = fruehester(desTages.where((s) => s.referenzId == e.id));
+  final perReferenz = fruehester(amBetrieb.where((s) => s.referenzId == e.id));
   if (perReferenz != null) return perReferenz;
-  final bid = e.betriebId;
-  if (bid == null) return null;
   return fruehester(
-    desTages.where((s) => s.quelle == e.typ && s.betriebId == bid),
+    amBetrieb.where((s) => s.quelle == e.typ && s.betriebId == e.betriebId),
+  );
+}
+
+/// Leerfahrt-Stempel als Einsatz: Punkt-Halt, wenn er am Betrieb gesetzt
+/// wurde; sonst «ohne Zeit» (der Besuch fand statt, nur wann ist unklar).
+EinsatzHalt _leerfahrtHalt(StempelRoh s, Map<String, BetriebOrt> betriebe) {
+  final bid = s.betriebId;
+  final betrieb = bid == null ? null : betriebe[bid];
+  final amBetrieb =
+      betrieb != null &&
+      stempelAmBetrieb(s, (lat: betrieb.lat, lng: betrieb.lng));
+  return EinsatzHalt(
+    einsatzId: '$kTypLeerfahrt@${s.zeitpunkt.toIso8601String()}',
+    typ: kTypLeerfahrt,
+    betriebId: bid,
+    betriebName: betrieb?.name,
+    lat: betrieb?.lat,
+    lng: betrieb?.lng,
+    stempel: amBetrieb ? s.zeitpunkt : null,
   );
 }
 
@@ -733,10 +918,42 @@ Halt _startortHalt(
   );
 }
 
+/// Arbeitsbeginn/Feierabend an einer GPS-Position ohne Startort. Liegt sie
+/// höchstens [kStempelRadiusKm] vom [betrieb] (erster bzw. letzter
+/// Betriebs-Halt), trägt der Halt dessen Id und Namen — gleiche Id heisst
+/// keine Fahrt. Typ bleibt `startort` (Anfang/Ende der Kette).
+Halt _unterwegsHalt(
+  ({double lat, double lng}) pos,
+  Halt? betrieb, {
+  required String id,
+  required String name,
+  int? ankunftMin,
+  int? abfahrtMin,
+  required String quelle,
+}) {
+  final bLat = betrieb?.lat, bLng = betrieb?.lng;
+  final amBetrieb =
+      betrieb != null &&
+      bLat != null &&
+      bLng != null &&
+      haversineKm(pos.lat, pos.lng, bLat, bLng) <= kStempelRadiusKm;
+  return Halt(
+    typ: HaltTyp.startort,
+    id: amBetrieb ? betrieb.id : id,
+    name: amBetrieb ? betrieb.name : name,
+    lat: pos.lat,
+    lng: pos.lng,
+    ankunftMin: ankunftMin,
+    abfahrtMin: abfahrtMin,
+    quelle: quelle,
+  );
+}
+
 String _typName(String typ) => switch (typ) {
   'reinigung' => 'Reinigung',
   'stoerung' => 'Störung',
   'montage' => 'Montage',
+  kTypLeerfahrt => 'Leerfahrt',
   _ => typ,
 };
 
