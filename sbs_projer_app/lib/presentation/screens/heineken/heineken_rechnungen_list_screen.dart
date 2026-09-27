@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
+import 'package:sbs_projer_app/presentation/widgets/rechnung_status_farbe.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_leiste.dart';
 
 class HeinekenRechnungenListScreen extends ConsumerStatefulWidget {
@@ -127,16 +128,19 @@ class _HeinekenRechnungenListScreenState
                                 final monatsName = monat != null
                                     ? _monatFormat.format(monat)
                                     : 'Unbekannt';
+                                // Farbe und Symbol aus demselben Schlüssel
+                                // wie der Text (K1, 27.09.2026) — vorher
+                                // stand «Gesendet»/«Freigegeben» grau.
+                                final schluessel = anzeigeSchluessel(r);
+                                final farbe = rechnungStatusFarbe(schluessel);
 
                                 return Card(
                                   child: ListTile(
                                     leading: CircleAvatar(
-                                      backgroundColor:
-                                          _statusColor(r.zahlungsstatus)
-                                              .withAlpha(30),
+                                      backgroundColor: farbe.withAlpha(30),
                                       child: Icon(
-                                        _statusIcon(r.zahlungsstatus),
-                                        color: _statusColor(r.zahlungsstatus),
+                                        _statusIcon(schluessel),
+                                        color: farbe,
                                       ),
                                     ),
                                     title: Text(monatsName),
@@ -148,13 +152,10 @@ class _HeinekenRechnungenListScreenState
                                         anzeigeStatus(r),
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color:
-                                              _statusColor(r.zahlungsstatus),
+                                          color: farbe,
                                         ),
                                       ),
-                                      backgroundColor:
-                                          _statusColor(r.zahlungsstatus)
-                                              .withAlpha(20),
+                                      backgroundColor: farbe.withAlpha(20),
                                       side: BorderSide.none,
                                     ),
                                     onTap: () =>
@@ -203,21 +204,13 @@ class _HeinekenRechnungenListScreenState
     );
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'offen': return AppColors.warning;
-      case 'bezahlt': return AppColors.success;
-      case 'erinnert': return const Color(0xFFE65100);
-      case 'mahnung_1': return AppColors.error;
-      case 'mahnung_2': return const Color(0xFF8B0000);
-      case 'abgeschrieben': return AppColors.inaktiv;
-      default: return AppColors.textSecondary;
-    }
-  }
-
-  IconData _statusIcon(String status) {
-    switch (status) {
+  /// Symbol zum Anzeige-Schlüssel ([anzeigeSchluessel]) — dieselben wie das
+  /// Status-Banner im Detail.
+  IconData _statusIcon(String schluessel) {
+    switch (schluessel) {
       case 'offen': return Icons.hourglass_empty;
+      case 'gesendet': return Icons.send;
+      case 'freigegeben': return Icons.task_alt;
       case 'bezahlt': return Icons.check_circle;
       case 'erinnert': return Icons.notifications;
       case 'mahnung_1': return Icons.warning;

@@ -145,8 +145,15 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
  * Deshalb hängt der Aufruf jetzt zusätzlich an `EdgeRuntime.waitUntil`.
  *
  * REGELN:
- * - `versendet_am` wird immer auf heute gesetzt (ein Neuversand aktualisiert
- *   es bewusst).
+ * - `versendet_am` wird NUR gesetzt, wenn es noch leer ist (Filter
+ *   `versendet_am=is.null`): Das Datum des ERSTEN Versands bleibt, ein
+ *   Neuversand ändert es nicht. WARUM (Review 27.09.2026, M2): Bis dahin
+ *   setzte jeder Neuversand es auf heute — das Erstversanddatum, an dem
+ *   Mahnfristen, «wann gestellt?», Jahrgangs-Abschreibung und Kontoauszug
+ *   hängen, ging verloren (die App stellte es danach nur wieder her, wenn
+ *   ihre eigene Antwort ankam). Wer dem Kunden mehr Zeit geben will, setzt
+ *   in der App die Fälligkeit neu (Rechnungsdetail «neu versenden»).
+ *   Dieselbe Regel gilt in der App: `versendetAmNachVersand`.
  * - `zahlungsstatus` wechselt NUR von "offen" auf "gesendet". Der Filter
  *   `zahlungsstatus=eq.offen` sorgt dafür, dass Mahnstufen (erinnert,
  *   mahnung_1, …) und "bezahlt" unangetastet bleiben.
@@ -178,8 +185,11 @@ async function markiereRechnungVersandt(
   const basis = `${supabaseUrl}/rest/v1/rechnungen?id=eq.${rechnungId}&user_id=eq.${userId}`;
 
   try {
-    // 1. Versanddatum — unabhängig vom Status.
-    const datumRes = await fetch(basis, {
+    // 1. Versanddatum — unabhängig vom Status, aber nur beim ERSTEN Versand
+    //    (`versendet_am=is.null`). Beim Neuversand trifft der Filter keine
+    //    Zeile: PostgREST antwortet trotzdem 204, der Vermerk gilt als gesetzt
+    //    (er steht ja schon).
+    const datumRes = await fetch(`${basis}&versendet_am=is.null`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ versendet_am: heute }),
@@ -200,7 +210,7 @@ async function markiereRechnungVersandt(
       return false;
     }
 
-    console.log(`Versand vermerkt: rechnungId=${rechnungId}, versendet_am=${heute}`);
+    console.log(`Versand vermerkt: rechnungId=${rechnungId}, versendet_am=${heute} (nur falls leer)`);
     return true;
   } catch (e) {
     console.error(`markiereRechnungVersandt: Ausnahme — ${(e as Error).message}`);

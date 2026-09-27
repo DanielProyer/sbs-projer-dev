@@ -19,6 +19,7 @@ import 'package:sbs_projer_app/core/util/mahnregeln.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/presentation/widgets/bereich_reiter.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
+import 'package:sbs_projer_app/presentation/widgets/rechnung_status_farbe.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
@@ -39,26 +40,6 @@ const _monatNamen = [
   'Dezember',
 ];
 
-/// Farbe zu einem Status bzw. Anzeige-Schlüssel ([anzeigeSchluessel]).
-Color _statusColor(String status) {
-  switch (status) {
-    case 'offen':
-      return AppColors.warning;
-    case 'bezahlt':
-      return AppColors.success;
-    case 'erinnert':
-      return const Color(0xFFE65100);
-    case 'mahnung_1':
-      return AppColors.error;
-    case 'mahnung_2':
-      return const Color(0xFF8B0000);
-    case 'abgeschrieben':
-      return AppColors.inaktiv;
-    default:
-      return AppColors.textSecondary;
-  }
-}
-
 /// Nächster Schritt: Mahnstufen führen in den Mahnlauf, `mahnung_2` ins
 /// Abschreiben. Einen direkten Statuswechsel gibt es nicht mehr — «bezahlt»
 /// setzt nur `zahlung_erfassen` (ZahlungKern).
@@ -78,17 +59,13 @@ String? _naechsterStatus(String current) {
 }
 
 /// Werte des Status-Filters (Dropdown), die auch per `?status=` kommen dürfen.
+/// Die Status-Werte sind Anzeige-Schlüssel ([kAnzeigeFilterSchluessel]).
 const rechnungStatusFilterWerte = {
   'alle',
   'mahnfaellig',
   'nicht_versendet',
   'unbezahlt',
-  'offen',
-  'erinnert',
-  'mahnung_1',
-  'mahnung_2',
-  'bezahlt',
-  'abgeschrieben',
+  ...kAnzeigeFilterSchluessel,
 };
 
 /// Start-Filter aus dem Query-Parameter `status` — Unbekanntes wird «alle»,
@@ -385,8 +362,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
+        // «unbezahlt» = dieselbe Menge wie die Karte ([istOffen]); «offen»
+        // hiesse seit K1 nur «noch nicht zugestellt» (27.09.2026).
         onTap: () => setState(() {
-          _statusFilter = 'offen';
+          _statusFilter = 'unbezahlt';
           _selectedYear = 0;
           _selectedMonth = 0;
         }),
@@ -493,7 +472,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       } else if (_statusFilter == 'unbezahlt') {
         // Offen und gemahnt — dieselbe Menge wie der Geld-Block der Akte.
         if (Zahlungsstatus.erledigt.contains(r.zahlungsstatus)) return false;
-      } else if (_statusFilter != 'alle' && r.zahlungsstatus != _statusFilter) {
+      } else if (_statusFilter != 'alle' &&
+          anzeigeSchluessel(r) != _statusFilter) {
+        // Derselbe Schlüssel wie Chip und Farbe (K1): «Offen» zeigt nur, was
+        // auch «Offen» heisst; gesendete stehen unter «Gesendet».
         return false;
       }
       // Dieselbe Trefferregel wie die App-Suche — sonst findet «pub cham»
@@ -632,12 +614,9 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         : 'Nicht versendet',
                   ),
                   const ('unbezahlt', 'Unbezahlt (inkl. gemahnt)'),
-                  const ('offen', 'Offen'),
-                  const ('erinnert', 'Erinnert'),
-                  const ('mahnung_1', 'Mahnung 1'),
-                  const ('mahnung_2', 'Mahnung 2'),
-                  const ('bezahlt', 'Bezahlt'),
-                  const ('abgeschrieben', 'Abgeschrieben'),
+                  // Dieselben Wörter wie der Chip («1. Mahnung»).
+                  for (final k in kAnzeigeFilterSchluessel)
+                    (k, anzeigeTextFuer(k)),
                 ],
                 onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
               ),
@@ -1064,7 +1043,7 @@ class _RechnungListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(rechnung.zahlungsstatus);
+    final color = rechnungStatusFarbe(anzeigeSchluessel(rechnung));
     final naechster = _naechsterStatus(rechnung.zahlungsstatus);
     final nichtVersendet = rechnungNichtVersendet(rechnung);
 
@@ -1110,7 +1089,7 @@ class _RechnungListItem extends StatelessWidget {
                 icon: Icon(
                   _statusUpIcon(rechnung.zahlungsstatus),
                   size: 18,
-                  color: _statusColor(naechster),
+                  color: rechnungStatusFarbe(naechster),
                 ),
                 tooltip: naechster == 'abgeschrieben'
                     ? 'Abschreiben'
@@ -1168,7 +1147,7 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(anzeigeSchluessel(rechnung));
+    final color = rechnungStatusFarbe(anzeigeSchluessel(rechnung));
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(

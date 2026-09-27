@@ -99,10 +99,30 @@ String anzeigeSchluessel(Rechnung r) {
 
 /// Der Status einer Rechnung als deutscher Text — die EINE Übersetzung für
 /// alle Listen und Details (siehe [anzeigeSchluessel]).
-String anzeigeStatus(Rechnung r) {
-  final k = anzeigeSchluessel(r);
-  return _anzeigeTexte[k] ?? k;
-}
+String anzeigeStatus(Rechnung r) => anzeigeTextFuer(anzeigeSchluessel(r));
+
+/// Der deutsche Text zu einem Anzeige-Schlüssel ([anzeigeSchluessel]) — auch
+/// für Filter, die dieselben Wörter zeigen müssen wie die Liste
+/// («1. Mahnung», nicht «Mahnung 1»). Unbekanntes kommt roh durch.
+String anzeigeTextFuer(String schluessel) =>
+    _anzeigeTexte[schluessel] ?? schluessel;
+
+/// Die Anzeige-Schlüssel, nach denen die Rechnungsliste filtern kann — in
+/// der Reihenfolge des Ablaufs. Gefiltert wird auf [anzeigeSchluessel], nicht
+/// auf den rohen Status: Sonst stünde unter «Offen» eine Zeile mit dem Chip
+/// «Gesendet», und eine per `mahnung_stufe` gemahnte Rechnung fehlte unter
+/// ihrer Mahnstufe (Review 27.09.2026, K1). `freigegeben` fehlt bewusst — das
+/// ist die Heineken-Monatsrechnung mit eigener Liste.
+const kAnzeigeFilterSchluessel = [
+  Zahlungsstatus.offen,
+  Zahlungsstatus.gesendet,
+  kAnzeigeUebergeben,
+  Zahlungsstatus.erinnert,
+  Zahlungsstatus.mahnung1,
+  Zahlungsstatus.mahnung2,
+  Zahlungsstatus.bezahlt,
+  Zahlungsstatus.abgeschrieben,
+];
 
 /// `versendet_am` nach einem (Neu-)Versand: Das Datum des ERSTEN Versands
 /// bleibt, nur ein erster Versand setzt [jetzt].

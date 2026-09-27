@@ -32,6 +32,7 @@ import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/mahnverlauf.dart';
+import 'package:sbs_projer_app/presentation/widgets/rechnung_status_farbe.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -1049,22 +1050,6 @@ class _StatusChip extends StatelessWidget {
     );
   }
 
-  Color get _color {
-    switch (anzeigeSchluessel(rechnung)) {
-      case 'offen':
-        return AppColors.warning;
-      case 'bezahlt':
-        return AppColors.success;
-      case 'erinnert':
-        return const Color(0xFFE65100);
-      case 'mahnung_1':
-        return AppColors.error;
-      case 'mahnung_2':
-        return const Color(0xFF8B0000);
-      case 'abgeschrieben':
-        return AppColors.inaktiv;
-      default:
-        return AppColors.textSecondary;
-    }
-  }
+  // Die eine Farbtabelle — kennt auch gesendet/übergeben (K1, 27.09.2026).
+  Color get _color => rechnungStatusFarbe(anzeigeSchluessel(rechnung));
 }

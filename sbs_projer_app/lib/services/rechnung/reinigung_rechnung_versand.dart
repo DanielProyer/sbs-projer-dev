@@ -123,9 +123,12 @@ class ReinigungRechnungVersand {
   /// Wert für `versendet_am` nach einem Versand von [rechnung] (Stand VOR
   /// dem Versand): das Erstversanddatum bleibt (B4, [versendetAmNachVersand]).
   ///
-  /// Wird auch geschrieben, wenn es schon steht: `send-rechnung-mail` setzt
-  /// `versendet_am` serverseitig bei jedem Versand auf heute — der Client
-  /// stellt das Erstversanddatum danach wieder her.
+  /// Wird auch geschrieben, wenn es schon steht (idempotent): Bis zum Fix
+  /// vom 27.09.2026 (Review M2) setzte `send-rechnung-mail` `versendet_am`
+  /// bei jedem Versand auf heute, und der Client stellte das
+  /// Erstversanddatum danach wieder her. Seither setzt der Server es nur,
+  /// wenn es leer ist — der Client-Schritt bleibt als Rückfall für eine
+  /// ältere, noch ausgelieferte Function-Version.
   static String versendetAmFeld(Rechnung rechnung) =>
       versendetAmNachVersand(rechnung.versendetAm, DateTime.now())
           .toIso8601String()
@@ -270,7 +273,15 @@ class ReinigungRechnungVersand {
               (keineKundenadresse
                   ? 'Keine Kundenadresse gepflegt — Rechnung ging an $empfaenger (intern). '
                         'Bitte Rechnungsadresse für ${betrieb.name} ergänzen.'
-                  : 'Rechnung per Mail versendet an $empfaenger'),
+                  // Neuversand einer schon versendeten Rechnung: «Kopie —
+                  // Fälligkeit bleibt» (K2). `rechnung` ist der Stand VOR
+                  // diesem Versand.
+                  : reinigungVersandText(
+                      empfaenger: empfaenger,
+                      warVorhanden: warVorhanden,
+                      versendetAm: rechnung.versendetAm,
+                      faelligkeit: rechnung.faelligkeitsdatum,
+                    )),
           hinweis: versandHinweis != null,
         ),
         pdfFehlt,
@@ -308,7 +319,13 @@ class ReinigungRechnungVersand {
           empfaenger: MailConfig.testEmpfaenger,
           keineKundenadresse: false,
           meldung: versandHinweis ??
-              'Rechnung zum Postversand an ${MailConfig.testEmpfaenger} gemailt',
+              reinigungVersandText(
+                empfaenger: MailConfig.testEmpfaenger,
+                warVorhanden: warVorhanden,
+                versendetAm: rechnung.versendetAm,
+                faelligkeit: rechnung.faelligkeitsdatum,
+                post: true,
+              ),
           hinweis: versandHinweis != null,
         ),
         pdfFehlt,

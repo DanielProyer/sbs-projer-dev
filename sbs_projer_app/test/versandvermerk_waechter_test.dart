@@ -69,6 +69,39 @@ void main() {
           'bzw. true.',
     );
   });
+
+  // Review 27.09.2026, M2: Der serverseitige Vermerk setzte `versendet_am`
+  // bei JEDEM Versand auf heute — ein Neuversand überschrieb das
+  // Erstversanddatum (Mahnfristen, Jahrgangs-Abschreibung, Kontoauszug).
+  // Dieselbe Regel wie `versendetAmNachVersand` in der App.
+  test('Edge Function setzt versendet_am nur beim ersten Versand', () {
+    final ts = File(
+      '../supabase/functions/send-rechnung-mail/index.ts',
+    ).readAsStringSync();
+    final start = ts.indexOf('async function markiereRechnungVersandt(');
+    expect(start, isNot(-1));
+    final funktion = _ohneKommentare(ts.substring(start));
+
+    // Der PATCH, der das Datum schreibt, filtert auf «noch leer».
+    final datum = funktion.indexOf('JSON.stringify({ versendet_am: heute })');
+    expect(datum, isNot(-1), reason: 'Datums-PATCH nicht gefunden');
+    final aufruf = funktion.lastIndexOf('await fetch(', datum);
+    expect(
+      funktion.substring(aufruf, datum),
+      contains('versendet_am=is.null'),
+      reason: 'versendet_am nur setzen, wenn es leer ist',
+    );
+
+    // Der Status-Schritt bleibt: nur offen → gesendet.
+    final status = funktion.indexOf(
+      'JSON.stringify({ zahlungsstatus: "gesendet" })',
+    );
+    expect(status, isNot(-1));
+    expect(
+      funktion.substring(funktion.lastIndexOf('await fetch(', status), status),
+      contains('zahlungsstatus=eq.offen'),
+    );
+  });
 }
 
 /// Blendet Zeilenkommentare aus.

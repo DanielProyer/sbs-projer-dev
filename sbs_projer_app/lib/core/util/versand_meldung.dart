@@ -87,3 +87,35 @@ String kettenFehlerMeldung(Object fehler) =>
 String buchungFehlerMeldung(Object fehler) =>
     'BUCHUNG FEHLGESCHLAGEN (${kurzeFehlermeldung(fehler)}) — '
     'in der Rechnungsliste oben «tippen zum Nachbuchen».';
+
+String _zwei(int n) => n.toString().padLeft(2, '0');
+
+/// Erfolgsmeldung nach dem Mail- bzw. Postversand einer Reinigungsrechnung.
+///
+/// Bestand die Rechnung schon UND war sie schon versendet ([warVorhanden],
+/// [versendetAm] = Stand VOR diesem Versand), ging eine KOPIE raus — der
+/// Neuversand aus dem Reinigungsdetail. Das Erstversanddatum bleibt (B4) und
+/// die Fälligkeit auch; anders als «neu versenden» im Rechnungsdetail, das dem
+/// Kunden 30 Tage ab heute gibt. Die Meldung sagt das ausdrücklich, sonst
+/// rechnet Daniel mit einer neuen Zahlungsfrist (Review 27.09.2026, K2).
+///
+/// [post]: Die Mail ging an Daniel zum Ausdrucken, nicht an den Kunden.
+String reinigungVersandText({
+  required String empfaenger,
+  required bool warVorhanden,
+  required DateTime? versendetAm,
+  required DateTime faelligkeit,
+  bool post = false,
+}) {
+  if (!warVorhanden || versendetAm == null) {
+    return post
+        ? 'Rechnung zum Postversand an $empfaenger gemailt'
+        : 'Rechnung per Mail versendet an $empfaenger';
+  }
+  final bleibt =
+      'Fälligkeit bleibt ${_zwei(faelligkeit.day)}.'
+      '${_zwei(faelligkeit.month)}.${faelligkeit.year}';
+  return post
+      ? 'Kopie zum Postversand an $empfaenger gemailt — $bleibt'
+      : 'Kopie gesendet an $empfaenger — $bleibt';
+}

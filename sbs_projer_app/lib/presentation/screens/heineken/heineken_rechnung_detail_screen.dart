@@ -20,6 +20,7 @@ import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:sbs_projer_app/presentation/widgets/rechnung_status_farbe.dart';
 import 'package:sbs_projer_app/presentation/widgets/rueckweg_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -846,40 +847,28 @@ class _StatusBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    IconData icon;
+    final schluessel = anzeigeSchluessel(rechnung);
     final text = anzeigeStatus(rechnung);
-    switch (anzeigeSchluessel(rechnung)) {
+    // Farbe aus der einen Tabelle — dieselbe wie Liste und Chip (K1,
+    // 27.09.2026; vorher hier «Gesendet» blau, in der Liste grau).
+    final color = rechnungStatusFarbe(schluessel);
+    final IconData icon;
+    switch (schluessel) {
       case 'bezahlt':
-        color = AppColors.success;
         icon = Icons.check_circle;
-        break;
       case 'gesendet':
-        color = AppColors.info;
         icon = Icons.send;
-        break;
       case 'freigegeben':
-        color = AppColors.primary;
         icon = Icons.task_alt;
-        break;
       case 'erinnert':
-        color = const Color(0xFFE65100);
         icon = Icons.notifications;
-        break;
       case 'mahnung_1':
-        color = AppColors.error;
         icon = Icons.warning;
-        break;
       case 'mahnung_2':
-        color = const Color(0xFF8B0000);
         icon = Icons.gavel;
-        break;
       case 'abgeschrieben':
-        color = AppColors.inaktiv;
         icon = Icons.block;
-        break;
       default:
-        color = AppColors.warning;
         icon = Icons.hourglass_empty;
     }
 

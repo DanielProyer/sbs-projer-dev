@@ -90,4 +90,71 @@ void main() {
       );
     });
   });
+
+  // Review 27.09.2026, K2: Ein Neuversand aus dem Reinigungsdetail schickt
+  // eine Kopie — Erstversanddatum UND Fälligkeit bleiben. Ohne Hinweis
+  // rechnete Daniel mit einer neuen Zahlungsfrist wie beim «neu versenden»
+  // im Rechnungsdetail.
+  group('reinigungVersandText', () {
+    final faellig = DateTime(2026, 10, 5);
+
+    test('Erstversand: wie bisher', () {
+      expect(
+        reinigungVersandText(
+          empfaenger: 'wirt@beispiel.ch',
+          warVorhanden: false,
+          versendetAm: null,
+          faelligkeit: faellig,
+        ),
+        'Rechnung per Mail versendet an wirt@beispiel.ch',
+      );
+      expect(
+        reinigungVersandText(
+          empfaenger: 'buero@beispiel.ch',
+          warVorhanden: false,
+          versendetAm: null,
+          faelligkeit: faellig,
+          post: true,
+        ),
+        'Rechnung zum Postversand an buero@beispiel.ch gemailt',
+      );
+    });
+
+    test('vorhanden, aber nie versendet (z. B. Tresen): kein «Kopie»', () {
+      expect(
+        reinigungVersandText(
+          empfaenger: 'wirt@beispiel.ch',
+          warVorhanden: true,
+          versendetAm: null,
+          faelligkeit: faellig,
+        ),
+        'Rechnung per Mail versendet an wirt@beispiel.ch',
+      );
+    });
+
+    test('Neuversand einer versendeten Rechnung: Kopie, Fälligkeit bleibt',
+        () {
+      final t = reinigungVersandText(
+        empfaenger: 'wirt@beispiel.ch',
+        warVorhanden: true,
+        versendetAm: DateTime(2026, 9, 5),
+        faelligkeit: faellig,
+      );
+      expect(
+        t,
+        'Kopie gesendet an wirt@beispiel.ch — Fälligkeit bleibt 05.10.2026',
+      );
+      expect(
+        reinigungVersandText(
+          empfaenger: 'buero@beispiel.ch',
+          warVorhanden: true,
+          versendetAm: DateTime(2026, 9, 5),
+          faelligkeit: faellig,
+          post: true,
+        ),
+        'Kopie zum Postversand an buero@beispiel.ch gemailt — '
+        'Fälligkeit bleibt 05.10.2026',
+      );
+    });
+  });
 }
