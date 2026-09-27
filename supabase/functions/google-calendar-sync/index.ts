@@ -9,6 +9,7 @@
 // Constraint-Verletzung fehl.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { veralteteFerienZuordnungen } from "./ferien_keys.ts";
+import { aufgabeTexte } from "./aufgabe_texte.ts";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -200,8 +201,12 @@ function buildEvent(entityType: string, row: Any): Any | null {
     // pushOne den Kalendereintrag automatisch loescht (gleiche Mechanik wie
     // bei Stoerung/Montage/Termin).
     if (row.typ !== "eigene" || !row.faellig_am || row.erledigt_am) return null;
+    // Betrieb (Migration 212) in Titel und Ort — siehe aufgabe_texte.ts.
+    // Ohne Betrieb ist location undefined und faellt beim Serialisieren weg.
+    const { summary, location } = aufgabeTexte(row);
     return {
-      summary: "SBS · Aufgabe: " + (row.titel ?? ""),
+      summary,
+      location,
       start: { date: row.faellig_am },
       end: { date: addDay(row.faellig_am) },
       colorId: "8",
@@ -296,6 +301,21 @@ function buildEvent(entityType: string, row: Any): Any | null {
 async function loadEntity(admin: Any, userId: string, entityType: string, entityId: string): Promise<Any> {
   if (entityType === "aufgabe") {
     const { data } = await admin.from("aufgaben").select("*").eq("id", entityId).eq("user_id", userId).maybeSingle();
+    // Betrieb (Migration 212, nullable). Felder mit Praefix betrieb_, damit
+    // nichts mit Spalten von aufgaben kollidiert. Fremder oder geloeschter
+    // Betrieb (user_id-Filter / on delete set null) -> keine Felder, der
+    // Eintrag sieht dann aus wie eine Aufgabe ohne Betrieb.
+    if (data && data.betrieb_id) {
+      const { data: b } = await admin.from("betriebe").select("name, strasse, nr, plz, ort")
+        .eq("id", data.betrieb_id).eq("user_id", userId).maybeSingle();
+      if (b) {
+        data.betrieb_name = b.name ?? "";
+        data.betrieb_strasse = b.strasse;
+        data.betrieb_nr = b.nr;
+        data.betrieb_plz = b.plz;
+        data.betrieb_ort = b.ort;
+      }
+    }
     return data;
   }
   if (entityType === "termin") {
@@ -417,7 +437,9 @@ async function reconcile(admin: Any, token: string, userId: string) {
   const { data: termine } = await admin.from("termine").select("id")
     .eq("user_id", userId).eq("status", "geplant");
   // Eigene Aufgaben mit Datum (Migration 198) — Marker/Snooze tragen kein
-  // faellig_am und bleiben damit ohnehin aussen vor.
+  // faellig_am und bleiben damit ohnehin aussen vor. Der Betrieb (Migration
+  // 212) kommt ueber pushOne -> loadEntity dazu, also gleiche Fassung wie
+  // beim Einzel-Push; hier NICHT selbst nachladen oder anders bauen.
   const { data: aufgaben } = await admin.from("aufgaben").select("id")
     .eq("user_id", userId).eq("typ", "eigene")
     .not("faellig_am", "is", null).is("erledigt_am", null);
