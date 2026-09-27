@@ -136,6 +136,14 @@ const kBereichMehr = Bereich(
       titel: 'Unterwegs',
       alsKacheln: true,
       eintraege: [
+        // Bis 27.09.2026 ein Ziel der Leiste — dort steht seither Material.
+        BereichEintrag(
+          titel: 'Einsätze',
+          untertitel: 'Reinigungen, Störungen, Montagen',
+          icon: Icons.assignment,
+          ziel: '/einsaetze',
+          stichwoerter: ['reinigung', 'stoerung', 'montage'],
+        ),
         BereichEintrag(
           titel: 'Spesen',
           icon: Icons.receipt_long,
@@ -374,7 +382,7 @@ const kBereichBuchhaltung = Bereich(
 );
 
 /// Ziele, die nur die Suche kennt — keine eigene Zeile auf Mehr, weil sie
-/// ein Filter eines Leisten-Ziels sind. «Pikett-Dienste» stand bis v0.130.0
+/// ein Filter eines anderen Ziels sind. «Pikett-Dienste» stand bis v0.130.0
 /// in der «Weitere»-Liste und ist seit v0.131.0 ein Typ-Filter der
 /// Einsätze; ohne diesen Eintrag fand die Suche das Wort «pikett» nicht
 /// (Daniel 23.09.2026).

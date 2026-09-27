@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(
       rahmen(HauptNavigation(aktiv: NavZiel.heute, onZiel: (_) {})),
     );
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
+    for (final t in ['Heute', 'Betriebe', 'Material', 'Tour', 'Mehr']) {
       expect(find.text(t), findsOneWidget, reason: t);
     }
   });
@@ -40,7 +40,7 @@ void main() {
     await tester.pumpWidget(
       rahmen(const HauptNavigation(aktiv: null, onZiel: _nichts)),
     );
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
+    for (final t in ['Heute', 'Betriebe', 'Material', 'Tour', 'Mehr']) {
       expect(
         tester.widget<Text>(find.text(t)).style?.color,
         AppColors.textSecondary,
@@ -58,8 +58,8 @@ void main() {
     );
     await tester.tap(find.text('Tour'));
     expect(gewaehlt, NavZiel.tour);
-    await tester.tap(find.text('Einsätze'));
-    expect(gewaehlt, NavZiel.einsaetze);
+    await tester.tap(find.text('Material'));
+    expect(gewaehlt, NavZiel.material);
     await tester.tap(find.text('Mehr'));
     expect(gewaehlt, NavZiel.mehr);
   });
@@ -73,11 +73,11 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      rahmen(HauptNavigation(aktiv: NavZiel.einsaetze, onZiel: (_) {})),
+      rahmen(HauptNavigation(aktiv: NavZiel.material, onZiel: (_) {})),
     );
 
     expect(tester.takeException(), isNull);
-    for (final t in ['Heute', 'Einsätze', 'Betriebe', 'Tour', 'Mehr']) {
+    for (final t in ['Heute', 'Betriebe', 'Material', 'Tour', 'Mehr']) {
       final absatz = tester.renderObject<RenderParagraph>(find.text(t));
       expect(absatz.didExceedMaxLines, isFalse, reason: t);
     }

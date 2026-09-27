@@ -17,50 +17,44 @@
 /// schlecht erreichbar, je länger der Tagesplan, desto tiefer. «Mehr» ist
 /// von jeder Seite aus einen Tipp entfernt, und jede Seite ausserhalb der
 /// ersten vier Ziele lässt es leuchten — vorher leuchtete dort nichts.
+///
+/// Seit 27.09.2026 «Material» statt «Einsätze» (Daniel): Die Einsätze
+/// erreicht er über Heute und die Betriebsseite, den Materialbestand
+/// braucht er unterwegs am Fahrzeug. «Einsätze» steht seither auf Mehr
+/// unter «Unterwegs», und ihre Seiten lassen wie jede Mehr-Seite «Mehr»
+/// leuchten.
 library;
 
 import 'package:flutter/material.dart';
 
-enum NavZiel { heute, einsaetze, betriebe, tour, mehr }
+enum NavZiel { heute, betriebe, material, tour, mehr }
 
 /// Höhe der Leiste ohne den `SafeArea`-Unterrand.
 const double kNavigationHoehe = 56;
 
 String navPfad(NavZiel z) => switch (z) {
   NavZiel.heute => '/',
-  NavZiel.einsaetze => '/einsaetze',
   NavZiel.betriebe => '/betriebe',
+  NavZiel.material => '/materialien',
   NavZiel.tour => '/touren',
   NavZiel.mehr => '/mehr',
 };
 
 String navLabel(NavZiel z) => switch (z) {
   NavZiel.heute => 'Heute',
-  NavZiel.einsaetze => 'Einsätze',
   NavZiel.betriebe => 'Betriebe',
+  NavZiel.material => 'Material',
   NavZiel.tour => 'Tour',
   NavZiel.mehr => 'Mehr',
 };
 
 IconData navIcon(NavZiel z) => switch (z) {
   NavZiel.heute => Icons.today,
-  NavZiel.einsaetze => Icons.assignment,
   NavZiel.betriebe => Icons.store,
+  NavZiel.material => Icons.inventory_2,
   NavZiel.tour => Icons.route,
   NavZiel.mehr => Icons.apps,
 };
-
-/// Die Einsatztypen haben eigene Detailrouten (aus der Zeit vor B2). Sie
-/// gehören zum Ziel «Einsätze», damit das Leuchten nicht verschwindet,
-/// sobald man eine Störung öffnet.
-const _einsatzPraefixe = [
-  '/reinigungen',
-  '/stoerungen',
-  '/montagen',
-  '/eigenauftraege',
-  '/eroeffnungsreinigungen',
-  '/pikett',
-];
 
 String _ohneSchraegstrich(String pfad) => pfad.length > 1 && pfad.endsWith('/')
     ? pfad.substring(0, pfad.length - 1)
@@ -81,11 +75,8 @@ bool _unter(String pfad, String basis) =>
 NavZiel aktivesZiel(String pfad) {
   final p = _ohneSchraegstrich(pfad);
   if (p == '/') return NavZiel.heute;
-  for (final z in [NavZiel.einsaetze, NavZiel.betriebe, NavZiel.tour]) {
+  for (final z in [NavZiel.betriebe, NavZiel.material, NavZiel.tour]) {
     if (_unter(p, navPfad(z))) return z;
-  }
-  for (final e in _einsatzPraefixe) {
-    if (_unter(p, e)) return NavZiel.einsaetze;
   }
   for (final b in _betriebPraefixe) {
     if (_unter(p, b)) return NavZiel.betriebe;

@@ -6,19 +6,19 @@ void main() {
     test('fuenf Ziele mit Pfad und Beschriftung', () {
       expect(NavZiel.values, [
         NavZiel.heute,
-        NavZiel.einsaetze,
         NavZiel.betriebe,
+        NavZiel.material,
         NavZiel.tour,
         NavZiel.mehr,
       ]);
       expect(navPfad(NavZiel.heute), '/');
-      expect(navPfad(NavZiel.einsaetze), '/einsaetze');
       expect(navPfad(NavZiel.betriebe), '/betriebe');
+      expect(navPfad(NavZiel.material), '/materialien');
       expect(navPfad(NavZiel.tour), '/touren');
       expect(navPfad(NavZiel.mehr), '/mehr');
       expect(navLabel(NavZiel.heute), 'Heute');
-      expect(navLabel(NavZiel.einsaetze), 'Einsätze');
       expect(navLabel(NavZiel.betriebe), 'Betriebe');
+      expect(navLabel(NavZiel.material), 'Material');
       expect(navLabel(NavZiel.tour), 'Tour');
       expect(navLabel(NavZiel.mehr), 'Mehr');
     });
@@ -27,8 +27,8 @@ void main() {
   group('aktivesZiel', () {
     test('die vier Ziele selbst', () {
       expect(aktivesZiel('/'), NavZiel.heute);
-      expect(aktivesZiel('/einsaetze'), NavZiel.einsaetze);
       expect(aktivesZiel('/betriebe'), NavZiel.betriebe);
+      expect(aktivesZiel('/materialien'), NavZiel.material);
       expect(aktivesZiel('/touren'), NavZiel.tour);
     });
 
@@ -38,14 +38,16 @@ void main() {
         aktivesZiel('/betriebe/abc-123/rechnungsadresse'),
         NavZiel.betriebe,
       );
-      expect(
-        aktivesZiel('/einsaetze?typ=stoerung'.split('?').first),
-        NavZiel.einsaetze,
-      );
+      expect(aktivesZiel('/materialien/abc-123'), NavZiel.material);
+      expect(aktivesZiel('/materialien/bestellungen'), NavZiel.material);
     });
 
-    test('Detailseiten der Einsatztypen zeigen auf Einsaetze', () {
+    test('Einsaetze sind seit 27.09.2026 ein Mehr-Ziel, samt Detailseiten', () {
+      // Wie jede andere Seite von Mehr (Spesen, Aufgaben, Events): kein
+      // eigener Reiter, «Mehr» leuchtet.
       for (final p in [
+        '/einsaetze',
+        '/einsaetze?typ=stoerung'.split('?').first,
         '/reinigungen/abc',
         '/stoerungen/abc',
         '/montagen/abc',
@@ -53,13 +55,14 @@ void main() {
         '/eroeffnungsreinigungen/abc',
         '/pikett/abc',
       ]) {
-        expect(aktivesZiel(p), NavZiel.einsaetze, reason: p);
+        expect(aktivesZiel(p), NavZiel.mehr, reason: p);
       }
     });
 
     test('alles uebrige leuchtet «Mehr»', () {
       for (final p in [
         '/mehr',
+        '/spesen',
         '/buchhaltung',
         '/buchhaltung/mwst',
         '/rechnungen/abc',
@@ -81,6 +84,7 @@ void main() {
     test('ein Praefix darf keinen anderen Namen kapern', () {
       // '/betriebe-alt' faengt mit '/betriebe' an, ist aber etwas anderes.
       expect(aktivesZiel('/betriebe-alt'), NavZiel.mehr);
+      expect(aktivesZiel('/materialien-alt'), NavZiel.mehr);
     });
   });
 

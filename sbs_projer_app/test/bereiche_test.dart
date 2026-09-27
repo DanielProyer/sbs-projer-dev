@@ -93,7 +93,7 @@ void main() {
       expect(kBereichMehr.gruppen.first.alsKacheln, isTrue);
       expect(
         kBereichMehr.gruppen.first.eintraege.map((e) => e.titel).toList(),
-        ['Spesen', 'Material', 'Aufgaben', 'Events', 'Google-Termine'],
+        ['Einsätze', 'Spesen', 'Material', 'Aufgaben', 'Events', 'Google-Termine'],
       );
       expect(
         kBereichMehr.gruppen[1].eintraege.map((e) => e.ziel).toList(),
