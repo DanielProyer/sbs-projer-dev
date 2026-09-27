@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_betrieb.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
@@ -84,6 +85,12 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
     saisonTermine: saisonTermine,
     aenderungsVorschlaege: ref.watch(offeneVorschlaegeAnzahlProvider),
     heute: heute,
+    // Eigene Aufgabe mit Betrieb (Migration 212): «Rössli, Ilanz» als
+    // Untertitel — es gibt mehrere Betriebe gleichen Namens.
+    betriebAnzeige: (id) {
+      final b = betriebe[id];
+      return b == null ? null : betriebMitOrt(b.name, b.ort);
+    },
   );
 });
 

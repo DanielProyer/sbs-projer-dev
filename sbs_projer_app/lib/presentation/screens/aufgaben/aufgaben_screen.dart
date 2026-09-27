@@ -20,6 +20,9 @@ class AufgabenInhalt extends StatelessWidget {
   final ValueChanged<AufgabenEintrag> onBestaetigen;
   final VoidCallback onNeu;
 
+  /// Tipp auf eine eigene Aufgabe — Bearbeiten (Migration 212).
+  final ValueChanged<AufgabenEintrag>? onBearbeiten;
+
   const AufgabenInhalt({
     super.key,
     required this.eintraege,
@@ -30,6 +33,7 @@ class AufgabenInhalt extends StatelessWidget {
     required this.onEinplanen,
     required this.onBestaetigen,
     required this.onNeu,
+    this.onBearbeiten,
   });
 
   String _gruppe(DateTime? d, DateTime heuteTag) {
@@ -75,6 +79,7 @@ class AufgabenInhalt extends StatelessWidget {
           onErledigt: () => onErledigt(a),
           onEinplanen: () => onEinplanen(a),
           onBestaetigen: () => onBestaetigen(a),
+          onBearbeiten: onBearbeiten == null ? null : () => onBearbeiten!(a),
         ),
       );
     }
@@ -126,6 +131,7 @@ class AufgabenScreen extends ConsumerWidget {
         onEinplanen: (a) => aktionen.einplanen(context, a),
         onBestaetigen: (a) => aktionen.bestaetigen(context, a),
         onNeu: () => neueAufgabeDialog(context, ref),
+        onBearbeiten: (a) => aktionen.bearbeiten(context, a),
       ),
     );
   }

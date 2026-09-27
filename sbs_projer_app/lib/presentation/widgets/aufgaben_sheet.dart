@@ -102,6 +102,7 @@ class _AufgabenSheet extends ConsumerWidget {
                           onErledigt: () => aktionen.erledigt(context, a),
                           onEinplanen: () => aktionen.einplanen(context, a),
                           onBestaetigen: () => aktionen.bestaetigen(context, a),
+                          onBearbeiten: () => aktionen.bearbeiten(context, a),
                         ),
                     ],
                   ),

@@ -72,6 +72,10 @@ class AufgabenEintrag {
   final String? route;
   final Einsatz? einsatz;
   final String? eigeneId;
+
+  /// Nur eigene Aufgaben: der zugeordnete Betrieb (Migration 212) — für
+  /// «Bearbeiten», Untertitel und «Dorthin» (Betriebsseite).
+  final String? betriebId;
   final String? terminId;
   final SaisonTerminAnlage? saison;
 
@@ -94,6 +98,7 @@ class AufgabenEintrag {
     this.route,
     this.einsatz,
     this.eigeneId,
+    this.betriebId,
     this.terminId,
     this.saison,
     this.manuellErledigbar = false,
@@ -173,6 +178,10 @@ String faelligText(DateTime? faellig, DateTime heute) {
 
 /// Baut die eine Liste. Sortiert nach Fälligkeit (ohne Datum zuletzt), am
 /// selben Tag dringend zuerst, dann Quelle, dann Titel.
+///
+/// [betriebAnzeige] liefert zu einer Betriebs-Id den Text für den
+/// Untertitel einer eigenen Aufgabe («Rössli, Ilanz»); `null` oder ein
+/// unbekannter Betrieb → kein Untertitel.
 List<AufgabenEintrag> baueAufgabenListe({
   required List<Aufgabe> detektoren,
   required List<Map<String, dynamic>> aufgabenZeilen,
@@ -181,6 +190,7 @@ List<AufgabenEintrag> baueAufgabenListe({
   required List<SaisonTerminEintrag> saisonTermine,
   required int aenderungsVorschlaege,
   required DateTime heute,
+  String? Function(String betriebId)? betriebAnzeige,
 }) {
   final heuteTag = _tag(heute);
 
@@ -232,14 +242,22 @@ List<AufgabenEintrag> baueAufgabenListe({
     final key = 'eigene:$id';
     if (gesnoozt(key)) continue;
     final faellig = DateTime.tryParse(z['faellig_am'] as String? ?? '');
+    // Betriebsbezug (Migration 212): Untertitel und «Dorthin» zur
+    // Betriebsseite. Ohne Betrieb bleibt die Aufgabe Freitext wie bisher.
+    final betriebId = z['betrieb_id'] is String
+        ? z['betrieb_id'] as String
+        : null;
     liste.add(
       AufgabenEintrag(
         quelle: AufgabenQuelle.eigene,
         key: key,
         titel: (z['titel'] ?? '?') as String,
+        untertitel: betriebId == null ? null : betriebAnzeige?.call(betriebId),
         faellig: faellig,
         dringend: faellig != null && !_tag(faellig).isAfter(heuteTag),
+        route: betriebId == null ? null : '/betriebe/$betriebId',
         eigeneId: id,
+        betriebId: betriebId,
         draussen: true,
       ),
     );

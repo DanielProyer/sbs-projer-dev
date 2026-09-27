@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/config/router.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_regeln.dart';
 import 'package:sbs_projer_app/presentation/widgets/diktat_sheet.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
 import 'package:sbs_projer_app/core/util/tourenplan_refresh.dart';
+import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/data/repositories/aufgaben_repository.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/termin_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
-import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgabe_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
@@ -110,6 +111,23 @@ class AufgabenAktionen {
             return;
         }
       });
+
+  /// Eigene Aufgabe bearbeiten — Titel, Datum, Betrieb (Migration 212).
+  /// Andere Quellen haben nichts zu bearbeiten.
+  Future<void> bearbeiten(BuildContext context, AufgabenEintrag a) async {
+    final id = a.eigeneId;
+    if (a.quelle != AufgabenQuelle.eigene || id == null) return;
+    await aufgabeBearbeitenDialog(
+      context,
+      ref,
+      EigeneAufgabe(
+        id: id,
+        titel: a.titel,
+        faelligAm: a.faellig,
+        betriebId: a.betriebId,
+      ),
+    );
+  }
 
   Future<void> bestaetigen(BuildContext context, AufgabenEintrag a) =>
       _sicher(context, () async {
@@ -257,66 +275,63 @@ class AufgabenAktionen {
   }
 }
 
-/// Dialog «Neue Aufgabe» — für Sheet und Screen derselbe. `TextButton`
-/// statt `FilledButton` (CanvasKit-Regel).
-Future<void> neueAufgabeDialog(BuildContext context, WidgetRef ref) async {
-  final controller = TextEditingController();
-  DateTime? faellig;
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setState) => AlertDialog(
-        title: const Text('Neue Aufgabe'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'Titel'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    faellig == null
-                        ? 'Kein Datum'
-                        : DateFormat('dd.MM.yyyy').format(faellig!),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final gewaehlt = await zeigeDatumsauswahl(
-                      ctx,
-                      initial: DateTime.now(),
-                      erstes: DateTime.now(),
-                      letztes: DateTime.now().add(const Duration(days: 730)),
-                    );
-                    if (gewaehlt != null) setState(() => faellig = gewaehlt);
-                  },
-                  child: const Text('Datum wählen'),
-                ),
-              ],
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Anlegen'),
-          ),
-        ],
-      ),
-    ),
+/// Dialog «Neue Aufgabe» — für Sheet, Screen und Betriebsseite derselbe.
+/// [betriebId] belegt den Betrieb vor (Betriebsseite, Migration 212).
+///
+/// Ein Fehler beim Speichern landet als SnackBar, nie als stiller Abbruch —
+/// bis 27.09.2026 lief er hier ungefangen durch.
+Future<void> neueAufgabeDialog(
+  BuildContext context,
+  WidgetRef ref, {
+  String? betriebId,
+}) async {
+  // Vor dem Dialog holen — danach den Kontext zu fragen, ist nicht sicher.
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final eingabe = await zeigeAufgabeDialog(
+    context,
+    betriebe: ref.read(betriebeProvider),
+    betriebId: betriebId,
   );
-  if (ok != true || controller.text.trim().isEmpty) return;
-  await AufgabenRepository.eigeneAnlegen(controller.text.trim(), faellig);
-  ref.invalidate(aufgabenZeilenProvider);
-  ref.invalidate(aufgabenListeProvider);
+  if (eingabe == null) return;
+  try {
+    await AufgabenRepository.eigeneAnlegen(
+      eingabe.titel,
+      eingabe.faelligAm,
+      betriebId: eingabe.betriebId,
+    );
+  } catch (e) {
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Nicht angelegt: ${kurzeFehlermeldung(e)}')),
+    );
+  } finally {
+    ref.invalidate(aufgabenZeilenProvider);
+    ref.invalidate(aufgabenListeProvider);
+  }
+}
+
+/// Dialog «Aufgabe bearbeiten» — Titel, Datum und Betrieb einer eigenen
+/// Aufgabe ändern (Migration 212: der Betrieb aus einem Diktat muss sich
+/// auch nach dem Speichern noch korrigieren lassen).
+Future<void> aufgabeBearbeitenDialog(
+  BuildContext context,
+  WidgetRef ref,
+  EigeneAufgabe aufgabe,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final eingabe = await zeigeAufgabeDialog(
+    context,
+    betriebe: ref.read(betriebeProvider),
+    vorlage: aufgabe,
+  );
+  if (eingabe == null) return;
+  try {
+    await AufgabenRepository.eigeneAendern(eingabe);
+  } catch (e) {
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Nicht gespeichert: ${kurzeFehlermeldung(e)}')),
+    );
+  } finally {
+    ref.invalidate(aufgabenZeilenProvider);
+    ref.invalidate(aufgabenListeProvider);
+  }
 }

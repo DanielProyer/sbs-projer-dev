@@ -1,11 +1,15 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/util/aufgabe.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_betrieb.dart';
 import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgabe_zeile.dart';
 
 /// Aufgaben mit Betriebsbezug (Migration 212, Entscheid Daniel 27.09.2026).
 
@@ -120,6 +124,118 @@ void main() {
 
     test('keine Zeilen → leer', () {
       expect(aufgabenFuerBetrieb(const [], 'b1', _jetzt), isEmpty);
+    });
+  });
+
+  group('Aufgabenliste mit Betrieb', () {
+    List<AufgabenEintrag> baue(List<Map<String, dynamic>> zeilen) =>
+        baueAufgabenListe(
+          detektoren: const [],
+          aufgabenZeilen: zeilen,
+          anstehend: const [],
+          saisonVorschlaege: const [],
+          saisonTermine: const [],
+          aenderungsVorschlaege: 0,
+          heute: DateTime(2026, 9, 27),
+          betriebAnzeige: (id) => id == 'b1' ? 'Rössli, Ilanz' : null,
+        );
+
+    test('Betrieb als Untertitel, «Dorthin» zur Betriebsseite', () {
+      final a = baue([_zeile('a', titel: 'Hahn mitnehmen')]).single;
+      expect(a.titel, 'Hahn mitnehmen');
+      expect(a.untertitel, 'Rössli, Ilanz');
+      expect(a.route, '/betriebe/b1');
+      expect(a.betriebId, 'b1');
+      expect(a.eigeneId, 'a');
+    });
+
+    test('ohne Betrieb: Freitext wie bisher — kein Untertitel, keine Route', () {
+      final a = baue([_zeile('a', betrieb: null)]).single;
+      expect(a.untertitel, isNull);
+      expect(a.route, isNull);
+      expect(a.betriebId, isNull);
+    });
+
+    test('unbekannter Betrieb (nicht geladen): Route ja, Untertitel nein', () {
+      final a = baue([_zeile('a', betrieb: 'b9')]).single;
+      expect(a.untertitel, isNull);
+      expect(a.route, '/betriebe/b9');
+    });
+  });
+
+  group('AufgabeZeile: eigene Aufgabe mit Betrieb', () {
+    setUpAll(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final daten = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+      await (FontLoader('Roboto')..addFont(Future.value(daten))).load();
+    });
+
+    const eintrag = AufgabenEintrag(
+      quelle: AufgabenQuelle.eigene,
+      key: 'eigene:a',
+      titel: 'Hahn mitnehmen',
+      untertitel: 'Rössli, Ilanz',
+      route: '/betriebe/b1',
+      eigeneId: 'a',
+      betriebId: 'b1',
+    );
+
+    Future<({List<String> taps})> zeige(
+      WidgetTester tester, {
+      bool mitBearbeiten = true,
+    }) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final taps = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: [
+                AufgabeZeile(
+                  eintrag: eintrag,
+                  heute: DateTime(2026, 9, 27),
+                  onDorthin: () => taps.add('dorthin'),
+                  onSnooze: (_) {},
+                  onErledigt: () => taps.add('erledigt'),
+                  onEinplanen: () {},
+                  onBestaetigen: () {},
+                  onBearbeiten: mitBearbeiten
+                      ? () => taps.add('bearbeiten')
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return (taps: taps);
+    }
+
+    testWidgets('Betrieb steht als Untertitel, 360 px ohne Überlauf', (
+      tester,
+    ) async {
+      await zeige(tester);
+      expect(find.text('Rössli, Ilanz'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Zeile → Bearbeiten, Pfeil → Betriebsseite', (tester) async {
+      final r = await zeige(tester);
+      await tester.tap(find.text('Hahn mitnehmen'));
+      await tester.tap(find.byTooltip('Dorthin'));
+      await tester.tap(find.byTooltip('Erledigt'));
+      expect(r.taps, ['bearbeiten', 'dorthin', 'erledigt']);
+    });
+
+    testWidgets('ohne Bearbeiten-Callback führt die Zeile «Dorthin»', (
+      tester,
+    ) async {
+      final r = await zeige(tester, mitBearbeiten: false);
+      await tester.tap(find.text('Hahn mitnehmen'));
+      expect(r.taps, ['dorthin']);
     });
   });
 
