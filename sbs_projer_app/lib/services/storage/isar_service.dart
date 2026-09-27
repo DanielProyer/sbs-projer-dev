@@ -1,3 +1,22 @@
+/// **Isar eingefroren seit 27.09.2026** (Entscheid Daniel).
+///
+/// Gilt für den ganzen nativen Zweig: diese Datei, die Isar-Models in
+/// `data/local/` samt Conditional Exports und Web-Stubs, die Mapper in
+/// `data/mappers/`, die `kIsWeb`-Zweige in `data/repositories/` und den
+/// `SyncService`. WARUM: Die Offline-Android-App kommt aus der v2
+/// (Heineken-Projekt); diese App läuft nur im Browser, der native Zweig wird
+/// nie ausgeführt. Die frühere Regel «nativen Pfad als Vorlage pflegen»
+/// (26.08.2026) ist aufgehoben.
+///
+/// Was das heisst:
+/// - Neue Entities und neue Repositories nur Web/Supabase (DTO + Repository +
+///   Provider) — keine neuen Methoden hier, kein neues Local-Model, kein Sync.
+/// - Bestehender Code bleibt und muss kompilieren; bei einer Änderung am DTO
+///   wird hier nichts nachgezogen, nur repariert, was sonst nicht baut.
+/// - Nichts löschen: Das Entfernen geschieht später, abgestimmt mit der
+///   Heineken-Session. Einzelheiten in `CLAUDE.md` («Isar eingefroren»).
+library;
+
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local.dart';

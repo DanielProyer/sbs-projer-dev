@@ -29,9 +29,14 @@ Buchhaltung in einer App.
 | **Bestand** | 309 aktive Betriebe, davon 229 eigene Reinigungskunden (Stand 20.09.2026) |
 | **Kosten** | Supabase Pro, rund 23 CHF im Monat |
 
-**Nativer Pfad:** Der Isar/Offline-Sync-Zweig (Conditional Exports, siehe
-`CLAUDE.md`) wird hier nicht benutzt, aber gepflegt — er ist die Vorlage für
-die neue Android-App.
+**Nativer Pfad — eingefroren seit 27.09.2026 (Entscheid Daniel):** Der
+Isar/Offline-Sync-Zweig (Conditional Exports, siehe `CLAUDE.md` «Isar
+eingefroren») wird hier nicht benutzt und nicht mehr nachgezogen. Die
+Offline-Android-App kommt aus der v2 (Heineken-Projekt); die frühere Rolle
+«Vorlage für die Android-App» (26.08.2026) ist damit aufgehoben. Neue Entities
+entstehen nur noch Web/Supabase (DTO + Repository + Provider), ohne
+Isar-Model, Mapper und Sync. Der bestehende Code bleibt kompilierfähig und wird
+nicht gelöscht — Entfernen später, abgestimmt mit der Heineken-Session.
 
 **Mail-Versand scharf** für Reinigung, Heineken, Montage, HeiGenie, Bestellung,
 Event und Anlage; **Mahnwesen noch im Testmodus** (`lib/core/config/mail_config.dart`).
@@ -131,9 +136,10 @@ Die verbindlichen Regeln stehen in `CLAUDE.md`, hier nur die Landkarte:
 - **Suche** (seit v0.133.0): `/suche`, über die Lupe auf Heute und das Feld
   oben auf Mehr. Regeln als reines Dart in `lib/core/util/suche.dart`; die
   Listen (Betriebe, Personen, Rechnungen) suchen mit derselben Regel.
-- **Schichten:** `data/models` (DTOs) → `data/repositories` (`kIsWeb`-Branching:
-  Web direkt auf Supabase, nativ über Isar) → Riverpod-Provider →
-  `presentation/screens`.
+- **Schichten:** `data/models` (DTOs) → `data/repositories` (Web direkt auf
+  Supabase; 25 von 63 tragen noch einen nativen `kIsWeb`-Zweig über Isar,
+  **eingefroren seit 27.09.2026** — neue Repositories nur Web) →
+  Riverpod-Provider → `presentation/screens`.
 - **Geschäftsregeln in der Datenbank**, wo sie nicht umgangen werden dürfen:
   Preis-Trigger, Rechnungsnummer-Sequenz, CHECK-Constraints auf den Status.
 - **Wächter-Tests** halten die Lehren aus Vorfällen fest: stabile Pagination

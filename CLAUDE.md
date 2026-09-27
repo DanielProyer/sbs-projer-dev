@@ -8,7 +8,7 @@ Kommunikation auf Deutsch. Projekt-Dokumentation auf Deutsch.
 
 ## Projekt
 
-Service-Management App für Zapfanlagen-Service (SBS Projer GmbH). Flutter + Supabase + Riverpod + GoRouter + Isar (offline-first).
+Service-Management App für Zapfanlagen-Service (SBS Projer GmbH). Flutter + Supabase + Riverpod + GoRouter, genutzt nur als Web-App im Browser. Der Isar-Offline-Zweig ist **seit 27.09.2026 eingefroren** (siehe «Isar eingefroren» unten).
 
 ## Umgebung & Build
 
@@ -28,7 +28,8 @@ flutter run -d edge
 # Analyse
 flutter analyze
 
-# Isar-Code generieren nach Änderungen an @Collection-Klassen
+# Isar-Code generieren (Isar eingefroren — nur nötig, wenn ein bestehendes
+# @Collection-Model repariert werden muss; die *.g.dart sind gitignored)
 dart run build_runner build
 ```
 
@@ -77,16 +78,16 @@ sbs_projer_app/       # Flutter-App
     core/config/      # router.dart (Routen mit Auth-Guard)
     core/theme/       # Material 3, Heineken-Grün (#008200)
     data/models/      # Supabase-DTOs (fromJson/toJson)
-    data/local/       # Isar-Models + web/ Stubs + *_export.dart
-    data/mappers/     # Local ↔ DTO Konverter
-    data/repositories/# Datenzugriff (kIsWeb-Branching)
+    data/local/       # Isar-Models + web/ Stubs + *_export.dart (eingefroren)
+    data/mappers/     # Local ↔ DTO Konverter (eingefroren)
+    data/repositories/# Datenzugriff (Bestand kIsWeb-Branching, neu nur Web)
     presentation/
       screens/        # UI pro Feature (betriebe/, anlagen/, reinigungen/, ...)
       providers/      # Riverpod-Provider
       widgets/        # Wiederverwendbare UI-Komponenten
     services/
-      storage/        # isar_service.dart (typed Queries) + Web-Stubs
-      sync/           # sync_service.dart (Push/Pull, Last-Write-Wins)
+      storage/        # isar_service.dart (typed Queries) + Web-Stubs (eingefroren)
+      sync/           # sync_service.dart (Push/Pull, Last-Write-Wins; eingefroren)
       pdf/            # PDF-Generierung (Reinigung, Rechnung, Heineken)
       supabase/       # supabase_service.dart (Client, Auth)
 ```
@@ -150,9 +151,38 @@ unbemerkt, weil jede Nachbesserung im unsichtbaren Bereich landete).
   Screenshot anfordern**, nicht am Code raten — ein Screenshot ersetzte am
   13.08. drei Blind-Iterationen.
 
-## Kritisches Architektur-Pattern: Conditional Exports (Isar ↔ Web)
+## Isar eingefroren (seit 27.09.2026) — Conditional Exports nur noch Bestand
 
-Jede gesynkte Entity hat 3 Dateien:
+**Entscheid Daniel 27.09.2026:** Der Isar/Offline-Sync-Zweig wird **nicht mehr
+nachgezogen**. Grund: Die Offline-Android-App kommt aus der v2
+(Heineken-Projekt, `D:\Projekte\Heineken`); diese App läuft nur im Browser,
+ihr nativer Zweig wird nie ausgeführt. Die frühere Regel «nativen Pfad als
+Vorlage für die Android-App pflegen» (26.08.2026) ist damit aufgehoben. Stand
+beim Einfrieren: 28 Isar-Collections, 25 von 63 Repositories mit nativem
+(`kIsWeb`-)Zweig — Buchhaltung, Rechnungen und Mahnwesen liefen schon vorher
+nur Web.
+
+**Regeln:**
+- **Neue Entities nur Web/Supabase:** DTO + Repository + Provider (dazu
+  Screens, Routen, Migration). **Kein** `*_local.dart`, kein
+  `*_local_export.dart`, kein Web-Stub, kein Mapper, keine
+  `IsarService`-Methode, keine Sync-Logik. Ein Web-only-Repository greift
+  direkt auf Supabase zu, ohne `kIsWeb`-Zweig — das ist ausdrücklich erlaubt.
+- **Bestehender Isar-Code bleibt** und muss kompilierfähig bleiben
+  (`flutter analyze` 0, alle Tests grün), wird aber **nicht ausgebaut**: Eine
+  neue Spalte an einer bestehenden Entity kommt ins DTO und in den Web-Zweig;
+  Isar-Model, Mapper, `IsarService` und Sync werden nicht nachgezogen. Bricht
+  eine Änderung den nativen Code beim Kompilieren, minimal reparieren, nicht
+  erweitern.
+- **Nichts löschen.** Das Entfernen des Zweigs geschieht später und abgestimmt
+  mit der Heineken-Session (siehe `Projekt.md`).
+- `test/isar_eingefroren_waechter_test.dart` (Ratsche) bricht ab, sobald ein
+  neues Isar-Model in `data/local/` oder eine neue `IsarService`-Methode
+  dazukommt. Web-only-Repositories prüft er nicht — die sind erlaubt.
+
+### Bestand: Conditional Exports (Isar ↔ Web)
+
+Die bestehenden gesynkten Entities haben je 3 Dateien:
 
 ```
 data/local/betrieb_local.dart          → Native: @Collection mit Isar-Annotationen
@@ -160,15 +190,31 @@ data/local/betrieb_local_export.dart   → export 'betrieb_local.dart' if (dart.
 data/local/web/betrieb_local_web.dart  → Web: Plain Dart-Klasse (kein Isar)
 ```
 
-**Alle Imports** in Repositories/Screens über `*_export.dart`, nie direkt.
+**Alle Imports** dieser Entities in Repositories/Screens über `*_export.dart`,
+nie direkt — sonst bricht der Web-Build (Isar kompiliert nicht für Web).
 
 ### Gotcha: Isar Extensions + dynamic
 
-Dart Extension Methods (`.betriebLocals`, `.where()`, `.watch()`) funktionieren **NICHT** auf `dynamic`. Da Conditional Exports den Typ zu `dynamic` machen, müssen **ALLE Isar-Queries** in `isar_service.dart` gewrappt werden, wo `package:isar/isar.dart` direkt importiert ist.
+Dart Extension Methods (`.betriebLocals`, `.where()`, `.watch()`) funktionieren **NICHT** auf `dynamic`. Da Conditional Exports den Typ zu `dynamic` machen, müssen **ALLE Isar-Queries** in `isar_service.dart` gewrappt werden, wo `package:isar/isar.dart` direkt importiert ist. (Gilt für Reparaturen am Bestand — neue Queries kommen nicht mehr dazu.)
 
 ## Repository-Pattern
 
-Repositories nutzen `kIsWeb`-Branching:
+**Neue Repositories (seit 27.09.2026):** nur Supabase, ohne `kIsWeb`-Zweig —
+so wie schon 38 der 63 bestehenden (Vorbild: `steuerjahr_repository.dart`).
+
+```dart
+static Future<List<Steuerjahr>> getAll() async {
+  final rows = await SupabaseService.client
+      .from('steuerjahre')
+      .select()
+      .eq('user_id', _userId)
+      .order('jahr', ascending: false)
+      .order('id');
+  return rows.map((r) => Steuerjahr.fromJson(r)).toList();
+}
+```
+
+**Bestehende Repositories mit nativem Zweig** nutzen `kIsWeb`-Branching (Bestand, eingefroren):
 - **Web**: Supabase-Direktzugriff (`SupabaseService.client.from('tabelle')...`)
 - **Native**: `IsarService.entityMethod()` (typed static Methods)
 
@@ -182,21 +228,22 @@ static Future<List<BetriebLocal>> getAll() async {
 }
 ```
 
-## Neue Entity hinzufügen (Checkliste)
+## Neue Entity hinzufügen (Checkliste, seit 27.09.2026 ohne Isar)
 
-1. Supabase-DTO: `data/models/entity.dart`
-2. Isar Local Model: `data/local/entity_local.dart` (@Collection)
-3. Conditional Export: `data/local/entity_local_export.dart`
-4. Web Stub: `data/local/web/entity_local_web.dart`
-5. Mapper: `data/mappers/entity_mapper.dart` (fromDto, toJson)
-6. IsarService: Typed Query-Methods hinzufügen
-7. Repository: `data/repositories/entity_repository.dart` (kIsWeb)
-8. Providers: `presentation/providers/entity_providers.dart`
-9. Screens: `presentation/screens/entities/` (list, detail, form)
-10. Routen: `core/config/router.dart`
-11. Dashboard-Tile: `home_screen.dart`
-12. DB-Migration: `Datenbank/migrations/XXX_entity.sql`
-13. SyncService: Push/Pull-Logik ergänzen
+1. Supabase-DTO: `data/models/entity.dart` (fromJson/toJson)
+2. Repository: `data/repositories/entity_repository.dart` (Supabase direkt, kein `kIsWeb`-Zweig)
+3. Providers: `presentation/providers/entity_providers.dart`
+4. Screens: `presentation/screens/entities/` (list, detail, form)
+5. Routen: `core/config/router.dart`
+6. Menü-Eintrag: `core/config/bereiche.dart` (Mehr/Bereichsseiten — die
+   Startseite hat seit v0.131.0 keine Kacheln mehr;
+   `test/erreichbarkeit_waechter_test.dart` prüft, dass jeder Listen-Screen
+   erreichbar ist)
+7. DB-Migration: `Datenbank/migrations/XXX_entity.sql`
+
+**Entfällt seit dem Einfrieren** (bis 26.09.2026 Pflicht): Isar Local Model
+(`data/local/entity_local.dart`), Conditional Export, Web-Stub, Mapper,
+`IsarService`-Methoden, Push/Pull im `SyncService`.
 
 ## Datenbank
 
@@ -220,7 +267,10 @@ Aktuell erlaubt (Migration 083): `offen, gesendet, freigegeben, bezahlt, erinner
 
 Frühere Werte (`entwurf`, `versendet`, `gestellt`, `teilbezahlt`, `ueberfaellig`, `storniert`) wurden in Migrationen 081–083 entfernt — Code-Stellen, die diese Werte schreiben, werfen PostgrestException.
 
-## Sync-Architektur (Offline-First, nur Native)
+## Sync-Architektur (Offline-First, nur Native) — eingefroren seit 27.09.2026
+
+Beschreibt den Bestand; neue Entities bekommen keinen Sync mehr (siehe «Isar
+eingefroren» oben). Auf Web ist `SyncService` ohnehin ein Stub.
 
 - Push: `isSynced=false` → Supabase upsert
 - Pull: Inkrementell via `updated_at > lastPullAt`
