@@ -1,6 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/tagesplan_ist_zeiten.dart';
+import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 void main() {
@@ -58,6 +63,7 @@ void main() {
         reinigung('b2', tag.add(const Duration(days: 1))), // anderer Tag
       ],
       wegpunkte: [stempel],
+      arbeitszeiten: const {},
       dauerFuer: (_) => 60,
     );
     expect(ist.keys, unorderedEquals(['r1', 's_1']));
@@ -104,6 +110,7 @@ void main() {
           besuch(42, '15:00', '15:40', server: 's42'),
         ],
         wegpunkte: const [],
+        arbeitszeiten: const {},
         dauerFuer: (_) => 60,
       );
       expect(ist['hist_41'], (von: 8 * 60, bis: 8 * 60 + 30));
@@ -125,6 +132,7 @@ void main() {
         erledigtePruefen: true,
         reinigungen: [besuch(43, '08:00', '08:30')],
         wegpunkte: const [],
+        arbeitszeiten: const {},
         dauerFuer: (_) => 60,
       );
       expect(ist, isEmpty);
@@ -171,6 +179,7 @@ void main() {
         wp('montage', 'b6', 0, 30), // Start würde vor Mitternacht liegen
         wp('stoerung', 'b7', 11, 0), // falsche Quelle für eine Montage
       ],
+      arbeitszeiten: const {},
       dauerFuer: (e) => e.id == 'm_5' ? 180 : 60,
     );
     expect(ist.keys, unorderedEquals(['m_5', 'm_6']));
@@ -243,6 +252,7 @@ void main() {
           lng: null,
         ),
       ],
+      arbeitszeiten: const {},
       dauerFuer: (_) => 60,
     );
     expect(ist, isEmpty);
@@ -255,8 +265,152 @@ void main() {
       erledigtePruefen: false,
       reinigungen: [reinigung('b1', tag)],
       wegpunkte: [stempel],
+      arbeitszeiten: const {},
       dauerFuer: (_) => 60,
     );
     expect(ist, isEmpty);
+  });
+
+  group('erfasste Arbeitszeit (arbeit_von/bis) vor dem Stempel', () {
+    const einsaetze = [
+      TourEintrag(
+        typ: TourEintragTyp.stoerung,
+        id: 's_1',
+        betriebId: 'b3',
+        betriebName: 'Pöstli',
+        beschreibung: '',
+      ),
+      TourEintrag(
+        typ: TourEintragTyp.montage,
+        id: 'm_2',
+        betriebId: 'b4',
+        betriebName: 'Adler',
+        beschreibung: '',
+      ),
+      TourEintrag(
+        typ: TourEintragTyp.heigenie,
+        id: 'm_3',
+        betriebId: 'b5',
+        betriebName: 'Bären',
+        beschreibung: '',
+      ),
+    ];
+
+    test('Arbeitszeit gilt — auch ohne Stempel, und schlägt den Stempel', () {
+      final ist = ermittleIstZeiten(
+        eintraege: einsaetze,
+        datum: tag,
+        erledigtePruefen: true,
+        reinigungen: const [],
+        // Stempel 10:30 (abends-zuhause-Fall wäre noch später) — ohne
+        // Arbeitszeit ergäbe er 09:30–10:30.
+        wegpunkte: [stempel],
+        arbeitszeiten: {
+          's_1': (von: 8 * 60 + 5, bis: 8 * 60 + 50),
+          'm_2': (von: 13 * 60, bis: 15 * 60 + 30),
+          'm_3': (von: 16 * 60, bis: 16 * 60 + 40),
+        },
+        dauerFuer: (_) => 60,
+      );
+      expect(ist['s_1'], (von: 8 * 60 + 5, bis: 8 * 60 + 50));
+      expect(ist['m_2'], (von: 13 * 60, bis: 15 * 60 + 30));
+      expect(ist['m_3'], (von: 16 * 60, bis: 16 * 60 + 40));
+    });
+
+    test('ohne Arbeitszeit bleibt der Stempel-Rückfall', () {
+      final ist = ermittleIstZeiten(
+        eintraege: einsaetze,
+        datum: tag,
+        erledigtePruefen: true,
+        reinigungen: const [],
+        wegpunkte: [stempel],
+        arbeitszeiten: {'m_2': (von: 13 * 60, bis: 14 * 60)},
+        dauerFuer: (_) => 60,
+      );
+      expect(ist['s_1'], (von: 9 * 60 + 30, bis: 10 * 60 + 30));
+      expect(ist['m_2'], (von: 13 * 60, bis: 14 * 60));
+      expect(ist.containsKey('m_3'), isFalse);
+    });
+
+    test('künftiger Tag: auch erfasste Zeiten zählen nicht', () {
+      final ist = ermittleIstZeiten(
+        eintraege: einsaetze,
+        datum: tag,
+        erledigtePruefen: false,
+        reinigungen: const [],
+        wegpunkte: const [],
+        arbeitszeiten: {'s_1': (von: 480, bis: 540)},
+        dauerFuer: (_) => 60,
+      );
+      expect(ist, isEmpty);
+    });
+
+    test('eine Reinigung liest keine Einsatz-Arbeitszeit', () {
+      final ist = ermittleIstZeiten(
+        eintraege: plan,
+        datum: tag,
+        erledigtePruefen: true,
+        reinigungen: const [],
+        wegpunkte: const [],
+        arbeitszeiten: {'r1': (von: 480, bis: 540)},
+        dauerFuer: (_) => 60,
+      );
+      expect(ist, isEmpty);
+    });
+  });
+
+  group('arbeitszeitMinuten', () {
+    test('HH:mm und HH:mm:ss', () {
+      expect(arbeitszeitMinuten('08:05', '09:40'), (von: 485, bis: 580));
+      expect(arbeitszeitMinuten('08:05:00', '09:40:00'), (von: 485, bis: 580));
+    });
+
+    test('fehlend, unlesbar, Ende nicht nach Beginn → null', () {
+      expect(arbeitszeitMinuten(null, '09:00'), isNull);
+      expect(arbeitszeitMinuten('08:00', null), isNull);
+      expect(arbeitszeitMinuten('8 Uhr', '09:00'), isNull);
+      expect(arbeitszeitMinuten('09:00', '09:00'), isNull);
+      expect(arbeitszeitMinuten('23:30', '00:30'), isNull); // über Mitternacht
+    });
+  });
+
+  test('einsatzArbeitszeitJePlanIdProvider: Plan-Ids, nur vollständige', () {
+    StoerungLocal stoerung(int id, String? von, String? bis) => StoerungLocal()
+      ..id = id
+      ..serverId = 'srv$id'
+      ..userId = 'u'
+      ..datum = tag
+      ..status = 'behoben'
+      ..problemBeschreibung = 'x'
+      ..arbeitVon = von
+      ..arbeitBis = bis;
+    MontageLocal montage(int id, String? von, String? bis) => MontageLocal()
+      ..id = id
+      ..serverId = 'srv$id'
+      ..userId = 'u'
+      ..montageTyp = 'neumontage'
+      ..beschreibung = 'x'
+      ..datum = tag
+      ..status = 'abgeschlossen'
+      ..arbeitVon = von
+      ..arbeitBis = bis;
+
+    final container = ProviderContainer(
+      overrides: [
+        stoerungenProvider.overrideWithValue([
+          stoerung(1, '08:00', '09:15'),
+          stoerung(2, null, '10:00'), // nur Ende
+          stoerung(3, null, null),
+        ]),
+        montagenProvider.overrideWithValue([montage(1, '13:00:00', '15:00')]),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    // Im Test (nicht Web) ist `routeId` die lokale Id.
+    expect(container.read(einsatzArbeitszeitJePlanIdProvider), {
+      's_1': (von: 480, bis: 555),
+      'm_1': (von: 780, bis: 900),
+    });
   });
 }
