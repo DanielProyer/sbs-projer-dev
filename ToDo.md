@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.147.0 live** (Fahrten aus der Kette — Fahrtenerkennung Stufe 1; davor v0.146.0 Restposten, v0.145.0 Touren verschieben) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **210** · **2779 Tests grün**.
+**Stand:** **v0.148.0 live** (Bau-Runde ohne Entscheid: Statusmodell-Zwischenschritt, Ferien Phase 1, Tourenplan-Reste; davor v0.147.0 Fahrten aus der Kette) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **210** · **2873 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -199,6 +199,13 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.148.0** — Feierabend erfassen → Zeile «Fahrten heute» auf der
+  Startseite, antippen; Tourenplan an einem Tag mit fälliger Aufgabe → Sektion
+  «Aufgaben»; Rechnungsliste: Chips (Gesendet/Übergeben/Mahnung); Heineken
+  August: Detail-Banner «Freigegeben»; Buchung frei buchen → Zahlungsweg
+  «keiner» wählbar; Dokumente → PDF (Rückfall «Herunterladen», falls der
+  Browser blockiert); Konsole: kein `[Ferien] Rückfall`.
 
 - **v0.147.0** — Mehr → Auswertungen → Arbeitstage: Zeile «Fahrten … km ·
   Δ …» je Tag, Kennzahl «Fahrten-km (Kette)»; Tag antippen → Fahrten-Detail
@@ -402,24 +409,22 @@ Die App-Analyse (A1–A9, B1–B7) ist vollständig abgearbeitet, der Schritt
   Servernamen existierten neun lokal unter anderer Nummer; drei rekonstruiert
   (101b Storage-Policies camt, 165b RLS Wartungs-Snapshots, 166b Snapshot
   camt-Abgleich). Rezept im Archiv-Abschnitt zu 192b.
-- **Altspalten `ferien*` auf `betriebe`:** Tabelle `betrieb_ferien` ist seit
-  26.09.2026 vollständig (6 historische Slots nachgetragen). Das Entfernen
-  der Spalten bleibt ein eigenes Vorhaben: 403 Code-Stellen (Model, Mapper,
-  Isar-Local + `build_runner`, Web-Stub, `betrieb_ferien.dart`-Rückfall) —
-  erst den Rückfall auf die Altspalten abschalten, eine Woche beobachten,
-  dann `DROP COLUMN` mit Archiv-Tabelle.
-- ✅ **Buchhaltungs-Restfälle erledigt (26.09.2026, Entscheide Daniel):**
-  (a) **Chalet Güggel 2026-04-0249:** Minderzahlung 2.20 per 26.09. erlassen —
-  zwei Zeilen wie im ZahlungKern (3805/1100 2.04 netto + 2200/1100 0.16
-  MWST-Anteil, Belegtyp «abschreibung», Ziff. 235 Q3/2026); `zahlung_betrag`
-  auf 169.70 (tatsächlich bezahlt). Bewusst per Entscheidtag, Q1/2026 ist
-  abgerechnet. Debitoren-Rest aus der Analyse sinkt damit um 2.20.
-  (b) **Chleina Pub 2026-08-1386:** Kulanz — der Kunde hatte die April-Rechnung
-  doppelt bezahlt (30.04., damals auf 8000 gebucht, vor Konto 2030); die
-  Verrechnung 8000/1100 vom 17.09. gleicht das aus (8000 und Kundenkonto
-  beide auf null, kein Ertrags-/MWST-Effekt). Buchung nachträglich mit der
-  Rechnung verknüpft (`beleg_id`, Belegtyp «zahlung»), Zahlungsdatum 17.09.
-  und Betrag 74.60 an der Rechnung ergänzt.
+- **Altspalten `ferien*` auf `betriebe` — Phase 1 ✅ (v0.148.0, 27.09.2026):**
+  kein Leser, kein Schreiber mehr; Rückfall liefert laut `[]`
+  (`ferienRueckfallZaehler`, Konsole `[Ferien] Rückfall`). **Eine Woche
+  beobachten** (Konsole am Handy: kein Rückfall, keine Aufgabe «Ferien nicht
+  geladen»), dann Phase 2: Felder aus Model/Mapper/Isar-Local/Web-Stub,
+  `build_runner`, Migration `DROP COLUMN` mit Archiv-Tabelle, Rössli-Rest
+  (Slot 2 nur Start 29.05.2026) entscheiden, Wächter anpassen.
+- **Statusmodell-Reste (v0.148.0):** Zielbild braucht Migration + Entscheid.
+  Kleines: `rechnungen_list_screen._naechsterStatus('gesendet')` liefert null
+  (kein Mahn-Kurzweg für gemailte Rechnungen); `mahn_hinweis._gemahnt` prüft
+  nur den Status, nicht `mahnung_stufe`; Kontoauszug-PDF «2. Mahnung» vs.
+  Mahnschreiben «Letzte Mahnung»; `kontoauszug_pdf_service` hat 6 rohe
+  Statusfilter (Ratsche 21). **Entscheid Daniel:** (a) `send-rechnung-mail`
+  soll `versendet_am` nur setzen, wenn leer (Erstversanddatum = Mahnbasis) —
+  Function-Deploy; (b) Neuversand aus dem Reinigungsdetail verschiebt die
+  Mahnfrist nicht mehr — so gewollt?
 
 ### 📒 Abschluss 2026 — Entscheide vom 19.09.2026
 

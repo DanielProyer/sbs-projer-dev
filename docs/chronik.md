@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.148.0 Bau-Runde «ohne Entscheid»: Statusmodell-Zwischenschritt, Ferien-Altspalten Phase 1, Tourenplan-Reste, Fahrten heute, Aufgaben im Tourenplan
 - 27.09.2026 — v0.147.0 Fahrten aus der Kette (Fahrtenerkennung Stufe 1): Fahrten je Tag mit km und Zähler-Kontrolle
 - 26.09.2026 — v0.146.0 Restposten-Runde: analyze 0, Datumsauswahl deutsch, CanvasKit-Ratsche 83, Tourenplan-Ladefenster, Altlasten
 - 26.09.2026 — v0.145.0 Touren auf einen anderen Tag verschieben (Stopp und ganzer Tag)
@@ -33,6 +34,62 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.148.0 Bau-Runde «alles ohne Entscheid Baubare»
+
+Auftrag Daniel 27.09.: «alles ohne Entscheidung Baubare noch bauen». Drei
+Implementer in Worktrees (A Tourenplan/Startseite/PDF/Aufgaben, B Statusmodell,
+C Ferien), ein Review, Browser-Prüfung. Keine Migration.
+
+- **Rechnungs-Statusmodell, migrationsfreier Zwischenschritt (B):**
+  `anzeigeStatus(r)`/`anzeigeSchluessel(r)` in `core/util/rechnung_status.dart`
+  ersetzen sieben Kopien (Mahnlauf, Mahnband, Mahnfall, Rechnungsliste und
+  -detail, Heineken-Liste und -detail); «gesendet»/«freigegeben» erschienen
+  bisher roh, «Übergeben» (Tresen) gab es gar nicht. Wächter-Ratsche
+  `rechnung_status_waechter_test` gegen rohe `zahlungsstatus == 'offen'`-Filter
+  (47 → 21, darf nur sinken; 26 Stellen auf `istOffen`/`Zahlungsstatus.erledigt/
+  gemahnt`). Heineken-Detail schrieb nach dem Mailversand pauschal «gesendet»
+  und konnte so eine freigegebene (gebuchte) oder bezahlte Monatsrechnung
+  zurückdrehen — jetzt über `vermerkeVersand` (hebt nur `offen`). Erstversand-
+  datum bleibt beim Neuversand erhalten (`versendetAmNachVersand`); Frei
+  buchen hat wieder «keiner». Zielbild (Status nur offen/bezahlt/abgeschrieben,
+  Rest abgeleitet) braucht weiterhin Daniels Entscheid und eine Migration.
+- **Ferien-Altspalten, Phase 1 (C):** Kein Leser wertet mehr die alten
+  Spaltenpaare `ferien*_start/ende` aus, und die App schreibt sie nicht mehr
+  (`BetriebMapper.toJson`). `betriebeStreamProvider` hängt die Perioden aus
+  `betrieb_ferien` immer an; `heineken_raster` und das Betriebsformular laden
+  sie selbst (`periodenAnhaengen`). Der Rückfall in `ferienSlots` liefert ohne
+  Perioden `[]`, meldet laut (debugPrint, Zähler, assert im Debug). Schlägt das
+  Laden der Ferien fehl, bleiben die Betriebe sichtbar, und eine dringende
+  Aufgabe «Ferien nicht geladen — Betriebe könnten geschlossen sein» erscheint
+  auf der Heute-Karte und in der Glocke, mit «Erneut laden». Wächter
+  `ferien_altspalten_waechter_test`. Phase 2 (Model, Mapper, Isar, `DROP
+  COLUMN` mit Archiv) nach einer Woche Beobachtung.
+- **Tourenplan (A):** Ladefehler an vergangenen Tagen als Band mit «Erneut
+  laden» über der Ist-Ansicht; Restfenster beim schnellen Zurückwechseln
+  geschlossen (`skipLoadingOnRefresh: false`, Notifier merkt laufende
+  Speicherungen je Tag, `standBeimLaden`); neue Sektion «Aufgaben (n)» für
+  Aufgaben mit Fälligkeit am gewählten Tag (Tabelle `aufgaben` kennt keinen
+  Betrieb, darum nur Titel und Haken; Tipp → `/aufgaben`).
+- **Startseite (A):** nach dem Feierabend die Zeile «Fahrten heute: 7 ·
+  143 km · Zähler 148 km (+5)», Δ rot bei Befund, Tipp → Fahrten-Detail;
+  Provider erst nach dem Feierabend-Ablauf, damit das Nachrouten nur einmal
+  läuft; `arbeitstageProvider` wird nach dem Speichern invalidiert.
+- **PDF-Tab (A):** Ist auch der Rückfall blockiert, SnackBar mit Aktion
+  «Herunterladen» (`downloadBytesFile`).
+- **Daten:** Triel-Minderzahlung 3.00 (24.09.) korrigiert auf 2.78 netto 3805 +
+  0.22 MWST 2200, Belegtyp «abschreibung» — Ziff. 235 Q3/2026 neu 165.88.
+- Browser geprüft (360 px): Betriebe-Liste (313, Ferien geladen), Rechnungs-
+  liste (Chips «Gesendet»/«Übergeben»), Heineken-Liste, Tourenplan 25.09.
+  (Ist-Ansicht), Buchungsformular, Startseite ohne Fehlaufgabe.
+- Nicht in dieser Runde (braucht Entscheid): Statusmodell-Zielbild mit
+  Migration; `send-rechnung-mail` überschreibt `versendet_am` serverseitig
+  weiterhin (Filter `versendet_am is null` + Deploy); Mahnfrist beim Neuversand
+  aus dem Reinigungsdetail verschiebt sich nicht mehr (Folge des Erstdatums —
+  bestätigen); Isar; Events; Planung einklappen; tote Zeitfelder.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 
