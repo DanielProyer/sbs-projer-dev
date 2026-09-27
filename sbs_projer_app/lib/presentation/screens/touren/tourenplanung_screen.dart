@@ -216,7 +216,14 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
         });
       }
 
+      // skipLoadingOnRefresh: false — ein NACHLADENDER Plan (nach einem
+      // Speichern invalidiert) liefert sonst über `data` seinen vorigen,
+      // veralteten Wert. Nach dem Zurück aus einer zweiten Instanz wurde
+      // genau der übernommen (Review 27.09.2026); jetzt wartet die
+      // Übernahme auf den frischen Stand. Läuft das Speichern noch, verwirft
+      // der Notifier den älteren Ladestand selbst (`standBeimLaden`).
       gespeichertAsync.when(
+        skipLoadingOnRefresh: false,
         data: (gespeichert) {
           if (_loadedForDate != tag) anwenden(gespeichert);
         },

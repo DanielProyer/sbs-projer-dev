@@ -1304,12 +1304,28 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     });
   }
 
+  /// Laufende Speicherungen je Kalendertag: der zuletzt gestartete Stand
+  /// samt Marke (damit ein früheres, später fertiges Speichern desselben
+  /// Tages den Eintrag des neueren nicht entfernt). Siehe [standBeimLaden].
+  final _laufendeSpeicherungen =
+      <DateTime, ({int marke, List<TourEintrag> eintraege})>{};
+  int _speicherMarke = 0;
+
   /// Speichert [eintraege] für [tag] und frischt danach den Lade-Cache auf.
   /// Ein Fehler landet im Log — der Aufrufer wartet nicht darauf.
+  ///
+  /// Solange das Speichern läuft, steht der Stand in
+  /// [_laufendeSpeicherungen]: Ein in dieser Zeit eintreffender Ladestand
+  /// desselben Tages ist älter und wird von [setFromGespeichert]/[resetLeer]
+  /// verworfen. Ist das Speichern durch, invalidiert es den Cache — ab dann
+  /// liefert der Provider den frischen Stand.
   Future<void> _speichernImHintergrund(
     DateTime tag,
     List<TourEintrag> eintraege,
   ) async {
+    final schluessel = DateTime(tag.year, tag.month, tag.day);
+    final marke = ++_speicherMarke;
+    _laufendeSpeicherungen[schluessel] = (marke: marke, eintraege: eintraege);
     try {
       await _speichern(tag, eintraege);
       // Cache invalidieren, damit erneutes Öffnen des Tags den frischen
@@ -1317,8 +1333,30 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
       _ref.invalidate(gespeicherterTagesplanProvider(tag));
     } catch (e) {
       debugPrint('[Tagesplan] Speichern fehlgeschlagen: $e');
+    } finally {
+      if (_laufendeSpeicherungen[schluessel]?.marke == marke) {
+        _laufendeSpeicherungen.remove(schluessel);
+      }
     }
   }
+
+  /// Läuft für den Kalendertag [tag] gerade ein Speichern? Nur für Tests.
+  @visibleForTesting
+  bool speichertGerade(DateTime tag) => _laufendeSpeicherungen.containsKey(
+    DateTime(tag.year, tag.month, tag.day),
+  );
+
+  /// Der Stand, der beim Übernehmen eines geladenen Plans für [tag] gilt —
+  /// [standBeimLaden] mit den laufenden Speicherungen.
+  List<TourEintrag> _standBeimLaden(DateTime tag, List<TourEintrag> geladen) =>
+      standBeimLaden(
+        tag: tag,
+        geladen: geladen,
+        laufend: {
+          for (final e in _laufendeSpeicherungen.entries)
+            e.key: e.value.eintraege,
+        },
+      );
 
   /// Führt ein noch ausstehendes (entprelltes) Speichern SOFORT aus — mit
   /// dem Tag und dem Stand, die jetzt gelten. Muss vor jedem Tag-Wechsel
@@ -1337,19 +1375,23 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
 
   /// Gespeicherten Plan laden — löst für den NEUEN Tag keine Speicherung
   /// aus; ein ausstehendes Speichern des bisherigen Tages läuft sofort.
+  ///
+  /// Läuft für [datum] noch ein Speichern, gilt dessen Stand statt
+  /// [eintraege] ([standBeimLaden]) — der Ladestand ist dann älter.
   void setFromGespeichert(DateTime datum, List<TourEintrag> eintraege) {
     _ausstehendesSpeichernSofort();
     _datum = datum;
-    state = List.of(eintraege);
+    state = List.of(_standBeimLaden(datum, eintraege));
   }
 
   /// Tag ohne gespeicherten Plan → leer starten (für den neuen Tag KEINE
   /// Speicherung; ein ausstehendes Speichern des bisherigen Tages läuft
-  /// sofort).
+  /// sofort). «Keine Zeile» ist ebenso ein Ladestand: Läuft für [datum]
+  /// gerade das erste Speichern, gilt dessen Stand.
   void resetLeer(DateTime datum) {
     _ausstehendesSpeichernSofort();
     _datum = datum;
-    state = [];
+    state = List.of(_standBeimLaden(datum, const []));
   }
 
   void hinzufuegen(TourEintrag eintrag) {
@@ -1409,6 +1451,37 @@ class TagesplanNotifier extends StateNotifier<List<TourEintrag>> {
     _saveTimer?.cancel();
     super.dispose();
   }
+}
+
+/// Welcher Stand gilt, wenn der gespeicherte Plan von [tag] geladen
+/// ankommt: der Ladestand [geladen] — ausser für den Kalendertag läuft
+/// gerade ein Speichern ([laufend], Schlüssel mit beliebiger Uhrzeit); dann
+/// dessen Stand.
+///
+/// WARUM (Review 27.09.2026, Restfenster nach K1): Öffnet eine Aufgabe eine
+/// zweite Tourenplanung (Tag B), speichert der Notifier die letzte Änderung
+/// an Tag A sofort — im Hintergrund. Kehrt man schnell zurück, liegt im
+/// Cache von A noch der Stand VOR dieser Änderung (invalidiert wird erst
+/// nach dem Speichern). Übernommen hätte der Tourenplan ihn, und die
+/// nächste Änderung hätte den gerade gespeicherten Stand in der Datenbank
+/// wieder überschrieben. Ein Ladestand, der während eines Speicherns
+/// desselben Tages eintrifft, ist nie neuer als der gespeicherte Stand.
+///
+/// Nach dem Speichern ist der Cache invalidiert; dass der Screen den dann
+/// nachladenden alten Wert nicht übernimmt, regelt dort
+/// `skipLoadingOnRefresh: false`.
+List<TourEintrag> standBeimLaden({
+  required DateTime tag,
+  required List<TourEintrag> geladen,
+  required Map<DateTime, List<TourEintrag>> laufend,
+}) {
+  for (final e in laufend.entries) {
+    final k = e.key;
+    if (k.year == tag.year && k.month == tag.month && k.day == tag.day) {
+      return e.value;
+    }
+  }
+  return geladen;
 }
 
 /// Was der Tagesplan-Tab im Tourenplan zeigt.
