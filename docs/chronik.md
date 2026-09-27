@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.151.0 Material: Kategorie-Chips in einer Zeile, Karten-Ansicht mit Swipe (Foto, Bestand ±, Vormerken), Ansicht und Kategorie gemerkt
 - 27.09.2026 — v0.150.0 Navigation: Leiste Heute · Betriebe · Material · Tour · Mehr, Einsätze unter Mehr, Mehr-Seite als einheitliche Zeilen
 - 27.09.2026 — v0.149.1 «Offen pro Betrieb» nutzt dieselbe Zustell-Regel wie die Rechnungsliste (Tresen = übergeben)
 - 27.09.2026 — v0.149.0 Entscheide-Runde: Statusmodell-Zielbild (Migration 211), Isar eingefroren, Zeit-Nachfrage beim Abschluss, Aufgaben mit Betrieb (212), Planung-Klappe
@@ -37,6 +38,41 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.151.0 Material: Chips oben, Karten per Swipe
+
+Auftrag Daniel: «schau dir an, wie das Material in der Heineken-App gelöst ist,
+die Kategorien als Chips oben und die einzelnen Materialien einer Kategorie per
+Swipe durchgehen — das möchte ich auch für diese App.»
+- **Chip-Zeile** unter der Suche, einzeilig horizontal scrollbar: «Niedrig · N»
+  (eigener Schalter), «Alle», dann die belegten Kategorien nach `sortierung`
+  («Zapfhahn · 12»), zuletzt «Ohne Kategorie · N». Einzelauswahl; der gewählte
+  Chip wird in Sicht gescrollt. Das Kategorie-Dropdown ist weg.
+- **Zwei Ansichten** (Umschalter in der AppBar): Liste wie bisher, oder
+  **Karten** — `PageView` durch die gefilterten Artikel, Zähler «3 / 48».
+  Tipp auf eine Listenzeile öffnet die Karte an dieser Stelle. Karte: Foto
+  (Preview, signiert, je Artikel einmal geladen), Name, DBO/SAP/Kategorie,
+  Beschreibung, Bestand mit −/+ direkt auf der Karte (optimistisch, bei
+  Fehler zurück), Mindest/Optimal, Warnzeile unter Mindestbestand, Vormerken,
+  «Details» zur bisherigen Detailseite.
+- **Gemerkt** (shared_preferences): Ansicht und letzte Kategorie
+  (`material_ansicht_speicher.dart`) — der Listen-Tipp merkt sich nichts, das
+  ist ein Drill-in.
+- Reine Logik in `core/util/material_filter.dart` (Chips, Zombie-Schutz,
+  Filter, Sortierung DBO → Name) mit Unit-Tests; Screen- und Karten-Tests am
+  360-px-Viewport (Chip-Reihenfolge, Swipe, Zähler, Listen-Tipp → Index,
+  Prefs-Wiederherstellung).
+- Bewusst anders als das v2-Vorbild: Controller im State (nicht im build),
+  `ValueKey(id)` je Karte, kein 60er-Deckel, Filterwechsel → Seite 1, kein
+  PopScope (Browser-Zurück läuft über GoRouter). Die dabei gefundenen v2-Fehler
+  stehen als Bericht in `D:\Projekte\Heineken\Recherchen6-09-27_Material-Katalog-Befunde-aus-Alt-App.md`
+  (Auftrag Daniel: «melde die gefundenen Fehler der Heineken-App»).
+- CanvasKit: keine neuen Material-Buttons (Ratsche bleibt 81); ± und Vormerken
+  als InkWell-Kreise, «Details» als `TapKnopf`.
+- Browser geprüft (360 px): Chips, Umschalter, Swipe, Zähler, Bestand ±.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 
