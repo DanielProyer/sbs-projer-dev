@@ -51,6 +51,12 @@ class _MaterialienListScreenState
   /// [MaterialFilter.behalten]); gilt bis zum nächsten Filterwechsel.
   final _behalten = <String>{};
 
+  /// Gespeicherte Bestände, die das Neuladen noch nicht zurückgebracht hat
+  /// (siehe [MaterialKarte.bestandVorgabe]). Ein Eintrag fällt weg, sobald
+  /// der Server denselben Wert liefert. Bleibt über Filterwechsel bestehen —
+  /// die Werte sind ja gespeichert.
+  final _bestandLokal = <String, double>{};
+
   bool get _istGast => widget.istGast ?? SupabaseService.isGuest;
 
   @override
@@ -141,6 +147,9 @@ class _MaterialienListScreenState
     final container = ProviderScope.containerOf(context, listen: false);
     _behalten.add(l.id);
     await LagerRepository.update(l.id, {'bestand_aktuell': neu});
+    // Vor dem invalidate: der Rebuild, den es auslöst, soll die Vorgabe
+    // schon sehen.
+    _bestandLokal[l.id] = neu;
     container.invalidate(materialienStreamProvider);
   }
 
@@ -152,6 +161,16 @@ class _MaterialienListScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Vorgaben aufräumen, sobald der Server den gespeicherten Wert liefert.
+    // Im Listener statt im build (dort nichts mutieren); ohne setState — der
+    // Rebuild durch das watch unten liest die Map ohnehin neu.
+    ref.listen<List<Lager>>(materialienProvider, (_, liste) {
+      for (final l in liste) {
+        if (_bestandLokal[l.id] == l.bestandAktuell) {
+          _bestandLokal.remove(l.id);
+        }
+      }
+    });
     final materialien = ref.watch(materialienProvider);
     final kategorien = ref.watch(kategorienProvider).valueOrNull ?? [];
     final niedrigAnzahl = ref.watch(niedrigCountProvider);
@@ -280,6 +299,7 @@ class _MaterialienListScreenState
             // eines anderen Artikels.
             key: ValueKey(l.id),
             lager: l,
+            bestandVorgabe: _bestandLokal[l.id],
             kategorieName:
                 l.kategorieId != null ? kategorieNamen[l.kategorieId] : null,
             fotoUrl: _fotoUrl(l),

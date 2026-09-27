@@ -40,11 +40,13 @@ Widget _app(
   bool bearbeitbar = true,
   Future<void> Function(double)? onBestand,
   Future<void> Function(bool)? onVormerken,
+  double? bestandVorgabe,
 }) =>
     MaterialApp(
       home: Scaffold(
         body: MaterialKarte(
           lager: lager,
+          bestandVorgabe: bestandVorgabe,
           kategorieName: 'Zapfhahn',
           fotoUrl: Future.value(null),
           bearbeitbar: bearbeitbar,
@@ -68,6 +70,7 @@ Future<_Aufrufe> _zeige(
   Future<void> Function(double)? onBestand,
   Future<void> Function(bool)? onVormerken,
   Size groesse = const Size(360, 800),
+  double? bestandVorgabe,
 }) async {
   tester.view.physicalSize = groesse;
   tester.view.devicePixelRatio = 1.0;
@@ -78,7 +81,8 @@ Future<_Aufrufe> _zeige(
     _app(lager, r,
         bearbeitbar: bearbeitbar,
         onBestand: onBestand,
-        onVormerken: onVormerken),
+        onVormerken: onVormerken,
+        bestandVorgabe: bestandVorgabe),
   );
   await tester.pumpAndSettle();
   return r;
@@ -195,6 +199,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('8'), findsOneWidget);
     expect(find.byIcon(Icons.bookmark), findsOneWidget);
+  });
+
+  testWidgets('Vorgabe des Screens schlägt den noch alten Serverstand',
+      (tester) async {
+    // Die Karte wurde nach einem gespeicherten «+» neu aufgebaut (weg-
+    // und zurückgewischt), bevor das Neuladen da war: Sie muss beim
+    // gespeicherten Wert weiterzählen, sonst geht ein Tipp verloren.
+    final r = await _zeige(tester, _lager(bestand: 5), bestandVorgabe: 6);
+    expect(find.text('6'), findsOneWidget);
+    await _tippe(tester, find.byIcon(Icons.add));
+    expect(r.bestand, [7]);
+    expect(find.text('7'), findsOneWidget);
+  });
+
+  testWidgets('Vorgabe fällt weg, Serverstand ist nachgezogen → bleibt',
+      (tester) async {
+    final r = await _zeige(tester, _lager(bestand: 5), bestandVorgabe: 6);
+    await tester.pumpWidget(_app(_lager(bestand: 6), r));
+    await tester.pumpAndSettle();
+    expect(find.text('6'), findsOneWidget);
+    // Eine neue Vorgabe (z. B. nach dem nächsten gespeicherten Tipp auf
+    // einer neu gebauten Karte) wird ebenfalls übernommen.
+    await tester.pumpWidget(_app(_lager(bestand: 6), r, bestandVorgabe: 9));
+    await tester.pumpAndSettle();
+    expect(find.text('9'), findsOneWidget);
   });
 
   testWidgets('Vormerken schaltet sofort um', (tester) async {

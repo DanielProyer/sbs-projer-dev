@@ -16,6 +16,14 @@ class MaterialKarte extends StatefulWidget {
   final Lager lager;
   final String? kategorieName;
 
+  /// Auf diesem Screen gespeicherter Bestand, den das Neuladen noch nicht
+  /// zurückgebracht hat — hat Vorrang vor `lager.bestandAktuell`.
+  ///
+  /// WARUM: Wird die Karte dazwischen neu aufgebaut (weg- und
+  /// zurückgewischt), startete sie sonst beim alten Serverwert, und der
+  /// nächste Tipp überschriebe den gespeicherten — ein Tipp ginge verloren.
+  final double? bestandVorgabe;
+
   /// Vom Screen gecacht; `Future.value(null)` ohne Foto.
   final Future<String?> fotoUrl;
 
@@ -30,6 +38,7 @@ class MaterialKarte extends StatefulWidget {
   const MaterialKarte({
     super.key,
     required this.lager,
+    this.bestandVorgabe,
     required this.kategorieName,
     required this.fotoUrl,
     required this.bearbeitbar,
@@ -48,10 +57,13 @@ class _MaterialKarteState extends State<MaterialKarte> {
   bool _speichert = false;
   bool _merkt = false;
 
+  static double _startwert(MaterialKarte w) =>
+      w.bestandVorgabe ?? w.lager.bestandAktuell;
+
   @override
   void initState() {
     super.initState();
-    _bestand = widget.lager.bestandAktuell;
+    _bestand = _startwert(widget);
     _vorgemerkt = widget.lager.vorgemerkt;
   }
 
@@ -62,9 +74,9 @@ class _MaterialKarteState extends State<MaterialKarte> {
     // die Antwort eines älteren Neuladens sein (vor dem laufenden Tipp) —
     // sie würde die Anzeige kurz zurückdrehen. Nach dem Speichern lädt der
     // Screen ohnehin neu, und der alte Ladevorgang wird dabei verworfen.
-    if (!_speichert &&
-        widget.lager.bestandAktuell != alt.lager.bestandAktuell) {
-      _bestand = widget.lager.bestandAktuell;
+    final neu = _startwert(widget);
+    if (!_speichert && neu != _startwert(alt)) {
+      _bestand = neu;
     }
     if (!_merkt && widget.lager.vorgemerkt != alt.lager.vorgemerkt) {
       _vorgemerkt = widget.lager.vorgemerkt;
