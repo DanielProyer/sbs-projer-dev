@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
+import 'package:sbs_projer_app/core/util/file_download_export.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
@@ -130,7 +134,26 @@ class DokumentListe extends StatelessWidget {
     try {
       if (d.istPdf) {
         final bytes = await DokumentRepository.download(d.storagePfad);
-        await zeigePdfImTab(tab, bytes, d.dateiname);
+        final offen = await zeigePdfImTab(tab, bytes, d.dateiname);
+        // Vorab-Tab UND Rückfall nach dem Download blockiert: Bis 27.09.2026
+        // endete das stumm — man tippte aufs PDF und sah nichts. Ein
+        // Download fällt nicht unter den Popup-Blocker.
+        if (!offen) {
+          messenger.showSnackBar(
+            SnackBar(
+              duration: const Duration(seconds: 10),
+              content: const Text(
+                'Browser hat das Fenster blockiert — Download',
+              ),
+              action: SnackBarAction(
+                label: 'Herunterladen',
+                onPressed: () => unawaited(
+                  _pdfHerunterladen(messenger, bytes, d.dateiname),
+                ),
+              ),
+            ),
+          );
+        }
       } else {
         final url = await DokumentRepository.signedUrl(d.storagePfad);
         if (!context.mounted) return;
@@ -175,6 +198,27 @@ class DokumentListe extends StatelessWidget {
       messenger.showSnackBar(
         SnackBar(
           content: Text('Öffnen fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
+    }
+  }
+
+  /// Rückfall bei blockiertem Fenster: das PDF als Datei herunterladen.
+  static Future<void> _pdfHerunterladen(
+    ScaffoldMessengerState messenger,
+    Uint8List bytes,
+    String dateiname,
+  ) async {
+    try {
+      await downloadBytesFile(
+        filename: dateiname,
+        bytes: bytes,
+        mimeType: 'application/pdf',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Download fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
         ),
       );
     }
