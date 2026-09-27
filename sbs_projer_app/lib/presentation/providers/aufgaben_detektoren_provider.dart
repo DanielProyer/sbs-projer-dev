@@ -295,7 +295,9 @@ final mahnfallAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
 
 /// Halbe Zustände von draussen (V9): angefangene Reinigungen im Gerät,
 /// Arbeit ohne «Beenden», Arbeitstag ohne Feierabend/km, Diktate in der
-/// Warteschlange. Alles `draussen: true` — sie stehen auf der Heute-Karte.
+/// Warteschlange — und seit 27.09.2026 «Ferien nicht geladen» (vor dem
+/// Losfahren wichtig). Alles `draussen: true` — sie stehen auf der
+/// Heute-Karte.
 /// Eigener Provider wie die Mahnlauf-Aufgaben: lokale Speicher und eigene
 /// Abfragen, die das Neuladen der Büro-Detektoren nicht mitziehen soll.
 /// Jeder Block einzeln abgesichert.
@@ -312,6 +314,16 @@ final draussenAufgabenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     for (final b in ref.watch(betriebeProvider))
       if (b.serverId != null) b.serverId!: b.name,
   };
+
+  // 0) Ferien-Tabelle nicht geladen (27.09.2026) — die Betriebe tragen dann
+  //    keine Ferien, der Tourenplan könnte zu einem geschlossenen Betrieb
+  //    schicken. Kein Netz, keine Abfrage: nur der Zustand des Providers.
+  //    Vor dem ersten await beobachtet, damit ein gelungenes Neuladen die
+  //    Aufgabe sofort verschwinden lässt.
+  final ferienAufgabe = ferienLadefehlerAufgabe(
+    ref.watch(ferienLadefehlerProvider),
+  );
+  if (ferienAufgabe != null) aufgaben.add(ferienAufgabe);
 
   // a) Angefangene Reinigungen — lokal gesicherte Entwürfe (V2).
   try {

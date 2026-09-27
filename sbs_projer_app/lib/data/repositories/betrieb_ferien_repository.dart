@@ -21,13 +21,30 @@ class BetriebFerienRepository {
   /// Altbestand (import) bestätigen nichts.
   static const _bestaetigteQuellen = {'kunde', 'vor_ort'};
 
+  /// Alle Perioden — seitenweise, weil PostgREST bei 1000 Zeilen deckelt.
+  ///
+  /// WARUM (27.09.2026): Seit die Altspalten nicht mehr als Rückfall dienen,
+  /// ist diese Tabelle die einzige Ferien-Quelle. Eine abgeschnittene Antwort
+  /// hiesse still «keine Ferien» für die übrigen Betriebe. `.order('id')`
+  /// zuletzt: `von` ist nicht eindeutig, ohne festen Schlüssel könnten Zeilen
+  /// zwischen zwei Seiten doppelt erscheinen oder fehlen (CLAUDE.md).
   static Future<List<BetriebFerienLocal>> getAll() async {
     if (kIsWeb) {
-      final rows = await SupabaseService.client
-          .from(_table)
-          .select()
-          .eq('user_id', _userId)
-          .order('von');
+      final rows = <Map<String, dynamic>>[];
+      const seite = 1000;
+      var von = 0;
+      while (true) {
+        final teil = await SupabaseService.client
+            .from(_table)
+            .select()
+            .eq('user_id', _userId)
+            .order('von')
+            .order('id') // stabile Pagination
+            .range(von, von + seite - 1);
+        rows.addAll(teil);
+        if (teil.length < seite) break;
+        von += seite;
+      }
       return rows
           .map((r) => BetriebFerienMapper.fromDto(BetriebFerienDto.fromJson(r)))
           .toList();

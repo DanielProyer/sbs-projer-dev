@@ -36,20 +36,25 @@ BetriebLocal mitFerienPerioden(BetriebLocal b, FerienPeriodenMap map) {
 }
 
 /// Verbindet einen Betriebe-Strom mit der Ferien-Tabelle: Jede Liste kommt
-/// erst, wenn [ferien] geladen ist, und jeder Betrieb traegt dann seine
-/// Perioden ([mitFerienPerioden]).
+/// erst, wenn [ferien] fertig ist, und jeder Betrieb traegt dann seine
+/// Perioden ([mitFerienPerioden]). Grundlage von `betriebeStreamProvider`.
+/// Nativ sendet der Isar-Strom bei jeder Aenderung neu; jede Sendung bekommt
+/// die Ferien angehaengt.
 ///
-/// Schlaegt [ferien] fehl, liefert der Strom den Fehler statt einer Liste —
-/// Betriebe mit still vergessenen Ferien waeren schlimmer als gar keine
-/// (Grundlage von `betriebeStreamProvider`). Nativ sendet der Isar-Strom
-/// bei jeder Aenderung neu; jede Sendung bekommt die Ferien angehaengt.
+/// Schlaegt [ferien] fehl, kommen die Betriebe TROTZDEM — mit
+/// `ferienPerioden = null` («unbekannt»). Betriebe sind der Kern der App
+/// (Stoerung erfassen, Rechnung, Suche); ein Ferien-Ladefehler darf sie
+/// nicht ausblenden (Entscheid 27.09.2026). Still bleibt es trotzdem nicht:
+/// Jede Ferien-Auswertung meldet den Rueckfall ([ferienSlots]), und die
+/// Aufgabe «Ferien nicht geladen» steht auf der Heute-Karte und in der
+/// Glocke (`ferienLadefehlerProvider`).
 Stream<List<BetriebLocal>> betriebeMitFerien(
   Stream<List<BetriebLocal>> betriebe,
   Future<FerienPeriodenMap> ferien,
 ) {
   // Ein Ladefehler kann eintreffen, bevor jemand den Strom abonniert — er
-  // soll dann nicht als «unbehandelt» in der Zone landen, sondern ueber den
-  // Strom gemeldet werden (das `await` unten bekommt ihn trotzdem).
+  // soll dann nicht als «unbehandelt» in der Zone landen (das `await` unten
+  // bekommt ihn trotzdem).
   ferien.ignore();
   return _betriebeMitFerien(betriebe, ferien);
 }
@@ -58,9 +63,22 @@ Stream<List<BetriebLocal>> _betriebeMitFerien(
   Stream<List<BetriebLocal>> betriebe,
   Future<FerienPeriodenMap> ferien,
 ) async* {
-  final map = await ferien;
+  FerienPeriodenMap? map;
+  try {
+    map = await ferien;
+  } catch (e) {
+    debugPrint('[Ferien] Tabelle nicht geladen — Betriebe ohne Ferien: $e');
+  }
   await for (final list in betriebe) {
-    yield [for (final b in list) mitFerienPerioden(b, map)];
+    if (map == null) {
+      // Ausdruecklich «unbekannt», nicht «keine Ferien» (leere Liste).
+      for (final b in list) {
+        b.ferienPerioden = null;
+      }
+      yield list;
+    } else {
+      yield [for (final b in list) mitFerienPerioden(b, map)];
+    }
   }
 }
 

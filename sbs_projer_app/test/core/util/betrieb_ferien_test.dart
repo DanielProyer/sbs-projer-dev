@@ -186,12 +186,20 @@ void main() {
       await quelle.close();
     });
 
-    test('Ferien-Ladefehler: Fehler statt Betriebe ohne Ferien', () async {
+    test('Ferien-Ladefehler: Betriebe kommen trotzdem, Ferien «unbekannt»',
+        () async {
+      // Entscheid 27.09.2026: Betriebe sind der Kern der App und bleiben
+      // sichtbar; laut wird es ueber ferienSlots und die Aufgabe
+      // «Ferien nicht geladen» (test/ferien_ladefehler_test.dart).
       final strom = betriebeMitFerien(
-        Stream.value([roh('b1')]),
+        Stream.value([roh('b1')..ferienPerioden = const []]),
         Future<FerienPeriodenMap>.error(StateError('offline')),
       );
-      await expectLater(strom, emitsError(isA<StateError>()));
+      final listen = await strom.toList();
+      expect(listen, hasLength(1));
+      expect(listen[0].single.name, 'b1');
+      // null = unbekannt — NICHT die leere Liste («keine Ferien»).
+      expect(listen[0].single.ferienPerioden, isNull);
     });
   });
 
