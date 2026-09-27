@@ -5,7 +5,7 @@ import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/event_mail_empfaenger.dart';
 import 'package:sbs_projer_app/data/models/event_kontakt.dart';
 import 'package:sbs_projer_app/services/mail/bericht_mail_service.dart';
-import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
+import 'package:sbs_projer_app/presentation/widgets/pdf_oeffnen.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 
 /// Bottom-Sheet zum Versand der Abschluss-Mail: Empfänger wählen + senden.
@@ -66,8 +66,10 @@ class _EventAbschlussSheetState extends State<EventAbschlussSheet> {
   }
 
   Future<void> _vorschau() async {
-    // Neuer Tab statt Druckdialog (Regel Daniel 26.07.2026).
-    await oeffnePdfImNeuenTab(
+    // Neuer Tab statt Druckdialog (Regel Daniel 26.07.2026). Blockiert der
+    // Browser das Fenster: Download anbieten statt stumm (K6, 27.09.2026).
+    await pdfOeffnenOderHerunterladen(
+      context,
       widget.pdf,
       abschlussDateiname(widget.eventName, widget.jahr),
     );

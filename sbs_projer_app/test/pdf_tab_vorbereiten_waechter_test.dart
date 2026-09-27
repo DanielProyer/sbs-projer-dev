@@ -21,7 +21,7 @@ void main() {
     final code = File(pfad).readAsStringSync();
     final start = code.indexOf('static Future<void> oeffnen(');
     expect(start, isNot(-1), reason: '$pfad: oeffnen() nicht gefunden');
-    final ende = code.indexOf('static Future<void> _pdfHerunterladen', start);
+    final ende = code.indexOf('Future<void> _loeschenFragen', start);
     return code
         .substring(start, ende == -1 ? code.length : ende)
         .replaceAll(RegExp(r'//.*'), '');
@@ -98,19 +98,78 @@ void main() {
       expect(m, contains('final offen = await zeigePdfImTab('));
       final wenn = m.indexOf('if (!offen)');
       expect(wenn, isNot(-1), reason: 'Ergebnis von zeigePdfImTab prüfen');
-      final rest = m.substring(wenn);
-      expect(rest, contains('SnackBarAction('));
-      expect(rest, contains("'Herunterladen'"));
-      expect(rest, contains('_pdfHerunterladen('));
+      expect(m.substring(wenn), contains('pdfBlockiertMelden('));
+    });
+  });
 
-      final code = File(pfad).readAsStringSync();
-      final laden = code.substring(
-        code.indexOf('static Future<void> _pdfHerunterladen'),
-        code.indexOf('Future<void> _loeschenFragen'),
+  // K6 (Review 27.09.2026): Nur die Dokumentliste wertete das `false` aus —
+  // Mahnlauf («Druck-PDF öffnen») und Event-Abschluss («Vorschau») endeten
+  // bei blockiertem Fenster stumm. Jetzt EIN Rückfall in
+  // widgets/pdf_oeffnen.dart statt dreier Kopien.
+  group('gemeinsamer Rückfall pdf_oeffnen.dart', () {
+    String ohneKommentare(String p) =>
+        File(p).readAsStringSync().replaceAll(RegExp(r'//.*'), '');
+    const helfer = 'lib/presentation/widgets/pdf_oeffnen.dart';
+
+    test('Rückfall: SnackBar «Herunterladen» → Download als PDF', () {
+      final h = ohneKommentare(helfer);
+      final melden = h.substring(
+        h.indexOf('void pdfBlockiertMelden('),
+        h.indexOf('Future<void> pdfHerunterladen('),
       );
+      expect(melden, contains('SnackBarAction('));
+      expect(melden, contains("'Herunterladen'"));
+      expect(melden, contains('pdfHerunterladen('));
+
+      final laden = h.substring(h.indexOf('Future<void> pdfHerunterladen('));
       expect(laden, contains('downloadBytesFile('));
       expect(laden, contains("mimeType: 'application/pdf'"));
       expect(laden, contains('catch ('), reason: 'Fehler melden, nie still');
+
+      final oeffnen = h.substring(
+        h.indexOf('Future<void> pdfOeffnenOderHerunterladen('),
+        h.indexOf('void pdfBlockiertMelden('),
+      );
+      final messenger = oeffnen.indexOf('ScaffoldMessenger.maybeOf(context)');
+      final tab = oeffnen.indexOf('await oeffnePdfImNeuenTab(');
+      expect(messenger, isNot(-1));
+      expect(tab, greaterThan(messenger),
+          reason: 'Messenger vor dem await holen');
+      expect(oeffnen.substring(tab), contains('if (!offen) pdfBlockiertMelden('));
     });
+
+    test('niemand ausser dem Helfer ruft oeffnePdfImNeuenTab direkt', () {
+      final direkt = <String>[];
+      for (final f in Directory('lib').listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        final pfad = f.path.replaceAll('\\', '/');
+        // Die Definitionen selbst (Stub/Web, zeigePdfImTab-Rückfall).
+        if (pfad.startsWith('lib/services/pdf/pdf_tab_oeffner')) continue;
+        if (pfad == helfer) continue;
+        if (ohneKommentare(f.path).contains('oeffnePdfImNeuenTab(')) {
+          direkt.add(pfad);
+        }
+      }
+      expect(
+        direkt,
+        isEmpty,
+        reason:
+            'oeffnePdfImNeuenTab liefert false, wenn der Browser das Fenster '
+            'blockiert — pdfOeffnenOderHerunterladen() nehmen, sonst endet '
+            'das stumm.',
+      );
+    });
+
+    for (final pfad in [
+      'lib/presentation/screens/rechnungen/mahnlauf_screen.dart',
+      'lib/presentation/screens/events/event_abschluss_sheet.dart',
+    ]) {
+      test('${pfad.split('/').last} nutzt den Helfer', () {
+        expect(
+          ohneKommentare(pfad),
+          contains('pdfOeffnenOderHerunterladen('),
+        );
+      });
+    }
   });
 }

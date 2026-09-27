@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,10 +23,10 @@ import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/rechnungen/widgets/mahnverlauf.dart';
+import 'package:sbs_projer_app/presentation/widgets/pdf_oeffnen.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/pdf/mahnschreiben_pdf_service.dart'
     show MahnPosten;
-import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnfall_service.dart';
 import 'package:sbs_projer_app/services/rechnung/mahnlauf_service.dart';
 
@@ -666,10 +668,18 @@ class _MahnlaufScreenState extends ConsumerState<MahnlaufScreen> {
     }
   }
 
+  /// Blockiert der Browser das Fenster, bietet eine SnackBar den Download
+  /// an — bis 27.09.2026 endete das stumm (K6).
   void _druckPdfOeffnen() {
     final bytes = _druckPdf;
     if (bytes == null) return;
-    oeffnePdfImNeuenTab(bytes, _druckName ?? 'Mahnung.pdf');
+    unawaited(
+      pdfOeffnenOderHerunterladen(
+        context,
+        bytes,
+        _druckName ?? 'Mahnung.pdf',
+      ),
+    );
   }
 
   Future<void> _ergebnisZeigen(MahnlaufErgebnis erg) => showDialog<void>(
