@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
@@ -158,6 +160,171 @@ void main() {
     });
   });
 
+  // Review 27.09.2026 (Restfenster nach K1): Eine zweite Tourenplanung (Tag
+  // B) löst das Sofort-Speichern von Tag A aus. Kehrt man zurück, solange es
+  // läuft, liegt im Cache von A noch der Stand VOR der letzten Änderung.
+  group('standBeimLaden (Ladestand vs. laufendes Speichern)', () {
+    final tagA = DateTime(2026, 9, 28);
+
+    test('ohne laufendes Speichern gilt der Ladestand', () {
+      final stand = standBeimLaden(
+        tag: tagA,
+        geladen: [_e('a')],
+        laufend: const {},
+      );
+      expect(stand.map((e) => e.id), ['a']);
+    });
+
+    test('läuft das Speichern desselben Tages, gilt dessen Stand — auch '
+        'mit Uhrzeit im Schlüssel', () {
+      final stand = standBeimLaden(
+        tag: tagA,
+        geladen: [_e('a')],
+        laufend: {
+          DateTime(2026, 9, 28, 14, 5): [_e('a'), _e('b')],
+        },
+      );
+      expect(stand.map((e) => e.id), ['a', 'b']);
+    });
+
+    test('ein Speichern eines anderen Tages ändert nichts', () {
+      final stand = standBeimLaden(
+        tag: tagA,
+        geladen: [_e('a')],
+        laufend: {
+          DateTime(2026, 9, 29): [_e('x')],
+          DateTime(2025, 9, 28): [_e('y')],
+        },
+      );
+      expect(stand.map((e) => e.id), ['a']);
+    });
+
+    test('auch ein leerer gespeicherter Stand schlägt den Ladestand', () {
+      final stand = standBeimLaden(
+        tag: tagA,
+        geladen: [_e('a')],
+        laufend: {tagA: const []},
+      );
+      expect(stand, isEmpty);
+    });
+  });
+
+  group('TagesplanNotifier – Ladestand während eines Speicherns', () {
+    late List<Completer<void>> speichern;
+    late List<(DateTime, String)> gespeichert;
+    late ProviderContainer container;
+    final tagA = DateTime(2026, 9, 28);
+    final tagB = DateTime(2026, 9, 29);
+
+    setUp(() {
+      speichern = [];
+      gespeichert = [];
+      container = ProviderContainer(
+        overrides: [
+          tagesplanProvider.overrideWith(
+            (ref) => TagesplanNotifier(
+              ref,
+              speichern: (tag, eintraege) {
+                gespeichert.add((tag, eintraege.map((e) => e.id).join(',')));
+                final c = Completer<void>();
+                speichern.add(c);
+                return c.future;
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+    });
+
+    List<String> ids() =>
+        container.read(tagesplanProvider).map((e) => e.id).toList();
+
+    test('zweite Instanz und schnell zurück: der ältere Ladestand von A wird '
+        'verworfen', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tagA;
+      notifier.setFromGespeichert(tagA, [_e('a')]);
+      notifier.hinzufuegen(_e('b')); // entprellt
+
+      // Zweite Instanz lädt B → A wird sofort gespeichert (läuft noch).
+      notifier.setFromGespeichert(tagB, [_e('x')]);
+      await Future<void>.delayed(Duration.zero);
+      expect(gespeichert, [(tagA, 'a,b')]);
+      expect(notifier.speichertGerade(tagA), isTrue);
+
+      // Zurück: der Cache von A hält noch den Stand ohne «b».
+      notifier.setFromGespeichert(tagA, [_e('a')]);
+      expect(ids(), ['a', 'b']);
+      expect(notifier.gehoertZu(tagA), isTrue);
+
+      speichern.first.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.speichertGerade(tagA), isFalse);
+    });
+
+    test('auch «keine Zeile» ist ein älterer Ladestand, solange das erste '
+        'Speichern läuft', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tagA;
+      notifier.resetLeer(tagA);
+      notifier.hinzufuegen(_e('a'));
+      notifier.resetLeer(tagB); // sichert A sofort
+      await Future<void>.delayed(Duration.zero);
+
+      notifier.resetLeer(tagA);
+      expect(ids(), ['a']);
+    });
+
+    test('nach dem Speichern gilt wieder der Ladestand', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tagA;
+      notifier.setFromGespeichert(tagA, [_e('a')]);
+      notifier.hinzufuegen(_e('b'));
+      notifier.setFromGespeichert(tagB, [_e('x')]);
+      await Future<void>.delayed(Duration.zero);
+      speichern.first.complete();
+      await Future<void>.delayed(Duration.zero);
+
+      // Frisch geladen (nach der Invalidierung): enthält «b» — und darf
+      // auch eine Änderung von anderswo tragen.
+      notifier.setFromGespeichert(tagA, [_e('a'), _e('b'), _e('c')]);
+      expect(ids(), ['a', 'b', 'c']);
+    });
+
+    test('ein gescheitertes Speichern gibt den Tag wieder frei', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tagA;
+      notifier.setFromGespeichert(tagA, [_e('a')]);
+      notifier.hinzufuegen(_e('b'));
+      notifier.setFromGespeichert(tagB, [_e('x')]);
+      await Future<void>.delayed(Duration.zero);
+      speichern.first.completeError(StateError('offline'));
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.speichertGerade(tagA), isFalse);
+    });
+
+    test('zwei Speicherungen desselben Tages: das frühere Ende gibt den '
+        'neueren Stand nicht frei', () async {
+      final notifier = container.read(tagesplanProvider.notifier);
+      container.read(aktiverTagesplanTagProvider.notifier).state = tagA;
+      notifier.setFromGespeichert(tagA, [_e('a')]);
+      notifier.hinzufuegen(_e('b'));
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      notifier.hinzufuegen(_e('c'));
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      expect(gespeichert, [(tagA, 'a,b'), (tagA, 'a,b,c')]);
+
+      speichern.first.complete(); // das ältere ist fertig
+      await Future<void>.delayed(Duration.zero);
+      expect(notifier.speichertGerade(tagA), isTrue);
+
+      notifier.setFromGespeichert(tagB, [_e('x')]);
+      notifier.setFromGespeichert(tagA, [_e('a'), _e('b')]);
+      expect(ids(), ['a', 'b', 'c']);
+    });
+  });
+
   // D1 (Review 26.09.2026): Im Lade-Fenster zeigte die Zeitachse den Plan
   // des vorigen Tages unter dem neuen Datum, «Übernehmen» legte dort ab, und
   // das Verschieben liess Stopps doppelt stehen. Der Screen gibt Plan-
@@ -269,6 +436,88 @@ void main() {
           ),
           TagesplanAnsicht.plan,
         );
+      }
+    });
+  });
+
+  // Review 27.09.2026: An vergangenen Tagen verlangte das Fällig-«+» bei
+  // einem Ladefehler «zuerst Erneut laden» — den Knopf gab es dort nicht,
+  // weil der Tab die Ist-Ansicht statt des Fehlers zeigt.
+  group('tagesplanLadefehlerBand (Ist-Ansicht mit Ladefehler)', () {
+    bool band({
+      required bool nurIst,
+      required bool planGehoertZumTag,
+      required bool ladefehler,
+    }) => tagesplanLadefehlerBand(
+      nurIst: nurIst,
+      planGehoertZumTag: planGehoertZumTag,
+      ladefehler: ladefehler,
+    );
+
+    test('vergangener Tag, Plan nicht geladen, Fehler → Band', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: false, ladefehler: true),
+        isTrue,
+      );
+    });
+
+    test('vergangener Tag, Plan lädt noch → kein Band', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: false, ladefehler: false),
+        isFalse,
+      );
+    });
+
+    test('Nachladefehler bei geladenem Plan → kein Band (Plan-Aktionen '
+        'gehen)', () {
+      expect(
+        band(nurIst: true, planGehoertZumTag: true, ladefehler: true),
+        isFalse,
+      );
+    });
+
+    test('heutiger/künftiger Tag → kein Band, dort zeigt der Tab den '
+        'Fehler selbst', () {
+      expect(
+        band(nurIst: false, planGehoertZumTag: false, ladefehler: true),
+        isFalse,
+      );
+      expect(
+        tagesplanAnsicht(
+          nurIst: false,
+          planGehoertZumTag: false,
+          ladefehler: true,
+        ),
+        TagesplanAnsicht.ladefehler,
+      );
+    });
+
+    test('jede Lage, in der das «+» «Erneut laden» verlangt, hat einen '
+        'Knopf', () {
+      for (final nurIst in [false, true]) {
+        for (final gehoert in [false, true]) {
+          // `_planBereit` verlangt «Erneut laden» genau dann:
+          const ladefehler = true;
+          final verlangt = !gehoert && ladefehler;
+          if (!verlangt) continue;
+          final fehleransicht =
+              tagesplanAnsicht(
+                nurIst: nurIst,
+                planGehoertZumTag: gehoert,
+                ladefehler: ladefehler,
+              ) ==
+              TagesplanAnsicht.ladefehler;
+          expect(
+            fehleransicht ||
+                band(
+                  nurIst: nurIst,
+                  planGehoertZumTag: gehoert,
+                  ladefehler: ladefehler,
+                ),
+            isTrue,
+            reason: 'nurIst=$nurIst',
+          );
+        }
       }
     });
   });

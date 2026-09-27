@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/services/pdf/pdf_tab_oeffner_export.dart';
@@ -20,7 +21,7 @@ void main() {
     final code = File(pfad).readAsStringSync();
     final start = code.indexOf('static Future<void> oeffnen(');
     expect(start, isNot(-1), reason: '$pfad: oeffnen() nicht gefunden');
-    final ende = code.indexOf('Future<void> _loeschenFragen', start);
+    final ende = code.indexOf('static Future<void> _pdfHerunterladen', start);
     return code
         .substring(start, ende == -1 ? code.length : ende)
         .replaceAll(RegExp(r'//.*'), '');
@@ -61,5 +62,55 @@ void main() {
 
   test('Nicht-Web: Vorbereiten ist ein No-op', () {
     expect(pdfTabVorbereiten(), isNull);
+  });
+
+  // 27.09.2026: Liefert pdfTabVorbereiten() null (Popup blockiert) UND wird
+  // auch der Rückfall nach dem await blockiert, endete das Öffnen stumm.
+  group('beide Fenster blockiert → Download statt Stille', () {
+    test('zeigePdfImTab/Rückfall melden, ob ein Tab offen ist', () {
+      // Kompiliert nur mit Future<bool> (hier: die Stub-Seite).
+      final Future<bool> Function(PdfTabHandle?, Uint8List, String) zeigen =
+          zeigePdfImTab;
+      final Future<bool> Function(Uint8List, String) rueckfall =
+          oeffnePdfImNeuenTab;
+      expect(zeigen, isNotNull);
+      expect(rueckfall, isNotNull);
+
+      final web = File(
+        'lib/services/pdf/pdf_tab_oeffner_web.dart',
+      ).readAsStringSync();
+      expect(web, contains('Future<bool> zeigePdfImTab('));
+      expect(web, contains('Future<bool> oeffnePdfImNeuenTab('));
+      final oeffnen = web.substring(
+        web.indexOf('Future<bool> oeffnePdfImNeuenTab('),
+        web.indexOf('class PdfTabHandle'),
+      );
+      expect(
+        oeffnen,
+        contains('fenster == null'),
+        reason: 'window.open liefert bei Blockade kein Fenster',
+      );
+      expect(oeffnen, contains('return false;'));
+    });
+
+    test('Dokumentliste bietet bei false einen Download an', () {
+      final m = methodeOeffnen();
+      expect(m, contains('final offen = await zeigePdfImTab('));
+      final wenn = m.indexOf('if (!offen)');
+      expect(wenn, isNot(-1), reason: 'Ergebnis von zeigePdfImTab prüfen');
+      final rest = m.substring(wenn);
+      expect(rest, contains('SnackBarAction('));
+      expect(rest, contains("'Herunterladen'"));
+      expect(rest, contains('_pdfHerunterladen('));
+
+      final code = File(pfad).readAsStringSync();
+      final laden = code.substring(
+        code.indexOf('static Future<void> _pdfHerunterladen'),
+        code.indexOf('Future<void> _loeschenFragen'),
+      );
+      expect(laden, contains('downloadBytesFile('));
+      expect(laden, contains("mimeType: 'application/pdf'"));
+      expect(laden, contains('catch ('), reason: 'Fehler melden, nie still');
+    });
   });
 }

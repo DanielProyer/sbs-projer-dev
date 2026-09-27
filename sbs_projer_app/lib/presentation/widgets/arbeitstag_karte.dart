@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show TagesFahrten;
 import 'package:sbs_projer_app/core/util/tagesrand_position.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart';
+import 'package:sbs_projer_app/presentation/providers/arbeitstag_providers.dart'
+    show arbeitstageProvider;
+import 'package:sbs_projer_app/presentation/providers/fahrten_providers.dart'
+    show tagesFahrtenProvider;
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/pause_pruefen_helfer.dart';
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
@@ -33,6 +40,11 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
   /// Balken («Pause seit 14:10 · 47 min») live vorrücken (Vorbild: der
   /// Live-Timer der Tourenplan-Zeitachse, `_liveTimerAktualisieren`).
   Timer? _pauseTimer;
+
+  /// Läuft gerade der Feierabend-Ablauf (Speichern, dann Standort)? Solange
+  /// bleibt die Zeile «Fahrten heute» weg und ihr Provider ungestartet —
+  /// siehe [_fahrtenHeuteZeile].
+  bool _feierabendLaeuft = false;
 
   DateTime get _heute {
     final jetzt = DateTime.now();
@@ -102,6 +114,12 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
       pauseSchreiben: pauseSchreiben,
     );
     ref.invalidate(gespeicherterTagesplanProvider(heute));
+    // Die Monatsrahmen der Fahrten-Kontrolle («Fahrten heute» unten, die
+    // Auswertung) liegen in einem eigenen, NICHT autoDispose-Cache — ohne
+    // das hier zeigte die Zeile nach dem Feierabend den km-Stand von vorher
+    // (oder gar keinen). Ohne Zuhörer kostet das nichts: geladen wird erst
+    // beim nächsten Lesen.
+    ref.invalidate(arbeitstageProvider((jahr: heute.year, monat: heute.month)));
   }
 
   /// Pause starten oder beenden. Beim Beenden wird die Dauer zur Tagessumme
@@ -407,43 +425,54 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
         erfassterBeginn: erfassterBeginn,
       ),
     );
-    if (eingabe == null) return;
+    if (eingabe == null || !mounted) return;
 
-    // ZUERST speichern (Fall Daniel 11.08.2026): Am PC ohne Standortdienst
-    // blieb die GPS-Abfrage hier stehen — Arbeitsende und km-Stand wurden
-    // wortlos verworfen, zweimal. Die Arbeitszeit darf nie davon abhängen,
-    // ob eine Koordinate zustande kommt.
+    // «Fahrten heute» erst nach dem ganzen Ablauf rechnen: Die Zeile würde
+    // sonst schon beim ersten Speichern erscheinen, den Monat mit dem Stand
+    // VOR dem Schreiben laden und nach dem Standort ein zweites Mal —
+    // jedesmal mit einem eigenen Nachrouten-Lauf (siehe
+    // [_fahrtenHeuteZeile]).
+    setState(() => _feierabendLaeuft = true);
+    final ({double lat, double lng})? pos;
     try {
-      await _speichern(heute, (
-        beginn: eingabe.beginn ?? '06:00',
-        ende: eingabe.ende,
-        km: eingabe.km,
-        kmStart: eingabe.kmStart,
-        lat: at.lat,
-        lng: at.lng,
-        endLat: at.endLat,
-        endLng: at.endLng,
-        pauseMinuten: at.pauseMinuten,
-        pauseStart: at.pauseStart,
-      ), beginnDb: eingabe.beginn);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Arbeitstag gespeichert')),
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-      );
-      return;
-    }
+      // ZUERST speichern (Fall Daniel 11.08.2026): Am PC ohne Standortdienst
+      // blieb die GPS-Abfrage hier stehen — Arbeitsende und km-Stand wurden
+      // wortlos verworfen, zweimal. Die Arbeitszeit darf nie davon abhängen,
+      // ob eine Koordinate zustande kommt.
+      try {
+        await _speichern(heute, (
+          beginn: eingabe.beginn ?? '06:00',
+          ende: eingabe.ende,
+          km: eingabe.km,
+          kmStart: eingabe.kmStart,
+          lat: at.lat,
+          lng: at.lng,
+          endLat: at.endLat,
+          endLng: at.endLng,
+          pauseMinuten: at.pauseMinuten,
+          pauseStart: at.pauseStart,
+        ), beginnDb: eingabe.beginn);
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Arbeitstag gespeichert')),
+        );
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
+        );
+        return;
+      }
 
-    // Standort danach — ohne GPS gilt der hinterlegte Startort (zuhause).
-    final pos = await _positionNachtragen(
-      heute,
-      messenger,
-      'Feierabend',
-      istEnde: true,
-      beginnDb: eingabe.beginn,
-    );
+      // Standort danach — ohne GPS gilt der hinterlegte Startort (zuhause).
+      pos = await _positionNachtragen(
+        heute,
+        messenger,
+        'Feierabend',
+        istEnde: true,
+        beginnDb: eingabe.beginn,
+      );
+    } finally {
+      if (mounted) setState(() => _feierabendLaeuft = false);
+    }
 
     // Vergessene Pause abfangen (Daniel 31.07.2026): Lief die Pause noch,
     // wuerde sie sonst bis in alle Ewigkeit weiterlaufen — Feierabend ist
@@ -458,6 +487,69 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
         debugPrint('[Pause-Pruefung] uebersprungen, Fehler: $e');
       }
     }
+  }
+
+  /// «Fahrten heute: 7 · 143 km · Zähler 148 km (+5)» nach dem Feierabend
+  /// — der Tag in einer Zeile, Tipp führt zu den Fahrten des Tages.
+  ///
+  /// `null` (keine Zeile), solange die Fahrten laden, bei einem Fehler und
+  /// an Tagen ohne Erfassung — nie eine erfundene «0 km».
+  ///
+  /// Nachrouten: [tagesFahrtenProvider] liest den Monats-Provider, und der
+  /// fragt fehlende Betrieb→Betrieb-Distanzen nach (höchstens 10 je Lauf,
+  /// 30 je Sitzung, seriell gedrosselt — `fahrten_providers.dart`). Das ist
+  /// erwünscht, aber nur einmal: Der Provider wird erst beobachtet, wenn der
+  /// Feierabend-Ablauf ganz durch ist ([_feierabendLaeuft]); Auswertung und
+  /// Fahrten-Screen teilen sich denselben Monats-Provider (Record-Schlüssel),
+  /// und ein Paar geht je Sitzung höchstens einmal an die Edge Function.
+  Widget? _fahrtenHeuteZeile(DateTime heute) {
+    final fahrten = ref.watch(tagesFahrtenProvider(heute));
+    // Nachrechnen (neue Distanzen) behält den bisherigen Wert — die Zeile
+    // bleibt stehen; ein Fehler blendet sie aus.
+    final f = fahrten.hasError ? null : fahrten.valueOrNull;
+    if (f == null) return null;
+    final text = fahrtenHeuteText(f);
+    const grau = TextStyle(fontSize: 12, color: AppColors.textSecondary);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.push(fahrtenPfad(heute)),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.route, size: 14, color: AppColors.textSecondary),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: grau,
+                  children: [
+                    TextSpan(text: text.basis),
+                    if (text.delta != null)
+                      TextSpan(
+                        text: ' ${text.delta}',
+                        style: f.differenzAuffaellig
+                            ? const TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w700,
+                              )
+                            : null,
+                      ),
+                  ],
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -523,6 +615,9 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     if (!pauseLaeuft && (at.pauseMinuten ?? 0) > 0) {
       status += ' · ${at.pauseMinuten} min Pause';
     }
+    final fahrtenZeile = at.ende != null && !_feierabendLaeuft
+        ? _fahrtenHeuteZeile(heute)
+        : null;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -604,6 +699,9 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
                 ),
               ],
             ),
+            // Bewusst kein `?fahrtenZeile` (analysis_options.yaml: der
+            // isar_generator kann die Syntax nicht parsen).
+            if (fahrtenZeile != null) fahrtenZeile,
             // Auffälliger Balken mit mitlaufender Dauer, solange eine Pause
             // läuft (Daniel 31.07.2026: sonst wird das Ausstempeln beim
             // Weiterfahren vergessen — die Minuten laufen sonst unbemerkt
@@ -649,6 +747,30 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
     );
   }
 }
+
+/// Die Zeile «Fahrten heute» in zwei Teilen: [basis] grau, [delta] (Zähler
+/// − Fahrten) getrennt, damit die Karte es bei einer auffälligen Differenz
+/// rot färben kann.
+///
+/// «Fahrten heute: 7 · 143 km · Zähler 148 km» + «(+5)». Ohne Zählerstand
+/// fehlen Zähler und Δ. Rundung wie in der Auswertung: erst auf ganze km,
+/// dann das Vorzeichen — sonst stünde bei −0.4 ein «(−0)»; Null ist «±0».
+({String basis, String? delta}) fahrtenHeuteText(TagesFahrten f) {
+  final basis =
+      'Fahrten heute: ${f.fahrten.length} · ${f.kmFahrten.round()} km';
+  final zaehler = f.kmZaehler;
+  final d = f.differenz;
+  if (zaehler == null || d == null) return (basis: basis, delta: null);
+  final km = d.round();
+  final delta = km == 0 ? '±0' : '${km < 0 ? '−' : '+'}${km.abs()}';
+  return (basis: '$basis · Zähler $zaehler km', delta: '($delta)');
+}
+
+/// Route der Fahrten eines Tages: `/auswertungen/arbeitstage/2026-09-27/fahrten`.
+String fahrtenPfad(DateTime tag) =>
+    '/auswertungen/arbeitstage/'
+    '${tag.year}-${tag.month.toString().padLeft(2, '0')}-'
+    '${tag.day.toString().padLeft(2, '0')}/fahrten';
 
 class _KnopfKlein extends StatelessWidget {
   final String text;

@@ -9,10 +9,20 @@ import 'package:web/web.dart' as web;
 /// Nur für Aufrufer, die die Bytes SCHON haben und synchron im Tipp-Handler
 /// öffnen. Wer erst herunterlädt, nimmt [pdfTabVorbereiten] +
 /// [zeigePdfImTab] — sonst blockiert der Browser das Fenster.
-Future<void> oeffnePdfImNeuenTab(Uint8List bytes, String dateiname) async {
+///
+/// `true` = der Tab ist offen; `false` = der Browser hat ihn blockiert
+/// (`window.open` liefert dann kein Fenster). Der Aufrufer entscheidet, ob
+/// er stattdessen einen Download anbietet — bis 27.09.2026 endete dieser
+/// Fall stumm: man tippte aufs Dokument und sah nichts.
+Future<bool> oeffnePdfImNeuenTab(Uint8List bytes, String dateiname) async {
   final url = _blobUrl(bytes);
-  web.window.open(url, '_blank');
+  final fenster = web.window.open(url, '_blank');
+  if (fenster == null || fenster.closed) {
+    web.URL.revokeObjectURL(url);
+    return false;
+  }
   _spaeterFreigeben(url);
+  return true;
 }
 
 /// Griff auf einen vorab geöffneten, noch leeren Browser-Tab.
@@ -54,7 +64,12 @@ PdfTabHandle? pdfTabVorbereiten() {
 }
 
 /// Stufe 2: zeigt die heruntergeladenen Bytes im vorbereiteten Tab.
-Future<void> zeigePdfImTab(
+///
+/// `true` = das PDF steht in einem Tab. `false` = kein vorbereiteter Tab
+/// (blockiert oder inzwischen geschlossen) UND der Rückfall
+/// [oeffnePdfImNeuenTab] wurde nach dem `await` ebenfalls blockiert — dann
+/// muss der Aufrufer etwas anbieten (Dokumentliste: Download).
+Future<bool> zeigePdfImTab(
   PdfTabHandle? handle,
   Uint8List bytes,
   String dateiname,
@@ -65,6 +80,7 @@ Future<void> zeigePdfImTab(
   final url = _blobUrl(bytes);
   handle._fenster.location.href = url;
   _spaeterFreigeben(url);
+  return true;
 }
 
 String _blobUrl(Uint8List bytes) {

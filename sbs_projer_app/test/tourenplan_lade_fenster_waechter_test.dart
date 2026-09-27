@@ -107,6 +107,20 @@ void main() {
     expect(fehlerZweig, isNot(contains('resetLeer')));
   });
 
+  // Review 27.09.2026 (Restfenster nach K1): Nach dem Zurück aus einer
+  // zweiten Tourenplan-Instanz lud der Plan von Tag A nach (sein Speichern
+  // hatte den Cache invalidiert). `.when` liefert in diesem Zustand
+  // standardmässig den VORIGEN Wert über `data` — der ältere Stand wurde
+  // übernommen. Die Regel für ein noch laufendes Speichern testet
+  // `test/providers/tour_tagesplan_test.dart` (standBeimLaden).
+  test('ein nachladender Plan wird nicht mit seinem alten Wert angewendet',
+      () {
+    final start = screen.indexOf('gespeichertAsync.when(');
+    expect(start, greaterThanOrEqualTo(0));
+    final kopf = screen.substring(start, screen.indexOf('data:', start));
+    expect(kopf, contains('skipLoadingOnRefresh: false'));
+  });
+
   // K1 (Review 26.09.2026): Eine Aufgabe mit `/touren?datum=B` öffnet per
   // `router.push` eine zweite Tourenplanung; sie lädt B in den EINEN
   // globalen `tagesplanProvider`. Nach dem Zurück hielt die erste Instanz
@@ -171,6 +185,30 @@ void main() {
       'lib/presentation/screens/touren/widgets/wochen_leiste.dart',
     ).readAsStringSync();
     expect(ohneKommentare(leiste), isNot(contains('Duration(days')));
+  });
+
+  // Review 27.09.2026: An vergangenen Tagen zeigt der Tab die Ist-Ansicht —
+  // auch bei einem Ladefehler. «Erneut laden» muss dort als Band stehen,
+  // sonst verlangt das Fällig-«+» einen Knopf, den es nicht gibt.
+  test('vergangener Tag mit Ladefehler: Band mit «Erneut laden»', () {
+    final zustand = screen.substring(
+      screen.indexOf('class _TourenplanungScreenState'),
+    );
+    final build = _rumpf(zustand, 'Widget build(BuildContext context)');
+    expect(build, contains('tagesplanLadefehlerBand('));
+    expect(build, contains('if (ladefehlerBand)'));
+    expect(build, contains('_planLadefehlerBand('));
+
+    final band = _rumpf(zustand, 'Widget _planLadefehlerBand(');
+    expect(band, contains('TapKnopf('));
+    expect(band, contains("'Erneut laden'"));
+    expect(band, contains('onTap: _planErneutLaden'));
+    final laden = zustand.indexOf('void _planErneutLaden() =>');
+    expect(laden, greaterThanOrEqualTo(0));
+    expect(
+      zustand.substring(laden, zustand.indexOf(';', laden)),
+      contains('ref.invalidate(gespeicherterTagesplanProvider(_selectedDate))'),
+    );
   });
 
   test('gespeicherterTagesplanProvider reicht Ladefehler weiter', () {
