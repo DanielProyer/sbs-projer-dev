@@ -209,16 +209,26 @@ static Future<List<BetriebLocal>> getAll() async {
 
 ## Rechnungen — `zahlungsstatus` CHECK-Werte
 
-Aktuell erlaubt (Migration 083): `offen, gesendet, freigegeben, bezahlt, erinnert, mahnung_1, mahnung_2, abgeschrieben`
+Erlaubt seit **Migration 211** (Statusmodell-Zielbild, 27.09.2026): **`offen, bezahlt, abgeschrieben`** — `NOT NULL`, Vorgabe `offen`. Der Status sagt NUR, ob Geld fliesst. Alles andere ist ein eigenes Feld:
 
-**Heineken-Monatsrechnung Workflow**: `offen → gesendet → freigegeben → bezahlt`
-- `gesendet`: nach Mail-Versand (setzt zusätzlich `versendet_am`)
-- `freigegeben`: löst Debitoren/Ertrag-Buchung via `HeinekenBuchungService.createFromRechnung`
-- `bezahlt`: löst Zahlungseingangs-Buchung via `HeinekenBuchungService.createZahlungseingang`
+| Frage | Feld | früher (bis 211) Status |
+|---|---|---|
+| zugestellt? | `versendet_am` (Mail/Post, Erstversanddatum) / `uebergeben_am` (Tresen) | `gesendet` |
+| gemahnt? | `mahnung_stufe` 0–3 (1 = erinnert, 2 = Mahnung 1, 3 = Mahnung 2/letzte), NOT NULL | `erinnert`/`mahnung_1`/`mahnung_2` |
+| Heineken freigegeben? | `freigegeben_am timestamptz` | `freigegeben` |
 
-**Kundenrechnung Workflow**: `offen → bezahlt` (mit Mahnstufen `erinnert/mahnung_1/mahnung_2`, ggf. `abgeschrieben`)
+- **Anzeige** («Gesendet», «1. Mahnung», «Freigegeben», «Nicht zugestellt») kommt aus `anzeigeSchluessel`/`anzeigeStatus` (`core/util/rechnung_status.dart`) — nie den rohen Wert zeigen oder vergleichen. Mengen: `istOffen`, `istZahlbar`, `istGemahnt`, `mahnstufeVon`.
+- **Schreiben**: `bezahlt` NUR über `zahlung_erfassen` (ZahlungKern); `abgeschrieben` über `MahnwesenService.abschreiben`, Mahnfall und `abschreibung_jahrgang_buchen`; der Mahnlauf setzt nur `mahnung_stufe` + Mahndaten; ein Versand nur `versendet_am` (App und `send-rechnung-mail`).
+- **Optimistisches Sperren**: Der Status bleibt beim Mahnen `offen` — einen parallelen Mahnlauf verrät nur `mahnung_stufe` (`RechnungRepository.updateWennStatus(…, erwarteteStufe:)`, in SQL `zahlung_erfassen` über `p_vorher.mahnung_stufe`).
 
-Frühere Werte (`entwurf`, `versendet`, `gestellt`, `teilbezahlt`, `ueberfaellig`, `storniert`) wurden in Migrationen 081–083 entfernt — Code-Stellen, die diese Werte schreiben, werfen PostgrestException.
+**Heineken-Monatsrechnung**: `offen → gesendet → freigegeben → bezahlt` als Stufe aus den Feldern (`heinekenStufe`):
+- gesendet: nach Mail-Versand (`versendet_am`)
+- freigegeben: `HeinekenBuchungService.freigeben` bucht ZUERST Debitoren/Ertrag (`createFromRechnung`), DANN `freigegeben_am`
+- bezahlt: Zahlungseingang über `createZahlungseingang` → ZahlungKern (DB prüft `freigegeben_am IS NOT NULL`)
+
+**Kundenrechnung**: `offen → bezahlt`, dazwischen Mahnstufen in `mahnung_stufe`, ggf. `abgeschrieben`.
+
+Frühere Werte werfen PostgrestException: `entwurf`, `versendet`, `gestellt`, `teilbezahlt`, `ueberfaellig`, `storniert` (081–083) und `gesendet`, `freigegeben`, `erinnert`, `mahnung_1`, `mahnung_2` (211). Gespeicherte Vorher-Stände von vor 211 (Mahnschreiben-Protokoll, `zahlungsgruppen.vorher`, `abschreibung_positionen.status_vorher`) werden beim Zurückschreiben normalisiert (`Zahlungsstatus.ausGespeichert`/`stufeAusAltwert`, SQL `rechnung_stufe_aus_altstatus`). Wächter: `test/zahlungsstatus_waechter_test.dart` (CHECK der letzten Migration), `test/migration_211_statusmodell_test.dart`, `supabase/functions/_waechter_test.ts`.
 
 ## Sync-Architektur (Offline-First, nur Native)
 
