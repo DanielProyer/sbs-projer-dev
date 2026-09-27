@@ -1,3 +1,5 @@
+import 'dart:math' show e;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 
@@ -58,6 +60,23 @@ void main() {
         expect(effektivKmh, greaterThan(10));
         expect(effektivKmh, lessThan(60));
       }
+    });
+  });
+
+  group('umwegFaktor (herausgezogen 27.09.2026 für die Fahrtenerkennung)', () {
+    test('Nahbereich 2.20, Fernstrecke gegen 1.45', () {
+      expect(umwegFaktor(0), closeTo(2.20, 1e-12));
+      expect(umwegFaktor(18), closeTo(1.45 + 0.75 / e, 1e-12));
+      expect(umwegFaktor(500), closeTo(1.45, 1e-6));
+    });
+
+    test('reineFahrzeitMinuten unverändert (Werte vor dem Herausziehen)', () {
+      // Mit der alten, inline gerechneten Formel am 27.09.2026 ermittelt —
+      // das Herausziehen darf keine Minute verschieben.
+      expect(reineFahrzeitMinuten(2), closeTo(6.909705835737236, 1e-9));
+      expect(reineFahrzeitMinuten(20), closeTo(32.39527369481962, 1e-9));
+      // Fall Sonne Seehotel Eich: 104 km Luftlinie ≈ 117 min.
+      expect(reineFahrzeitMinuten(103.7), closeTo(116.0691539091567, 1e-9));
     });
   });
 

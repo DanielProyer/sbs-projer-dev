@@ -39,10 +39,19 @@ const int kRuestzuschlagMin = 5;
 /// Median-Fehler über alle 804 Routen: 7 min (vorher 35 min).
 double reineFahrzeitMinuten(double luftlinieKm) {
   final naehe = exp(-luftlinieKm / 18);
-  final umwegFaktor = 1.45 + 0.75 * naehe;
   final schnittKmh = 78 - 46 * naehe;
-  return luftlinieKm * umwegFaktor / schnittKmh * 60;
+  return luftlinieKm * umwegFaktor(luftlinieKm) / schnittKmh * 60;
 }
+
+/// Strasse ÷ Luftlinie in Abhängigkeit der Luftlinie — derselbe, an 804
+/// Routen kalibrierte Faktor wie in [reineFahrzeitMinuten]: 2.20 im
+/// Nahbereich (Talstrasse, Ortsdurchfahrten), exponentiell gegen 1.45 auf
+/// Fernstrecken (Autobahn), Halbwertsstrecke ~18 km.
+///
+/// Eigene Funktion seit 27.09.2026, damit die Fahrtenerkennung
+/// (`fahrten_aus_kette.dart`) ohne gerouteten Wert eine Strecke in km
+/// schätzen kann — mit genau der Kalibrierung, die die Fahrzeit nutzt.
+double umwegFaktor(double luftlinieKm) => 1.45 + 0.75 * exp(-luftlinieKm / 18);
 
 /// Geschätzte Übergangszeit zwischen zwei Orten.
 ///
