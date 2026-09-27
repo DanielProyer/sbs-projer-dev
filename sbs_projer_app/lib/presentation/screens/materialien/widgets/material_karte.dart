@@ -92,6 +92,10 @@ class _MaterialKarteState extends State<MaterialKarte> {
     final vorher = _bestand;
     final neu = (vorher + delta).clamp(0, double.infinity).toDouble();
     if (neu == vorher) return;
+    // Vor dem await holen: Ist die Karte beim Fehler schon weggewischt,
+    // muss die Meldung trotzdem kommen — sonst hielte man den Tipp für
+    // gespeichert.
+    final messenger = ScaffoldMessenger.maybeOf(context);
     // Optimistisch: sofort zeigen, sperren bis gespeichert — zwei schnelle
     // Tipps schickten sonst zwei Requests mit demselben Ausgangswert.
     setState(() {
@@ -102,11 +106,10 @@ class _MaterialKarteState extends State<MaterialKarte> {
       await widget.onBestand(neu);
     } catch (e) {
       debugPrint('[MaterialKarte] Bestand nicht gespeichert: $e');
-      if (!mounted) return;
-      setState(() => _bestand = vorher);
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      messenger?.showSnackBar(
         const SnackBar(content: Text('Bestand konnte nicht gespeichert werden')),
       );
+      if (mounted) setState(() => _bestand = vorher);
     } finally {
       if (mounted) setState(() => _speichert = false);
     }
@@ -115,6 +118,7 @@ class _MaterialKarteState extends State<MaterialKarte> {
   Future<void> _schalteVormerken() async {
     if (_merkt) return;
     final vorher = _vorgemerkt;
+    final messenger = ScaffoldMessenger.maybeOf(context); // wie oben
     setState(() {
       _vorgemerkt = !vorher;
       _merkt = true;
@@ -123,13 +127,12 @@ class _MaterialKarteState extends State<MaterialKarte> {
       await widget.onVormerken(!vorher);
     } catch (e) {
       debugPrint('[MaterialKarte] Vormerkung nicht gespeichert: $e');
-      if (!mounted) return;
-      setState(() => _vorgemerkt = vorher);
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      messenger?.showSnackBar(
         const SnackBar(
           content: Text('Vormerkung konnte nicht gespeichert werden'),
         ),
       );
+      if (mounted) setState(() => _vorgemerkt = vorher);
     } finally {
       if (mounted) setState(() => _merkt = false);
     }
@@ -198,8 +201,12 @@ class _MaterialKarteState extends State<MaterialKarte> {
                   onTap: widget.onDetails,
                 ),
               ),
-              const SizedBox(width: 12),
-              _vormerkKreis(),
+              // Gast: gar kein Kreis — einer, der wie ein Knopf aussieht und
+              // nichts tut, wirkt kaputt.
+              if (widget.bearbeitbar) ...[
+                const SizedBox(width: 12),
+                _vormerkKreis(),
+              ],
             ],
           ),
         ],
@@ -386,7 +393,8 @@ class _MaterialKarteState extends State<MaterialKarte> {
   }
 
   Widget _vormerkKreis() {
-    final aktiv = widget.bearbeitbar && !_merkt;
+    // Nur bei `bearbeitbar` überhaupt im Baum (Gast sieht keinen Kreis).
+    final aktiv = !_merkt;
     return _rundknopf(
       icon: _vorgemerkt ? Icons.bookmark : Icons.bookmark_border,
       semantik: _vorgemerkt ? 'Vormerkung aufheben' : 'Für Bestellung vormerken',

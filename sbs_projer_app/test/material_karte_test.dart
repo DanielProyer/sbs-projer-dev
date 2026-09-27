@@ -255,15 +255,49 @@ void main() {
     expect(r.details, 1);
   });
 
-  testWidgets('nicht bearbeitbar: keine ± Knöpfe, Vormerken nur Anzeige',
+  testWidgets('nicht bearbeitbar: keine ± Knöpfe, kein Vormerk-Kreis',
       (tester) async {
-    final r = await _zeige(tester, _lager(vorgemerkt: true),
-        bearbeitbar: false);
+    // Ein Kreis, der wie ein Knopf aussieht, aber nichts tut, liest der
+    // Gast als kaputt — also gar nicht zeigen.
+    await _zeige(tester, _lager(vorgemerkt: true), bearbeitbar: false);
     expect(find.byIcon(Icons.add), findsNothing);
     expect(find.byIcon(Icons.remove), findsNothing);
-    await _tippe(tester, find.byIcon(Icons.bookmark));
-    expect(r.vormerken, isEmpty);
-    expect(find.byIcon(Icons.bookmark), findsOneWidget);
+    expect(find.byIcon(Icons.bookmark), findsNothing);
+    expect(find.byIcon(Icons.bookmark_border), findsNothing);
+    expect(find.text('Details'), findsOneWidget);
+  });
+
+  testWidgets('Fehlermeldung auch, wenn die Karte beim Fehler schon weg ist',
+      (tester) async {
+    // Weitergewischt, bevor das Speichern scheiterte: Ohne Meldung hielte
+    // man den Tipp für gespeichert.
+    final laufend = Completer<void>();
+    await _zeige(tester, _lager(), onBestand: (_) => laufend.future);
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump();
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: SizedBox())),
+    );
+    laufend.completeError(Exception('offline'));
+    await tester.pumpAndSettle();
+    expect(find.text('Bestand konnte nicht gespeichert werden'), findsOneWidget);
+  });
+
+  testWidgets('Vormerk-Fehler nach dem Wegwischen wird gemeldet',
+      (tester) async {
+    final laufend = Completer<void>();
+    await _zeige(tester, _lager(), onVormerken: (_) => laufend.future);
+    await tester.tap(find.byIcon(Icons.bookmark_border));
+    await tester.pump();
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: SizedBox())),
+    );
+    laufend.completeError(Exception('offline'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Vormerkung konnte nicht gespeichert werden'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Knöpfe sind gross genug für den Daumen', (tester) async {
