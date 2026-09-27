@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/rechnung_zustellung.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
@@ -167,7 +168,7 @@ class _RechnungDetailContentState
         SnackBar(
           content: Text(
             '$anzahl Buchung(en) gelöscht — Rechnung wieder '
-            '${_rechnung.zahlungsstatus}.',
+            '«${anzeigeStatus(_rechnung)}».',
           ),
         ),
       );
@@ -278,7 +279,7 @@ class _RechnungDetailContentState
                     'Status',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
-                  _StatusChip(status: _rechnung.zahlungsstatus),
+                  _StatusChip(rechnung: _rechnung),
                 ],
               ),
               if (_rechnung.versandart != null) ...[
@@ -712,11 +713,15 @@ class _RechnungDetailContentState
       );
 
       // 5. versendet_am setzen (nur bei scharfem Versand).
-      // Rückfall neben dem serverseitigen Vermerk; beide idempotent.
+      // Rückfall neben dem serverseitigen Vermerk. Das Erstversanddatum
+      // bleibt (B4): `_rechnung` ist der Stand VOR dem Versand (neu geladen
+      // in Schritt 1) — der Server hat versendet_am soeben auf heute
+      // gesetzt, hier kommt das erste Datum zurück. Mehr Zeit für den
+      // Kunden gibt die neue Fälligkeit aus Schritt 1.
       final istScharf = MailConfig.istScharf('reinigung');
       if (istScharf) {
         await RechnungRepository.update(_rechnung.id, {
-          'versendet_am': DateTime.now().toIso8601String().split('T').first,
+          'versendet_am': ReinigungRechnungVersand.versendetAmFeld(_rechnung),
           'versandart': 'rechnung_mail',
         });
         // Status nur offen → gesendet (R4): Ein Neuversand dreht eine
@@ -1019,10 +1024,11 @@ class _SummenRow extends StatelessWidget {
   }
 }
 
+/// Text aus [anzeigeStatus], Farbe aus demselben Schlüssel.
 class _StatusChip extends StatelessWidget {
-  final String status;
+  final Rechnung rechnung;
 
-  const _StatusChip({required this.status});
+  const _StatusChip({required this.rechnung});
 
   @override
   Widget build(BuildContext context) {
@@ -1033,7 +1039,7 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        _label,
+        anzeigeStatus(rechnung),
         style: TextStyle(
           color: _color,
           fontWeight: FontWeight.w600,
@@ -1043,27 +1049,8 @@ class _StatusChip extends StatelessWidget {
     );
   }
 
-  String get _label {
-    switch (status) {
-      case 'offen':
-        return 'Offen';
-      case 'bezahlt':
-        return 'Bezahlt';
-      case 'erinnert':
-        return 'Erinnert';
-      case 'mahnung_1':
-        return 'Mahnung 1';
-      case 'mahnung_2':
-        return 'Mahnung 2';
-      case 'abgeschrieben':
-        return 'Abgeschrieben';
-      default:
-        return status;
-    }
-  }
-
   Color get _color {
-    switch (status) {
+    switch (anzeigeSchluessel(rechnung)) {
       case 'offen':
         return AppColors.warning;
       case 'bezahlt':

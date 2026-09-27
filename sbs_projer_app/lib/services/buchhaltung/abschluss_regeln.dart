@@ -1,7 +1,9 @@
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
@@ -388,10 +390,12 @@ class DebitorenStatusRegel extends AbschlussRegel {
 /// Zahlungs-Rücknahme vor ZahlungKern). Der Mahnlauf rechnet mit der Stufe —
 /// ein Widerspruch führt zur falschen nächsten Mahnung.
 bool statusMahnstufeWiderspruch(Rechnung r) {
+  // Bewusst eigene Menge: nur die Status, die «ungemahnt» BEHAUPTEN
+  // (nicht freigegeben/erledigt) — siehe rechnung_status_waechter_test.
   const ungemahnt = {'offen', 'gesendet'};
-  const gemahnt = {'erinnert', 'mahnung_1', 'mahnung_2'};
   return (ungemahnt.contains(r.zahlungsstatus) && r.mahnungStufe > 0) ||
-      (gemahnt.contains(r.zahlungsstatus) && r.mahnungStufe == 0);
+      (Zahlungsstatus.gemahnt.contains(r.zahlungsstatus) &&
+          r.mahnungStufe == 0);
 }
 
 class StatusMahnstufeRegel extends AbschlussRegel {
@@ -424,9 +428,7 @@ class StatusMahnstufeRegel extends AbschlussRegel {
 /// erst **ab `freigegeben`**: Vorher ist bewusst noch nichts gebucht
 /// (die Freigabe bucht 1100/3400); `bezahlt` ist erledigt.
 bool zaehltAlsForderung(Rechnung r) {
-  if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
-    return false;
-  }
+  if (!istOffen(r)) return false;
   if (r.rechnungstyp == 'heineken_monat') {
     return r.zahlungsstatus == 'freigegeben';
   }

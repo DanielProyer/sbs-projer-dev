@@ -7,6 +7,7 @@ import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
@@ -226,7 +227,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
                           style: const TextStyle(fontSize: 13),
                         ),
                         Text(
-                          _rechnungsStatus(r.zahlungsstatus),
+                          anzeigeStatus(r),
                           style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
                         ),
                       ],
@@ -456,9 +457,7 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
   // ─── Betreibung ───
 
   Widget _betreibungBlock(Mahnfall f, List<Rechnung> rechnungen) {
-    final offen = rechnungen
-        .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
-        .toList();
+    final offen = rechnungen.where(istOffen).toList();
     final summe = offen.fold(0.0, (s, r) => s + r.zuZahlen);
     final fenster = f.zahlungsbefehlAm == null ? null : fortsetzungsFenster(f.zahlungsbefehlAm!);
     return Column(
@@ -1022,14 +1021,3 @@ class _MahnfallScreenState extends ConsumerState<MahnfallScreen> {
 
 String _datum(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
-
-String _rechnungsStatus(String s) => switch (s) {
-      'offen' => 'Offen',
-      'gesendet' => 'Gesendet',
-      'erinnert' => 'Erinnert',
-      'mahnung_1' => '1. Mahnung',
-      'mahnung_2' => 'Letzte Mahnung',
-      'bezahlt' => 'Bezahlt',
-      'abgeschrieben' => 'Abgeschrieben',
-      _ => s,
-    };

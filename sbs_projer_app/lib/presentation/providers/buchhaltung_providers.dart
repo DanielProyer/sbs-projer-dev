@@ -13,6 +13,7 @@ import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart'
     show jahreskundenOhneRechnung, offeneForderungenSumme, zaehltAlsForderung;
@@ -371,9 +372,8 @@ final debitorenUebersichtProvider = FutureProvider<Map<String, double>>((ref) as
     rgRows.addAll(List<Map<String, dynamic>>.from(page));
     if (page.length < 1000) break;
   }
-  const erledigt = {'bezahlt', 'abgeschrieben'};
   final nativeOffen = rgRows
-      .where((r) => !erledigt.contains(r['zahlungsstatus']))
+      .where((r) => !Zahlungsstatus.erledigt.contains(r['zahlungsstatus']))
       .fold<double>(0, (s, r) => s + _toDouble(r['betrag_brutto']));
   final debitoren = saldi[1100] ?? 0;
   final delkredere = -(saldi[1109] ?? 0);

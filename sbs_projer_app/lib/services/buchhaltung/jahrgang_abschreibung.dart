@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
@@ -140,9 +141,7 @@ AbschreibAuswahl auswahlFuer(
   for (final r in offene) {
     if (r.rechnungstyp != 'kundenrechnung') continue;
     if (r.rechnungsdatum.year > grenze) continue;
-    if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
-      continue;
-    }
+    if (!istOffen(r)) continue;
     final nummer = r.rechnungsnummer ?? r.id.substring(0, 8);
     final betrieb = betriebNamen[r.betriebId] ?? '';
     final grund = _ausschlussGrund(r);

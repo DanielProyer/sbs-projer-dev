@@ -6,6 +6,7 @@
 library;
 
 import 'package:sbs_projer_app/data/models/buchung.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
@@ -77,9 +78,7 @@ double verfuegbaresGuthaben(
 ) {
   var reserviert = 0.0;
   for (final r in offeneRechnungen) {
-    if (r.zahlungsstatus == 'bezahlt' || r.zahlungsstatus == 'abgeschrieben') {
-      continue;
-    }
+    if (!istOffen(r)) continue;
     if (r.guthabenVerrechnet <= 0 || verrechneteIds.contains(r.id)) continue;
     reserviert += r.guthabenVerrechnet;
   }

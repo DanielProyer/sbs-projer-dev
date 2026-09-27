@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -170,8 +171,6 @@ class MahnlaufDaten {
 String _datum(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}.${d.year}';
 
-const _gemahnt = {'erinnert', 'mahnung_1', 'mahnung_2'};
-
 MahnlaufDaten baueMahnlauf({
   required List<Rechnung> rechnungen,
   required Map<String, MahnBetriebStamm> betriebe,
@@ -271,7 +270,7 @@ MahnlaufDaten baueMahnlauf({
 
   final inFrist = kandidaten
       .where((r) =>
-          _gemahnt.contains(r.zahlungsstatus) &&
+          Zahlungsstatus.gemahnt.contains(r.zahlungsstatus) &&
           istZugestellt(r) &&
           !faelligeIds.contains(r.id))
       .toList();

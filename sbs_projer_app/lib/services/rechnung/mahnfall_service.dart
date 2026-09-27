@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/einzel_abschreibung.dart';
 import 'package:sbs_projer_app/core/util/mahnfall_regeln.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_rechnungsadresse_mapper.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -404,7 +405,7 @@ class MahnfallService {
         default: // 'betreibung'
           final rechnungen = await _laden(fall);
           final offen = rechnungen
-              .where((r) => r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben')
+              .where(istOffen)
               .fold<double>(0, (s, r) => s + r.zuZahlen);
           final felder = <String, dynamic>{
             ...basis,
@@ -566,7 +567,7 @@ class MahnfallService {
     // `_laden` holt jede Rechnung frisch aus der DB (getById).
     final offen = [
       for (final r in await _laden(fall))
-        if (r.zahlungsstatus != 'bezahlt' && r.zahlungsstatus != 'abgeschrieben') r,
+        if (istOffen(r)) r,
     ];
     // Dieselbe Sperre wie `MahnwesenService.abschreiben` — VOR der Schleife
     // für alle Rechnungen. Sonst griffe sie erst dort und der Fall bräche

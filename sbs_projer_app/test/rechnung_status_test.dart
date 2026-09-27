@@ -88,6 +88,136 @@ void main() {
     });
   });
 
+  group('anzeigeStatus — eine Wahrheit für den Status-Text', () {
+    Rechnung mit({
+      String status = 'offen',
+      String typ = 'kundenrechnung',
+      int stufe = 0,
+      DateTime? versendet,
+      DateTime? uebergeben,
+    }) =>
+        Rechnung(
+          id: 'r1',
+          userId: 'u1',
+          rechnungsnummer: 'R-1',
+          rechnungstyp: typ,
+          rechnungsdatum: DateTime(2026, 9, 1),
+          faelligkeitsdatum: DateTime(2026, 10, 1),
+          betragBrutto: 100,
+          zahlungsstatus: status,
+          mahnungStufe: stufe,
+          versendetAm: versendet,
+          uebergebenAm: uebergeben,
+        );
+    final tag = DateTime(2026, 9, 2);
+
+    test('bezahlt und abgeschrieben gehen allem vor', () {
+      // Auch mit Mahnstufe und Versanddatum: erledigt ist erledigt.
+      final b = mit(status: 'bezahlt', stufe: 3, versendet: tag);
+      expect(anzeigeStatus(b), 'Bezahlt');
+      expect(anzeigeSchluessel(b), 'bezahlt');
+      final a = mit(status: 'abgeschrieben', stufe: 3, versendet: tag);
+      expect(anzeigeStatus(a), 'Abgeschrieben');
+      expect(anzeigeSchluessel(a), 'abgeschrieben');
+    });
+
+    test('Mahnstufe aus dem Status', () {
+      expect(anzeigeStatus(mit(status: 'erinnert', stufe: 1)), 'Erinnert');
+      expect(anzeigeStatus(mit(status: 'mahnung_1', stufe: 2)), '1. Mahnung');
+      expect(
+        anzeigeStatus(mit(status: 'mahnung_2', stufe: 3)),
+        'Letzte Mahnung',
+      );
+    });
+
+    test('Mahnstufe aus mahnung_stufe, wenn der Status zurückfiel', () {
+      // Rücknahme einer Bankzahlung stellte früher nur den Status zurück —
+      // die Mahnung liegt aber beim Kunden.
+      final r = mit(status: 'gesendet', stufe: 2, versendet: tag);
+      expect(anzeigeStatus(r), '1. Mahnung');
+      expect(anzeigeSchluessel(r), 'mahnung_1');
+      expect(anzeigeStatus(mit(status: 'offen', stufe: 1)), 'Erinnert');
+      expect(anzeigeStatus(mit(status: 'offen', stufe: 3)), 'Letzte Mahnung');
+    });
+
+    test('die höhere der beiden Stufen gilt', () {
+      // Status sagt «erinnert», Stufe sagt «Mahnung 2» — und umgekehrt.
+      expect(
+        anzeigeStatus(mit(status: 'erinnert', stufe: 3)),
+        'Letzte Mahnung',
+      );
+      expect(
+        anzeigeStatus(mit(status: 'mahnung_2', stufe: 0)),
+        'Letzte Mahnung',
+      );
+    });
+
+    test('Heineken: freigegeben', () {
+      final r =
+          mit(status: 'freigegeben', typ: 'heineken_monat', versendet: tag);
+      expect(anzeigeStatus(r), 'Freigegeben');
+      expect(anzeigeSchluessel(r), 'freigegeben');
+    });
+
+    test('Heineken: gesendet und offen wie alle anderen', () {
+      expect(
+        anzeigeStatus(
+          mit(status: 'gesendet', typ: 'heineken_monat', versendet: tag),
+        ),
+        'Gesendet',
+      );
+      expect(
+        anzeigeStatus(mit(status: 'offen', typ: 'heineken_monat')),
+        'Offen',
+      );
+    });
+
+    test('gesendet aus versendet_am, auch wenn der Status noch offen ist', () {
+      final r = mit(status: 'offen', versendet: tag);
+      expect(anzeigeStatus(r), 'Gesendet');
+      expect(anzeigeSchluessel(r), 'gesendet');
+    });
+
+    test('gesendet aus dem Status, auch ohne Datum (Altbestand)', () {
+      expect(anzeigeStatus(mit(status: 'gesendet')), 'Gesendet');
+    });
+
+    test('übergeben aus uebergeben_am (Tresen setzt keinen Status)', () {
+      final r = mit(status: 'offen', uebergeben: tag);
+      expect(anzeigeStatus(r), 'Übergeben');
+      expect(anzeigeSchluessel(r), kAnzeigeUebergeben);
+    });
+
+    test('versendet geht übergeben vor', () {
+      expect(
+        anzeigeStatus(mit(status: 'offen', versendet: tag, uebergeben: tag)),
+        'Gesendet',
+      );
+    });
+
+    test('sonst offen', () {
+      final r = mit();
+      expect(anzeigeStatus(r), 'Offen');
+      expect(anzeigeSchluessel(r), 'offen');
+    });
+
+    test('unbekannter Status kommt roh durch — sichtbar statt «Offen»', () {
+      expect(
+        anzeigeStatus(mit(status: 'storniert', versendet: tag)),
+        'storniert',
+      );
+      expect(anzeigeSchluessel(mit(status: 'storniert')), 'storniert');
+    });
+
+    test('jeder Wert des DB-CHECK hat einen deutschen Text', () {
+      for (final s in checkWerte) {
+        final text = anzeigeStatus(mit(status: s));
+        expect(text, isNot(s), reason: 'roher Wert «$s» statt Text');
+        expect(text, isNotEmpty);
+      }
+    });
+  });
+
   group('statusNachVersand', () {
     test('offen wird gesendet', () {
       expect(statusNachVersand('offen'), 'gesendet');
@@ -101,6 +231,24 @@ void main() {
 
     test('ganz mit Guthaben gedeckt: bleibt auch bei offen', () {
       expect(statusNachVersand('offen', vollMitGuthabenGedeckt: true), 'offen');
+    });
+  });
+
+  group('versendetAmNachVersand — das Erstversanddatum bleibt', () {
+    final jetzt = DateTime(2026, 9, 27, 14, 30);
+
+    test('erster Versand: heute', () {
+      expect(versendetAmNachVersand(null, jetzt), jetzt);
+    });
+
+    test('Neuversand: das Datum des ersten Versands bleibt', () {
+      final erst = DateTime(2026, 8, 3);
+      expect(versendetAmNachVersand(erst, jetzt), erst);
+    });
+
+    test('auch ein Neuversand am selben Tag ändert nichts', () {
+      final erst = DateTime(2026, 9, 27);
+      expect(versendetAmNachVersand(erst, jetzt), erst);
     });
   });
 }

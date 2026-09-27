@@ -15,6 +15,7 @@ import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
+import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
 import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
@@ -23,6 +24,7 @@ import 'package:sbs_projer_app/presentation/widgets/rueckweg_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
   final String rechnungId;
@@ -201,10 +203,11 @@ class _HeinekenRechnungDetailScreenState
       );
 
       // Bleibt als Rückfall neben dem serverseitigen Vermerk; beide idempotent.
-      await RechnungRepository.update(widget.rechnungId, {
-        'zahlungsstatus': 'gesendet',
-        'versendet_am': DateTime.now().toIso8601String().split('T').first,
-      });
+      // Status nur offen → gesendet, geprüft gegen den DB-Stand (B3): Ein
+      // Versand aus einem veralteten Bildschirmstand drehte eine
+      // freigegebene (gebuchte) oder bezahlte Monatsrechnung sonst auf
+      // «gesendet» zurück — am Buchungsschutz von _updateStatus vorbei.
+      await ReinigungRechnungVersand.vermerkeVersand(_rechnung!);
 
       ref.invalidate(heinekenRechnungenProvider);
       _load();
@@ -655,7 +658,7 @@ class _HeinekenRechnungDetailScreenState
         padding: const EdgeInsets.all(16),
         children: [
           // Status-Banner
-          _StatusBanner(status: r.zahlungsstatus),
+          _StatusBanner(rechnung: r),
           const SizedBox(height: 16),
 
           // R3: freigegeben/bezahlt, aber die Ertragsbuchung fehlt —
@@ -722,7 +725,7 @@ class _HeinekenRechnungDetailScreenState
                     'Fällig bis',
                     _dateFormat.format(r.faelligkeitsdatum),
                   ),
-                  _InfoRow('Status', _statusLabel(r.zahlungsstatus)),
+                  _InfoRow('Status', anzeigeStatus(r)),
                 ],
               ),
             ),
@@ -834,79 +837,50 @@ class _HeinekenRechnungDetailScreenState
     );
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'offen':
-        return 'Offen';
-      case 'gesendet':
-        return 'Gesendet';
-      case 'freigegeben':
-        return 'Freigegeben';
-      case 'bezahlt':
-        return 'Bezahlt';
-      case 'erinnert':
-        return 'Erinnert';
-      case 'mahnung_1':
-        return 'Mahnung 1';
-      case 'mahnung_2':
-        return 'Mahnung 2';
-      case 'abgeschrieben':
-        return 'Abgeschrieben';
-      default:
-        return status;
-    }
-  }
 }
 
+/// Text aus [anzeigeStatus], Farbe und Symbol aus demselben Schlüssel.
 class _StatusBanner extends StatelessWidget {
-  final String status;
-  const _StatusBanner({required this.status});
+  final Rechnung rechnung;
+  const _StatusBanner({required this.rechnung});
 
   @override
   Widget build(BuildContext context) {
     Color color;
     IconData icon;
-    String text;
-    switch (status) {
+    final text = anzeigeStatus(rechnung);
+    switch (anzeigeSchluessel(rechnung)) {
       case 'bezahlt':
         color = AppColors.success;
         icon = Icons.check_circle;
-        text = 'Bezahlt';
         break;
       case 'gesendet':
         color = AppColors.info;
         icon = Icons.send;
-        text = 'Gesendet';
         break;
       case 'freigegeben':
         color = AppColors.primary;
         icon = Icons.task_alt;
-        text = 'Freigegeben';
         break;
       case 'erinnert':
         color = const Color(0xFFE65100);
         icon = Icons.notifications;
-        text = 'Erinnert';
         break;
       case 'mahnung_1':
         color = AppColors.error;
         icon = Icons.warning;
-        text = 'Mahnung 1';
         break;
       case 'mahnung_2':
         color = const Color(0xFF8B0000);
         icon = Icons.gavel;
-        text = 'Mahnung 2';
         break;
       case 'abgeschrieben':
         color = AppColors.inaktiv;
         icon = Icons.block;
-        text = 'Abgeschrieben';
         break;
       default:
         color = AppColors.warning;
         icon = Icons.hourglass_empty;
-        text = 'Offen';
     }
 
     return Container(
