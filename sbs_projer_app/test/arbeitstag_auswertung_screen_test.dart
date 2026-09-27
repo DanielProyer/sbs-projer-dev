@@ -207,6 +207,30 @@ void main() {
 
       expect(find.textContaining('9 Besuche'), findsOneWidget);
       expect(find.textContaining('km · Δ'), findsNothing);
+      // Kennzahl: «–» statt dauerhaft «wird berechnet».
+      expect(find.text('Fahrten-km (Kette)'), findsOneWidget);
+      expect(find.text('wird berechnet'), findsNothing);
+    });
+
+    testWidgets('Δ erst runden, dann Vorzeichen — kein «−0 km»', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => {
+          DateTime(2026, 8, 3): _fahrtenTag(84.4, 84), // Δ −0.4
+          DateTime(2026, 8, 4): _fahrtenTag(92.6, 92), // Δ −0.6
+          DateTime(2026, 8, 5): _fahrtenTag(177.7, 178), // Δ +0.3
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Fahrten 84 km · Δ ±0 km'), findsOneWidget);
+      expect(find.textContaining('Fahrten 93 km · Δ −1 km'), findsOneWidget);
+      expect(find.textContaining('Fahrten 178 km · Δ ±0 km'), findsOneWidget);
+      expect(find.textContaining('−0'), findsNothing);
+      expect(find.textContaining('+0'), findsNothing);
     });
 
     testWidgets('Tageszeile öffnet den Fahrten-Screen des Tages', (

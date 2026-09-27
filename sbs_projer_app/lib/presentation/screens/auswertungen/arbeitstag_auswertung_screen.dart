@@ -111,6 +111,7 @@ class _ArbeitstagAuswertungScreenState
     required Object? fehler,
     required bool ladend,
     required Map<DateTime, TagesFahrten>? fahrten,
+    required bool fahrtenGescheitert,
   }) {
     if (fehler != null) {
       return Center(
@@ -143,7 +144,11 @@ class _ArbeitstagAuswertungScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
         children: [
-          _Kennzahlen(k: k, fahrten: fahrten),
+          _Kennzahlen(
+            k: k,
+            fahrten: fahrten,
+            fahrtenGescheitert: fahrtenGescheitert,
+          ),
           const SizedBox(height: 12),
           const Padding(
             padding: EdgeInsets.only(left: 4, bottom: 4),
@@ -176,7 +181,11 @@ class _ArbeitstagAuswertungScreenState
     // Der Fehler selbst erscheint im Detail-Screen samt «Erneut laden».
     // Hier beobachtet (nicht erst in der Liste), damit die Abfragen parallel
     // zu Tagesplan und Besuchen starten.
-    final fahrten = ref.watch(monatsFahrtenProvider(_monat)).valueOrNull;
+    final fahrtenAsync = ref.watch(monatsFahrtenProvider(_monat));
+    final fahrten = fahrtenAsync.valueOrNull;
+    // Gescheitert und nicht gerade neu am Laden: Die Kennzahl zeigt dann «–»
+    // statt für immer «wird berechnet».
+    final fahrtenGescheitert = fahrtenAsync.hasError && !fahrtenAsync.isLoading;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Auswertung Arbeitstage')),
@@ -188,7 +197,12 @@ class _ArbeitstagAuswertungScreenState
             onVor: _kannVorwaerts ? () => _blaettern(1) : null,
           ),
           Expanded(
-            child: _inhalt(fehler: fehler, ladend: ladend, fahrten: fahrten),
+            child: _inhalt(
+              fehler: fehler,
+              ladend: ladend,
+              fahrten: fahrten,
+              fahrtenGescheitert: fahrtenGescheitert,
+            ),
           ),
         ],
       ),
@@ -238,7 +252,14 @@ class _Kennzahlen extends StatelessWidget {
   /// `null`, solange «Fahrten aus der Kette» lädt oder gescheitert ist.
   final Map<DateTime, TagesFahrten>? fahrten;
 
-  const _Kennzahlen({required this.k, required this.fahrten});
+  /// Gescheitert (und nicht neu am Laden) — «–» statt «wird berechnet».
+  final bool fahrtenGescheitert;
+
+  const _Kennzahlen({
+    required this.k,
+    required this.fahrten,
+    required this.fahrtenGescheitert,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -312,9 +333,9 @@ class _Kennzahlen extends StatelessWidget {
         _KennzahlKarte(
           label: 'Fahrten-km (Kette)',
           wert: fahrtenKm == null ? '–' : '${fahrtenKm.round()}',
-          zusatz: anzahlFahrten == null
-              ? 'wird berechnet'
-              : '$anzahlFahrten Fahrten an ${f!.length} Tagen',
+          zusatz: anzahlFahrten != null
+              ? '$anzahlFahrten Fahrten an ${f!.length} Tagen'
+              : (fahrtenGescheitert ? null : 'wird berechnet'),
           icon: Icons.directions_car_outlined,
         ),
       ],
@@ -405,6 +426,14 @@ class _FahrtenAngabe extends StatelessWidget {
 
   const _FahrtenAngabe({required this.f});
 
+  /// Erst auf ganze km runden, dann das Vorzeichen wählen — sonst stünde bei
+  /// −0.4 ein «Δ −0 km». Null heisst «±0».
+  static String _delta(double d) {
+    final km = d.round();
+    if (km == 0) return '±0';
+    return '${km < 0 ? '−' : '+'}${km.abs()}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final d = f.differenz;
@@ -417,7 +446,7 @@ class _FahrtenAngabe extends StatelessWidget {
           if (d != null) ...[
             const TextSpan(text: ' · '),
             TextSpan(
-              text: 'Δ ${d < 0 ? '−' : '+'}${d.abs().round()} km',
+              text: 'Δ ${_delta(d)} km',
               style: f.differenzAuffaellig
                   ? const TextStyle(
                       color: AppColors.error,

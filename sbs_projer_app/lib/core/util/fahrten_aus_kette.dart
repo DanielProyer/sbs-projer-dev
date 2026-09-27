@@ -262,7 +262,7 @@ List<Halt> halteAusKette({
       Halt(
         typ: HaltTyp.betrieb,
         id: e.betriebId ?? '$_ohneBetriebPraefix${e.einsatzId}',
-        name: e.betriebName ?? _typName(e.typ),
+        name: e.betriebName ?? einsatzTypName(e.typ),
         lat: e.lat,
         lng: e.lng,
         ankunftMin: z.ankunft,
@@ -991,7 +991,9 @@ Halt _unterwegsHalt(
   );
 }
 
-String _typName(String typ) => switch (typ) {
+/// Anzeigename eines Einsatz-Typs ([EinsatzHalt.typ]) — auch für die
+/// «Einsätze ohne Zeit» im Detail-Screen, damit es nur eine Liste gibt.
+String einsatzTypName(String typ) => switch (typ) {
   'reinigung' => 'Reinigung',
   'stoerung' => 'Störung',
   'montage' => 'Montage',

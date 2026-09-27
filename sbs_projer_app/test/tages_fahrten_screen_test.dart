@@ -72,6 +72,12 @@ final _tag = tagesFahrten(
       betriebId: 'c',
       betriebName: 'Linden',
     ),
+    EinsatzHalt(
+      einsatzId: 'vergeblich@2026-09-25T19:00:00.000',
+      typ: kTypLeerfahrt,
+      betriebId: 'd',
+      betriebName: 'Sonne',
+    ),
   ],
   km: _km,
   kmStart: 50000,
@@ -115,6 +121,10 @@ void main() {
     expect(find.text('3 (davon 1 geschätzt)'), findsOneWidget);
     final differenz = tester.widget<Text>(find.textContaining('— auffällig'));
     expect(differenz.style?.color, AppColors.error);
+    // Richtung der Differenz ist erklärt.
+    expect(find.text('Differenz'), findsOneWidget);
+    expect(find.text('(Zähler − Fahrten)'), findsOneWidget);
+    expect(find.text('+ = mehr gefahren als erklärt'), findsOneWidget);
 
     // Befunde aus der Regel, Wort für Wort.
     for (final b in _tag.befunde) {
@@ -135,6 +145,8 @@ void main() {
     expect(find.text('Einsätze ohne Zeit'), findsOneWidget);
     expect(find.text('Linden'), findsOneWidget);
     expect(find.text('Störung'), findsOneWidget);
+    expect(find.text('Sonne'), findsOneWidget);
+    expect(find.text('Leerfahrt'), findsOneWidget);
   });
 
   testWidgets('Differenz im Rahmen: nicht rot', (tester) async {
@@ -173,7 +185,13 @@ void main() {
     test('differenzText mit echtem Minus', () {
       expect(differenzText(16.44), '+16.4 km');
       expect(differenzText(-3), '−3.0 km');
-      expect(differenzText(0), '+0.0 km');
+    });
+
+    test('differenzText: erst runden, dann Vorzeichen (kein «−0.0»)', () {
+      expect(differenzText(0), '±0.0 km');
+      expect(differenzText(-0.04), '±0.0 km');
+      expect(differenzText(0.04), '±0.0 km');
+      expect(differenzText(-0.06), '−0.1 km');
     });
 
     test('kmQuelleText', () {

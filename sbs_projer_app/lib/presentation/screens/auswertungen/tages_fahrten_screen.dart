@@ -60,9 +60,14 @@ String tagesTitel(DateTime tag) =>
     '${tag.day.toString().padLeft(2, '0')}.'
     '${tag.month.toString().padLeft(2, '0')}.';
 
-/// Zähler − Fahrten mit Vorzeichen: «+16.4 km» / «−3.0 km».
-String differenzText(double differenz) =>
-    '${differenz < 0 ? '−' : '+'}${kmText(differenz.abs())}';
+/// Zähler − Fahrten mit Vorzeichen: «+16.4 km» / «−3.0 km». Erst auf die
+/// angezeigte Stelle runden, dann das Vorzeichen wählen — sonst stünde bei
+/// −0.04 ein «−0.0 km»; Null heisst «±0.0 km».
+String differenzText(double differenz) {
+  final gerundet = (differenz * 10).round() / 10;
+  if (gerundet == 0) return '±${kmText(0)}';
+  return '${gerundet < 0 ? '−' : '+'}${kmText(gerundet.abs())}';
+}
 
 /// Herkunft der km einer Fahrt, kurz für die Karte.
 String kmQuelleText(String? quelle) => switch (quelle) {
@@ -142,7 +147,7 @@ class _Inhalt extends StatelessWidget {
             kinder: [
               for (final e in t.ohneZeit)
                 InfoZeile(
-                  _typName(e.typ),
+                  einsatzTypName(e.typ),
                   e.betriebName ?? 'ohne Betrieb',
                   labelBreite: 90,
                 ),
@@ -175,6 +180,9 @@ class _DifferenzZeile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Die Richtung steht dabei: Ohne sie ist «+16 km» mehrdeutig (mehr
+    // gefahren oder mehr erklärt?).
+    const grau = TextStyle(color: AppColors.textSecondary, fontSize: 13);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -182,21 +190,44 @@ class _DifferenzZeile extends StatelessWidget {
         children: [
           const SizedBox(
             width: 110,
-            child: Text(
-              'Differenz',
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Differenz', style: grau),
+                Text(
+                  '(Zähler − Fahrten)',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10.5,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(
-            child: Text(
-              auffaellig
-                  ? '${differenzText(differenz)} — auffällig'
-                  : '${differenzText(differenz)} — im Rahmen',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: auffaellig ? FontWeight.w600 : FontWeight.normal,
-                color: auffaellig ? AppColors.error : AppColors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  auffaellig
+                      ? '${differenzText(differenz)} — auffällig'
+                      : '${differenzText(differenz)} — im Rahmen',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: auffaellig
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: auffaellig ? AppColors.error : AppColors.textPrimary,
+                  ),
+                ),
+                const Text(
+                  '+ = mehr gefahren als erklärt',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -366,10 +397,3 @@ class _NichtsErfasst extends StatelessWidget {
     );
   }
 }
-
-String _typName(String typ) => switch (typ) {
-  'reinigung' => 'Reinigung',
-  'stoerung' => 'Störung',
-  'montage' => 'Montage',
-  _ => typ,
-};
