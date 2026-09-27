@@ -33,3 +33,20 @@ String einsatzStatusNachSpeichern({
   if (von.isNotEmpty) return 'in_bearbeitung';
   return offenWert;
 }
+
+/// Ist DIESES Speichern der Moment, in dem der Einsatz erledigt wird?
+///
+/// Ja, wenn er neu erfasst und gleich erledigt wird ([isEdit] false,
+/// [geplant] false) oder wenn er bis jetzt geplant/laufend war
+/// ([warGeplant]) und nun erledigt ist. NEIN beim Bearbeiten eines längst
+/// erledigten Einsatzes: Dort gibt es weder Wegpunkt noch Pausen-Prüfung —
+/// und keine Arbeitszeit-Nachfrage (Review 27.09.2026: 1114 von 1144
+/// behobenen Störungen haben keine Zeit; wer nur einen Tippfehler im Rapport
+/// korrigiert, soll nicht nach einer Zeit von vor Monaten gefragt werden).
+///
+/// [warGeplant] muss VOR jeder Statusänderung im Formular erfasst sein.
+bool einsatzWirdJetztErledigt({
+  required bool isEdit,
+  required bool warGeplant,
+  required bool geplant,
+}) => !geplant && (!isEdit || warGeplant);

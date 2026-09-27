@@ -368,4 +368,120 @@ void main() {
       expect(ergebnis?.wahl, ArbeitszeitWahl.abgebrochen);
     });
   });
+
+  // Review M4: Der «Erledigt»-Knopf der Detailseite setzte nur das Ende.
+  group('erledigtZeitenBestimmen («Erledigt» auf der Detailseite)', () {
+    // Wie oben: erst nach dem Schliessen des Dialogs gesetzt.
+    ({String? von, String bis})? zeiten;
+    var fertig = false;
+    setUp(() {
+      zeiten = null;
+      fertig = false;
+    });
+
+    Future<void> erledigt(
+      WidgetTester tester, {
+      String? von,
+      String? bis,
+      bool vorOrt = true,
+      List<Halt>? halte,
+    }) async {
+      await tester.pumpWidget(
+        harness(
+          (context, ref) async {
+            zeiten = await erledigtZeitenBestimmen(
+              context,
+              ref,
+              planId: 's_7',
+              arbeitVon: von,
+              arbeitBis: bis,
+              vorOrt: vorOrt,
+              betriebId: 'b_stoerung',
+              geplanteDauerMin: 60,
+              jetzt: spaeter,
+            );
+            fertig = true;
+          },
+          overrides: [
+            tagesFahrtenProvider.overrideWith(
+              (ref, d) async => halte == null ? null : fahrtenMit(halte),
+            ),
+          ],
+        ),
+      );
+      await tester.tap(find.text('Speichern'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('beide Zeiten fehlen → Nachfrage statt Bestätigung, '
+        '«Übernehmen» speichert Beginn UND Ende', (tester) async {
+      await erledigt(tester, halte: kette);
+      expect(find.text('Arbeitszeit?'), findsOneWidget);
+      expect(find.textContaining('Einsatz als erledigt'), findsNothing);
+      await tester.tap(find.text('Übernehmen'));
+      await tester.pumpAndSettle();
+      expect(zeiten, (von: '09:22', bis: '10:47'));
+      expect(find.textContaining('Einsatz als erledigt'), findsNothing);
+    });
+
+    testWidgets('«Ohne Zeit» → Ende jetzt wie bisher, Verzicht gemerkt', (
+      tester,
+    ) async {
+      await erledigt(tester, halte: kette);
+      await tester.tap(find.text('Ohne Zeit'));
+      await tester.pumpAndSettle();
+      expect(zeiten, (von: null, bis: '20:15'));
+      expect(await arbeitszeitVerzichtet('s_7'), isTrue);
+    });
+
+    testWidgets('Nachfrage weggetippt → nichts speichern', (tester) async {
+      await erledigt(tester, halte: kette);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(fertig, isTrue);
+      expect(zeiten, isNull);
+    });
+
+    testWidgets('Beginn schon erfasst → Bestätigung (TapKnopf), Ende jetzt', (
+      tester,
+    ) async {
+      await erledigt(tester, von: '08:05', halte: kette);
+      expect(find.text('Arbeitszeit?'), findsNothing);
+      expect(find.textContaining('Einsatz als erledigt'), findsOneWidget);
+      // CanvasKit: keine Material-Knöpfe im Dialog (Ratsche).
+      expect(find.byType(FilledButton), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+      expect(find.widgetWithText(TapKnopf, 'Erledigt'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TapKnopf, 'Erledigt'));
+      await tester.pumpAndSettle();
+      expect(zeiten, (von: '08:05', bis: '20:15'));
+    });
+
+    testWidgets('Bestätigung abgebrochen → nichts speichern', (tester) async {
+      await erledigt(tester, von: '08:05');
+      await tester.tap(find.widgetWithText(TapKnopf, 'Abbrechen'));
+      await tester.pumpAndSettle();
+      expect(fertig, isTrue);
+      expect(zeiten, isNull);
+    });
+
+    testWidgets('kein Besuch vor Ort (Kilometerabrechnung) → nur Bestätigung', (
+      tester,
+    ) async {
+      await erledigt(tester, vorOrt: false);
+      expect(find.text('Arbeitszeit?'), findsNothing);
+      await tester.tap(find.widgetWithText(TapKnopf, 'Erledigt'));
+      await tester.pumpAndSettle();
+      expect(zeiten, (von: null, bis: '20:15'));
+    });
+
+    testWidgets('früher «Ohne Zeit» → nur Bestätigung', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'arbeitszeit_verzicht_s_7': true,
+      });
+      await erledigt(tester, halte: kette);
+      expect(find.text('Arbeitszeit?'), findsNothing);
+      expect(find.textContaining('Einsatz als erledigt'), findsOneWidget);
+    });
+  });
 }

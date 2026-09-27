@@ -306,9 +306,9 @@ void main() {
         // Arbeitszeit ergäbe er 09:30–10:30.
         wegpunkte: [stempel],
         arbeitszeiten: {
-          's_1': (von: 8 * 60 + 5, bis: 8 * 60 + 50),
-          'm_2': (von: 13 * 60, bis: 15 * 60 + 30),
-          'm_3': (von: 16 * 60, bis: 16 * 60 + 40),
+          's_1': (tag: tag, von: 8 * 60 + 5, bis: 8 * 60 + 50),
+          'm_2': (tag: tag, von: 13 * 60, bis: 15 * 60 + 30),
+          'm_3': (tag: tag, von: 16 * 60, bis: 16 * 60 + 40),
         },
         dauerFuer: (_) => 60,
       );
@@ -324,7 +324,7 @@ void main() {
         erledigtePruefen: true,
         reinigungen: const [],
         wegpunkte: [stempel],
-        arbeitszeiten: {'m_2': (von: 13 * 60, bis: 14 * 60)},
+        arbeitszeiten: {'m_2': (tag: tag, von: 13 * 60, bis: 14 * 60)},
         dauerFuer: (_) => 60,
       );
       expect(ist['s_1'], (von: 9 * 60 + 30, bis: 10 * 60 + 30));
@@ -339,7 +339,7 @@ void main() {
         erledigtePruefen: false,
         reinigungen: const [],
         wegpunkte: const [],
-        arbeitszeiten: {'s_1': (von: 480, bis: 540)},
+        arbeitszeiten: {'s_1': (tag: tag, von: 480, bis: 540)},
         dauerFuer: (_) => 60,
       );
       expect(ist, isEmpty);
@@ -352,10 +352,47 @@ void main() {
         erledigtePruefen: true,
         reinigungen: const [],
         wegpunkte: const [],
-        arbeitszeiten: {'r1': (von: 480, bis: 540)},
+        arbeitszeiten: {'r1': (tag: tag, von: 480, bis: 540)},
         dauerFuer: (_) => 60,
       );
       expect(ist, isEmpty);
+    });
+
+    // Review K4: Eine am 30.09. erledigte Störung, die noch im Plan vom
+    // 28.09. steht, zeichnete dort ihre Uhrzeiten vom 30.09.
+    test('Arbeitszeit eines anderen Tages zählt nicht — Stempel-Rückfall '
+        'bleibt', () {
+      final andererTag = DateTime(2026, 9, 30);
+      final ist = ermittleIstZeiten(
+        eintraege: einsaetze,
+        datum: tag,
+        erledigtePruefen: true,
+        reinigungen: const [],
+        wegpunkte: [stempel],
+        arbeitszeiten: {
+          's_1': (tag: andererTag, von: 8 * 60, bis: 9 * 60),
+          'm_2': (tag: andererTag, von: 13 * 60, bis: 14 * 60),
+        },
+        dauerFuer: (_) => 60,
+      );
+      // s_1: der Stempel vom Plantag (10:30) statt 08:00–09:00 vom 30.09.
+      expect(ist['s_1'], (von: 9 * 60 + 30, bis: 10 * 60 + 30));
+      expect(ist.containsKey('m_2'), isFalse);
+    });
+
+    test('Uhrzeit im Datum stört nicht (gleicher Kalendertag)', () {
+      final ist = ermittleIstZeiten(
+        eintraege: einsaetze,
+        datum: tag,
+        erledigtePruefen: true,
+        reinigungen: const [],
+        wegpunkte: const [],
+        arbeitszeiten: {
+          'm_2': (tag: DateTime(2026, 9, 28, 23, 59), von: 780, bis: 840),
+        },
+        dauerFuer: (_) => 60,
+      );
+      expect(ist['m_2'], (von: 780, bis: 840));
     });
   });
 
@@ -374,7 +411,8 @@ void main() {
     });
   });
 
-  test('einsatzArbeitszeitJePlanIdProvider: Plan-Ids, nur vollständige', () {
+  test('einsatzArbeitszeitJePlanIdProvider: Plan-Ids, nur vollständige, mit '
+      'Datum des Einsatzes', () {
     StoerungLocal stoerung(int id, String? von, String? bis) => StoerungLocal()
       ..id = id
       ..serverId = 'srv$id'
@@ -401,6 +439,8 @@ void main() {
           stoerung(1, '08:00', '09:15'),
           stoerung(2, null, '10:00'), // nur Ende
           stoerung(3, null, null),
+          // anderer Tag: das Datum reist mit (K4)
+          stoerung(4, '07:00', '07:30')..datum = DateTime(2026, 9, 30),
         ]),
         montagenProvider.overrideWithValue([montage(1, '13:00:00', '15:00')]),
       ],
@@ -409,8 +449,9 @@ void main() {
 
     // Im Test (nicht Web) ist `routeId` die lokale Id.
     expect(container.read(einsatzArbeitszeitJePlanIdProvider), {
-      's_1': (von: 480, bis: 555),
-      'm_1': (von: 780, bis: 900),
+      's_1': (tag: tag, von: 480, bis: 555),
+      's_4': (tag: DateTime(2026, 9, 30), von: 420, bis: 450),
+      'm_1': (tag: tag, von: 780, bis: 900),
     });
   });
 }

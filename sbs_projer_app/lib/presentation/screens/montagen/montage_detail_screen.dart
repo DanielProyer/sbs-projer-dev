@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show montageWarVorOrt;
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:sbs_projer_app/services/pdf/heineken_rapport_service.dart';
@@ -10,6 +13,7 @@ import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/arbeit_beenden_knopf.dart';
+import 'package:sbs_projer_app/presentation/widgets/einsatz/arbeitszeit_nachfrage.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/anlage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lager_repository.dart';
@@ -323,43 +327,41 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
     return '${date.day.toString().padLeft(2, '0')}.${date.month.toString().padLeft(2, '0')}.${date.year}';
   }
 
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-
   /// «Erledigt»-Knopf: tut exakt dasselbe wie «Arbeit beenden» im Formular
   /// (Entscheid Daniel 15.09.2026) — setzt Endzeit UND Status, nicht nur den
   /// Status. Sonst fehlt die Arbeitszeit später im Rapport und man landet
   /// doch wieder im Formular. `dauerStunden` bleibt bewusst unangetastet
-  /// (Abrechnungsfeld, wie beim «Arbeit beenden»-Knopf im Formular).
+  /// (Abrechnungsfeld, wie beim «Arbeit beenden»-Knopf im Formular). Fehlen
+  /// Beginn UND Ende, fragt er vorher nach der Arbeitszeit wie das Formular
+  /// (Review M4, [erledigtZeitenBestimmen]) — nicht bei Spesen/
+  /// Aufwandsentschädigung (kein Besuch) und Anlass (mehrere Tage).
   Future<void> _erledigt() async {
-    final bestaetigt = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Erledigt'),
-        content: const Text(
-          'Einsatz als erledigt markieren? Die Endzeit wird auf jetzt gesetzt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => ctx.pop(true),
-            child: const Text('Erledigt'),
-          ),
-        ],
-      ),
-    );
-    if (bestaetigt != true || !mounted) return;
-
+    if (_erledigtLaeuft) return;
+    // Schon während der Vorschlag lädt gesperrt — kein zweiter Ablauf.
     setState(() => _erledigtLaeuft = true);
-    final zeitStr = _formatTime(TimeOfDay.now());
     try {
+      final zeiten = await erledigtZeitenBestimmen(
+        context,
+        ref,
+        planId: 'm_${montage.routeId}',
+        arbeitVon: montage.arbeitVon,
+        arbeitBis: montage.arbeitBis,
+        vorOrt:
+            montageWarVorOrt('abgeschlossen', montage.montageTyp) &&
+            montage.montageTyp != 'anlass',
+        betriebId: montage.betriebId,
+        geplanteDauerMin:
+            montage.geplantDauerMin ??
+            einsatzDauerVorgabe(
+              art: 'montage',
+              montageTyp: montage.montageTyp,
+            ),
+      );
+      if (zeiten == null || !mounted) return;
+      final zeitStr = zeiten.bis;
       await MontageRepository.arbeitszeitSetzen(
         id: montage.routeId,
-        von: montage.arbeitVon,
+        von: zeiten.von,
         bis: zeitStr,
       );
       await MontageRepository.statusSetzen(
@@ -367,7 +369,11 @@ class _MontageDetailContentState extends ConsumerState<_MontageDetailContent> {
         status: 'abgeschlossen',
       );
       if (mounted) {
-        setState(() => montage.status = 'abgeschlossen');
+        setState(() {
+          montage.status = 'abgeschlossen';
+          montage.arbeitVon = zeiten.von;
+          montage.arbeitBis = zeitStr;
+        });
       }
       ref.invalidate(montagenStreamProvider);
       if (mounted) {

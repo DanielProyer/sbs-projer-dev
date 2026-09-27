@@ -8,7 +8,7 @@ import 'package:sbs_projer_app/core/util/betrieb_ferien.dart';
 import 'package:sbs_projer_app/core/util/einsatz_dauer.dart';
 import 'package:sbs_projer_app/core/util/einsatz_faellig.dart';
 import 'package:sbs_projer_app/core/util/tagesplan_ist_zeiten.dart'
-    show arbeitszeitMinuten;
+    show EinsatzArbeitszeit, arbeitszeitMinuten;
 import 'package:sbs_projer_app/core/util/tagesplan_verschieben.dart';
 import 'package:sbs_projer_app/core/util/termin_abgleich.dart';
 import 'package:sbs_projer_app/core/util/tour_filter.dart';
@@ -1241,19 +1241,24 @@ final einsatzStatusJePlanIdProvider = Provider<Map<String, String>>(
 );
 
 /// Erfasste Arbeitszeit (`arbeit_von/bis`, Minuten ab Mitternacht) jedes
-/// Störungs-/Montage-Einsatzes, geschlüsselt wie die Plan-Ids — für die
-/// Ist-Zeiten der Zeitachse (`ermittleIstZeiten`: erfasste Zeit vor dem
-/// Stempel-Rückfall). Nur vollständige Paare ([arbeitszeitMinuten]).
+/// Störungs-/Montage-Einsatzes samt seinem Datum, geschlüsselt wie die
+/// Plan-Ids — für die Ist-Zeiten der Zeitachse (`ermittleIstZeiten`:
+/// erfasste Zeit vor dem Stempel-Rückfall, nur am Tag des Einsatzes). Nur
+/// vollständige Paare ([arbeitszeitMinuten]).
 final einsatzArbeitszeitJePlanIdProvider =
-    Provider<Map<String, ({int von, int bis})>>((ref) {
-      final map = <String, ({int von, int bis})>{};
+    Provider<Map<String, EinsatzArbeitszeit>>((ref) {
+      final map = <String, EinsatzArbeitszeit>{};
       for (final s in ref.watch(stoerungenProvider)) {
         final z = arbeitszeitMinuten(s.arbeitVon, s.arbeitBis);
-        if (z != null) map['s_${s.routeId}'] = z;
+        if (z != null) {
+          map['s_${s.routeId}'] = (tag: s.datum, von: z.von, bis: z.bis);
+        }
       }
       for (final m in ref.watch(montagenProvider)) {
         final z = arbeitszeitMinuten(m.arbeitVon, m.arbeitBis);
-        if (z != null) map['m_${m.routeId}'] = z;
+        if (z != null) {
+          map['m_${m.routeId}'] = (tag: m.datum, von: z.von, bis: z.bis);
+        }
       }
       return map;
     });

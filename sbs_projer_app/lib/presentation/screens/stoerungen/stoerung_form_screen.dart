@@ -397,48 +397,55 @@ class _StoerungFormScreenState extends ConsumerState<StoerungFormScreen>
     // 31.07.2026).
     final warGeplant = _warGeplant;
     final schliesstJetztAb = warGeplant && !_geplant;
-    final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
-
-    // Wird die Störung jetzt ohne jede Arbeitszeit erledigt, einmal nach
-    // der Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid Daniel
-    // 27.09.2026). VOR dem automatischen Nachtragen des Endes unten — danach
-    // fehlte nie mehr beides.
-    final nachfrage = await arbeitszeitBeimAbschliessen(
-      context,
-      ref,
-      noetig: arbeitszeitNachfrageNoetig(
-        wirdErledigt: !_geplant,
-        vorOrt: !_istKilometerabrechnung,
-        arbeitVon: _arbeitVonController.text,
-        arbeitBis: _arbeitBisController.text,
-      ),
-      planId: _existing != null ? 's_${_existing!.routeId}' : null,
-      // Beim Abschluss eines geplanten Einsatzes zählt heute (s.datum unten).
-      datum: schliesstJetztAb ? DateTime.now() : _datum,
-      betriebId: _betriebId,
-      geplanteDauerMin:
-          _existing?.geplantDauerMin ??
-          einsatzDauerVorgabe(
-            art: 'stoerung',
-            stoerungBereiche: _stoerungBereiche,
-          ),
+    final istWegpunktMoment = einsatzWirdJetztErledigt(
+      isEdit: _isEdit,
+      warGeplant: warGeplant,
+      geplant: _geplant,
     );
-    if (!mounted) return;
-    switch (nachfrage.wahl) {
-      case ArbeitszeitWahl.abgebrochen:
-        setState(() => _isLoading = false);
-        return;
-      case ArbeitszeitWahl.uebernommen:
-        markiereGeaendert();
-        _arbeitVonController.text = nachfrage.von!;
-        _arbeitBisController.text = nachfrage.bis!;
-      case ArbeitszeitWahl.ohneZeit:
-      case ArbeitszeitWahl.nichtGefragt:
-        break;
-    }
-    final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
 
+    // Im try: Scheitert die Nachfrage (Dialog, Browser-Speicher), gibt das
+    // finally das Formular wieder frei — sonst hinge es auf «lädt» (K10).
     try {
+      // Wird die Störung MIT DIESEM Speichern ohne jede Arbeitszeit
+      // erledigt, einmal nach der Zeit fragen, vorbelegt aus dem Tagesplan
+      // (Entscheid Daniel 27.09.2026). Nur im Abschluss-Moment — nicht beim
+      // Bearbeiten einer längst behobenen Störung (M3). VOR dem
+      // automatischen Nachtragen des Endes unten — danach fehlte nie mehr
+      // beides.
+      final nachfrage = await arbeitszeitBeimAbschliessen(
+        context,
+        ref,
+        noetig: arbeitszeitNachfrageNoetig(
+          wirdErledigt: istWegpunktMoment,
+          vorOrt: !_istKilometerabrechnung,
+          arbeitVon: _arbeitVonController.text,
+          arbeitBis: _arbeitBisController.text,
+        ),
+        planId: _existing != null ? 's_${_existing!.routeId}' : null,
+        // Beim Abschluss eines geplanten Einsatzes zählt heute (s.datum unten).
+        datum: schliesstJetztAb ? DateTime.now() : _datum,
+        betriebId: _betriebId,
+        geplanteDauerMin:
+            _existing?.geplantDauerMin ??
+            einsatzDauerVorgabe(
+              art: 'stoerung',
+              stoerungBereiche: _stoerungBereiche,
+            ),
+      );
+      if (!mounted) return;
+      switch (nachfrage.wahl) {
+        case ArbeitszeitWahl.abgebrochen:
+          return; // finally gibt das Formular frei
+        case ArbeitszeitWahl.uebernommen:
+          markiereGeaendert();
+          _arbeitVonController.text = nachfrage.von!;
+          _arbeitBisController.text = nachfrage.bis!;
+        case ArbeitszeitWahl.ohneZeit:
+        case ArbeitszeitWahl.nichtGefragt:
+          break;
+      }
+      final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
+
       final s = _existing ?? StoerungLocal();
 
       s.istKilometerabrechnung = _istKilometerabrechnung;

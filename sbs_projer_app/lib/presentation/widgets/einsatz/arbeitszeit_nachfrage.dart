@@ -176,6 +176,91 @@ Future<ArbeitszeitNachfrageErgebnis> arbeitszeitBeimAbschliessen(
   return antwort;
 }
 
+// ── «Erledigt» auf der Detailseite ──────────────────────────────────────
+
+/// «Erledigt»-Knopf der Detailseite (Störung/Montage): welche Zeiten werden
+/// gespeichert? `null` = abgebrochen, nichts speichern.
+///
+/// Bis 27.09.2026 setzte der Knopf nur `arbeit_bis` = jetzt — der Beginn
+/// fehlte, und die Nachfrage des Formulars griff danach nie mehr (Review M4).
+/// Jetzt:
+/// - Fehlen BEIDE Zeiten und war der Einsatz vor Ort ([vorOrt]): die
+///   Arbeitszeit-Nachfrage. Sie ist dann zugleich die Bestätigung —
+///   «Übernehmen» speichert die gewählten Zeiten, «Ohne Zeit» das Ende
+///   jetzt (wie bisher) und merkt den Verzicht, Wegtippen bricht ab.
+/// - Sonst, oder nach früherem «Ohne Zeit»: die bisherige Bestätigung
+///   «Endzeit auf jetzt», der Beginn bleibt ([arbeitVon]).
+Future<({String? von, String bis})?> erledigtZeitenBestimmen(
+  BuildContext context,
+  WidgetRef ref, {
+  required String planId,
+  required String? arbeitVon,
+  required String? arbeitBis,
+  required bool vorOrt,
+  required String? betriebId,
+  required int geplanteDauerMin,
+  DateTime? jetzt,
+}) async {
+  final nun = jetzt ?? DateTime.now();
+  final endeJetzt = arbeitszeitFormatieren(TimeOfDay.fromDateTime(nun));
+  final nachfrage = await arbeitszeitBeimAbschliessen(
+    context,
+    ref,
+    noetig: arbeitszeitNachfrageNoetig(
+      wirdErledigt: true,
+      vorOrt: vorOrt,
+      arbeitVon: arbeitVon ?? '',
+      arbeitBis: arbeitBis ?? '',
+    ),
+    planId: planId,
+    // Abgeschlossen wird jetzt — der Vorschlag gilt für heute.
+    datum: nun,
+    betriebId: betriebId,
+    geplanteDauerMin: geplanteDauerMin,
+    jetzt: jetzt,
+  );
+  switch (nachfrage.wahl) {
+    case ArbeitszeitWahl.abgebrochen:
+      return null;
+    case ArbeitszeitWahl.uebernommen:
+      return (von: nachfrage.von, bis: nachfrage.bis!);
+    case ArbeitszeitWahl.ohneZeit:
+      await arbeitszeitVerzichtMerken(planId);
+      return (von: arbeitVon, bis: endeJetzt);
+    case ArbeitszeitWahl.nichtGefragt:
+      if (!context.mounted) return null;
+      final bestaetigt = await zeigeErledigtBestaetigung(context);
+      return bestaetigt ? (von: arbeitVon, bis: endeJetzt) : null;
+  }
+}
+
+/// «Einsatz als erledigt markieren?» — aus [TapKnopf] gebaut, nicht aus
+/// Material-Knöpfen (CanvasKit, CLAUDE.md). `true` nur bei «Erledigt».
+Future<bool> zeigeErledigtBestaetigung(BuildContext context) async {
+  final antwort = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Erledigt'),
+      content: const Text(
+        'Einsatz als erledigt markieren? Die Endzeit wird auf jetzt gesetzt.',
+      ),
+      actions: [
+        TapKnopf(
+          text: 'Abbrechen',
+          primaer: false,
+          onTap: () => Navigator.pop(ctx, false),
+        ),
+        TapKnopf(
+          text: 'Erledigt',
+          icon: Icons.check,
+          onTap: () => Navigator.pop(ctx, true),
+        ),
+      ],
+    ),
+  );
+  return antwort == true;
+}
+
 // ── Dialog ──────────────────────────────────────────────────────────────
 
 /// «Arbeitszeit? Von – bis» mit [vorschlag] vorbelegt. Liefert

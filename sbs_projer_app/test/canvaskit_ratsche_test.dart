@@ -19,7 +19,7 @@ final _knopfMuster = RegExp(
   r'\b(FilledButton|OutlinedButton)(\.icon|\.tonal|\.tonalIcon)?\(',
 );
 
-const kMaxMaterialKnoepfe = 83; // Stand 26.09.2026 (96 → 83: Arbeit beginnen, Abgleich-Vorschau, Störung/Montage) — Ratsche: darf nur sinken; neue Knöpfe sind TapKnopf (CLAUDE.md)
+const kMaxMaterialKnoepfe = 81; // Stand 27.09.2026 (96 → 83: Arbeit beginnen, Abgleich-Vorschau, Störung/Montage; 83 → 81: «Erledigt»-Bestätigung der Störungs-/Montage-Detailseite) — Ratsche: darf nur sinken; neue Knöpfe sind TapKnopf (CLAUDE.md)
 
 /// Vorbestehende AppBar-actions-Treffer, die noch umgestellt werden müssen.
 /// Heute (26.09.2026) leer — jeder neue Eintrag hier ist ein Rückschritt und

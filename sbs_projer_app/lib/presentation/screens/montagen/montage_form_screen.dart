@@ -602,47 +602,54 @@ class _MontageFormScreenState extends ConsumerState<MontageFormScreen>
     // 31.07.2026).
     final warGeplant = _warGeplant;
     final schliesstJetztAb = warGeplant && !_geplant;
-    final istWegpunktMoment = (!_isEdit && !_geplant) || schliesstJetztAb;
-
-    // Wird die Montage jetzt ohne jede Arbeitszeit erledigt, einmal nach der
-    // Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid Daniel
-    // 27.09.2026). VOR dem automatischen Nachtragen des Endes unten — danach
-    // fehlte nie mehr beides. `dauerStunden` (Abrechnungsfeld) bleibt davon
-    // unberührt. Nicht bei Spesen/Aufwandsentschädigung (kein Besuch) und
-    // Anlass (mehrere Tage in den Slots — ein Von–bis passt dort nicht).
-    final nachfrage = await arbeitszeitBeimAbschliessen(
-      context,
-      ref,
-      noetig: arbeitszeitNachfrageNoetig(
-        wirdErledigt: !_geplant,
-        vorOrt: montageWarVorOrt('abgeschlossen', _montageTyp) && !_isAnlass,
-        arbeitVon: _arbeitVonController.text,
-        arbeitBis: _arbeitBisController.text,
-      ),
-      planId: _existing != null ? 'm_${_existing!.routeId}' : null,
-      // Beim Abschluss einer geplanten Montage zählt heute (m.datum unten).
-      datum: schliesstJetztAb ? DateTime.now() : _datum,
-      betriebId: _betriebDisabled ? null : _betriebId,
-      geplanteDauerMin:
-          _existing?.geplantDauerMin ??
-          einsatzDauerVorgabe(art: 'montage', montageTyp: _montageTyp),
+    final istWegpunktMoment = einsatzWirdJetztErledigt(
+      isEdit: _isEdit,
+      warGeplant: warGeplant,
+      geplant: _geplant,
     );
-    if (!mounted) return;
-    switch (nachfrage.wahl) {
-      case ArbeitszeitWahl.abgebrochen:
-        setState(() => _isLoading = false);
-        return;
-      case ArbeitszeitWahl.uebernommen:
-        markiereGeaendert();
-        _arbeitVonController.text = nachfrage.von!;
-        _arbeitBisController.text = nachfrage.bis!;
-      case ArbeitszeitWahl.ohneZeit:
-      case ArbeitszeitWahl.nichtGefragt:
-        break;
-    }
-    final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
 
+    // Im try: Scheitert die Nachfrage (Dialog, Browser-Speicher), gibt das
+    // finally das Formular wieder frei — sonst hinge es auf «lädt» (K10).
     try {
+      // Wird die Montage MIT DIESEM Speichern ohne jede Arbeitszeit erledigt,
+      // einmal nach der Zeit fragen, vorbelegt aus dem Tagesplan (Entscheid
+      // Daniel 27.09.2026). Nur im Abschluss-Moment — nicht beim Bearbeiten
+      // einer längst abgeschlossenen Montage (M3). VOR dem automatischen
+      // Nachtragen des Endes unten — danach fehlte nie mehr beides.
+      // `dauerStunden` (Abrechnungsfeld) bleibt davon unberührt. Nicht bei
+      // Spesen/Aufwandsentschädigung (kein Besuch) und Anlass (mehrere Tage
+      // in den Slots — ein Von–bis passt dort nicht).
+      final nachfrage = await arbeitszeitBeimAbschliessen(
+        context,
+        ref,
+        noetig: arbeitszeitNachfrageNoetig(
+          wirdErledigt: istWegpunktMoment,
+          vorOrt: montageWarVorOrt('abgeschlossen', _montageTyp) && !_isAnlass,
+          arbeitVon: _arbeitVonController.text,
+          arbeitBis: _arbeitBisController.text,
+        ),
+        planId: _existing != null ? 'm_${_existing!.routeId}' : null,
+        // Beim Abschluss einer geplanten Montage zählt heute (m.datum unten).
+        datum: schliesstJetztAb ? DateTime.now() : _datum,
+        betriebId: _betriebDisabled ? null : _betriebId,
+        geplanteDauerMin:
+            _existing?.geplantDauerMin ??
+            einsatzDauerVorgabe(art: 'montage', montageTyp: _montageTyp),
+      );
+      if (!mounted) return;
+      switch (nachfrage.wahl) {
+        case ArbeitszeitWahl.abgebrochen:
+          return; // finally gibt das Formular frei
+        case ArbeitszeitWahl.uebernommen:
+          markiereGeaendert();
+          _arbeitVonController.text = nachfrage.von!;
+          _arbeitBisController.text = nachfrage.bis!;
+        case ArbeitszeitWahl.ohneZeit:
+        case ArbeitszeitWahl.nichtGefragt:
+          break;
+      }
+      final verzichtMerken = nachfrage.wahl == ArbeitszeitWahl.ohneZeit;
+
       final m = _existing ?? MontageLocal();
 
       if (!_isEdit) {

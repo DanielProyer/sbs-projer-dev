@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/einsatz_status.dart';
 
@@ -71,5 +73,59 @@ void main() {
     test('Beginn und Ende erfasst → behoben', () {
       expect(stoerung(geplant: true, von: '09:00', bis: '10:15'), 'behoben');
     });
+  });
+
+  group('einsatzWirdJetztErledigt — Abschluss-Moment dieses Speicherns', () {
+    bool moment({
+      required bool isEdit,
+      required bool warGeplant,
+      required bool geplant,
+    }) => einsatzWirdJetztErledigt(
+      isEdit: isEdit,
+      warGeplant: warGeplant,
+      geplant: geplant,
+    );
+
+    test('neu und gleich erledigt → ja', () {
+      expect(moment(isEdit: false, warGeplant: false, geplant: false), isTrue);
+    });
+
+    test('neu, aber erst geplant → nein', () {
+      expect(moment(isEdit: false, warGeplant: false, geplant: true), isFalse);
+    });
+
+    test('geplant/laufend → jetzt erledigt → ja', () {
+      expect(moment(isEdit: true, warGeplant: true, geplant: false), isTrue);
+    });
+
+    test('geplant bleibt geplant → nein', () {
+      expect(moment(isEdit: true, warGeplant: true, geplant: true), isFalse);
+    });
+
+    test('längst erledigten Einsatz bearbeiten → nein (keine Nachfrage)', () {
+      expect(moment(isEdit: true, warGeplant: false, geplant: false), isFalse);
+    });
+  });
+
+  test('Wächter: beide Formulare fragen die Arbeitszeit nur im '
+      'Abschluss-Moment', () {
+    for (final pfad in [
+      'lib/presentation/screens/stoerungen/stoerung_form_screen.dart',
+      'lib/presentation/screens/montagen/montage_form_screen.dart',
+    ]) {
+      final text = File(pfad).readAsStringSync();
+      expect(
+        text,
+        contains('wirdErledigt: istWegpunktMoment'),
+        reason: '$pfad: die Nachfrage hängt am Abschluss-Moment',
+      );
+      expect(
+        text,
+        isNot(contains('wirdErledigt: !_geplant')),
+        reason: '$pfad: «nicht geplant» gilt auch beim Bearbeiten eines '
+            'längst erledigten Einsatzes',
+      );
+      expect(text, contains('einsatzWirdJetztErledigt('), reason: pfad);
+    }
   });
 }
