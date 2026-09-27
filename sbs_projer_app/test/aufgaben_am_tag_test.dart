@@ -94,8 +94,13 @@ void main() {
       return taps;
     }
 
-    const offen = (id: 'o', titel: 'Bank anrufen', erledigt: false);
-    const erledigt = (id: 'e', titel: 'Abgabe', erledigt: true);
+    const offen = (
+      id: 'o',
+      titel: 'Bank anrufen',
+      erledigt: false,
+      betrieb: null,
+    );
+    const erledigt = (id: 'e', titel: 'Abgabe', erledigt: true, betrieb: null);
 
     testWidgets('leer → nichts', (tester) async {
       await zeige(tester, const []);

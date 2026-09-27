@@ -27,6 +27,7 @@ import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/services/pdf/kontoauszug_pdf_service.dart';
 import 'package:sbs_projer_app/services/pdf/protokolle_pdf_service.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
+import 'package:sbs_projer_app/presentation/widgets/betrieb/aufgaben_akte_karte.dart';
 import 'package:sbs_projer_app/presentation/widgets/betrieb/betrieb_geld_block.dart';
 import 'package:sbs_projer_app/presentation/widgets/betrieb/einsaetze_akte_karte.dart';
 import 'package:printing/printing.dart';
@@ -374,6 +375,10 @@ class _BetriebDetailContent extends ConsumerWidget {
 
           // Geplanter Service
           if (betrieb.serverId != null) _ServiceTerminSection(betrieb: betrieb),
+
+          // Aufgaben mit Betriebsbezug (Migration 212)
+          if (betrieb.serverId != null)
+            AufgabenAkteKarte(betriebId: betrieb.serverId!),
 
           // Einsätze: alle Typen in einer Liste, Montagen inklusive (T10)
           if (betrieb.serverId != null)

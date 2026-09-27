@@ -1,3 +1,4 @@
+import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/services/google_calendar/google_calendar_sync_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -69,18 +70,44 @@ class AufgabenRepository {
   ///
   /// Ohne Datum wird nichts gepusht: Der Kalender kennt keinen Eintrag ohne
   /// Tag, und `buildEvent` liefert für so eine Zeile ohnehin null.
-  static Future<void> eigeneAnlegen(String titel, DateTime? faelligAm) async {
+  ///
+  /// [betriebId]: Betriebsbezug (Migration 212). Ohne Betrieb fehlt die
+  /// Spalte im Insert ganz — so legt die App auch dann noch Aufgaben an,
+  /// wenn die Migration noch nicht eingespielt ist.
+  static Future<void> eigeneAnlegen(
+    String titel,
+    DateTime? faelligAm, {
+    String? betriebId,
+  }) async {
+    final felder = EigeneAufgabe(
+      titel: titel,
+      faelligAm: faelligAm,
+      betriebId: betriebId,
+    ).toJson();
+    if (betriebId == null) felder.remove('betrieb_id');
     final rows = await SupabaseService.client
         .from('aufgaben')
-        .insert({
-          'user_id': _uid,
-          'typ': 'eigene',
-          'titel': titel,
-          'faellig_am': faelligAm?.toIso8601String().split('T').first,
-        })
+        .insert({'user_id': _uid, 'typ': 'eigene', ...felder})
         .select('id');
     if (faelligAm == null || rows.isEmpty) return;
     await GoogleCalendarSyncService.push('aufgabe', rows.first['id'] as String);
+  }
+
+  /// Ändert Titel, Fälligkeit und Betrieb einer eigenen Aufgabe.
+  ///
+  /// Der Push läuft immer, auch ohne Datum: Wurde das Datum entfernt,
+  /// liefert `buildEvent` null und der alte Kalendereintrag wird gelöscht;
+  /// wurde Titel oder Betrieb geändert, zieht der Eintrag nach.
+  static Future<void> eigeneAendern(EigeneAufgabe aufgabe) async {
+    if (aufgabe.id.isEmpty) {
+      throw ArgumentError('Aufgabe ohne Id lässt sich nicht ändern');
+    }
+    await SupabaseService.client
+        .from('aufgaben')
+        .update(aufgabe.toJson())
+        .eq('id', aufgabe.id)
+        .eq('typ', 'eigene');
+    await GoogleCalendarSyncService.push('aufgabe', aufgabe.id);
   }
 
   /// Hakt eine eigene Aufgabe ab. Der Push räumt den Kalendereintrag weg —

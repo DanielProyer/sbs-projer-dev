@@ -17,6 +17,11 @@ class AufgabeZeile extends StatelessWidget {
   final VoidCallback onEinplanen;
   final VoidCallback onBestaetigen;
 
+  /// Tipp auf eine eigene Aufgabe öffnet «Bearbeiten» (Titel, Datum,
+  /// Betrieb — Migration 212). `null` = die Zeile führt wie bisher
+  /// «Dorthin». Andere Quellen haben nichts zu bearbeiten.
+  final VoidCallback? onBearbeiten;
+
   const AufgabeZeile({
     super.key,
     required this.eintrag,
@@ -26,6 +31,7 @@ class AufgabeZeile extends StatelessWidget {
     required this.onErledigt,
     required this.onEinplanen,
     required this.onBestaetigen,
+    this.onBearbeiten,
   });
 
   Widget _icon() {
@@ -74,9 +80,12 @@ class AufgabeZeile extends StatelessWidget {
       if (zeit.isNotEmpty) zeit,
     ].join(' · ');
     final ueberfaellig = zeit.startsWith('überfällig');
+    final bearbeiten = e.quelle == AufgabenQuelle.eigene
+        ? onBearbeiten
+        : null;
 
     return InkWell(
-      onTap: e.route == null ? null : onDorthin,
+      onTap: bearbeiten ?? (e.route == null ? null : onDorthin),
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
         decoration: const BoxDecoration(
@@ -114,7 +123,9 @@ class AufgabeZeile extends StatelessWidget {
                 ],
               ),
             ),
-            if (e.route != null && e.quelle != AufgabenQuelle.eigene)
+            // Eigene Aufgabe mit Betrieb: der Pfeil führt zur Betriebsseite
+            // (Adresse, Telefon), die Zeile selbst zum Bearbeiten.
+            if (e.route != null)
               IconButton(
                 icon: const Icon(Icons.arrow_forward, size: 18),
                 tooltip: 'Dorthin',

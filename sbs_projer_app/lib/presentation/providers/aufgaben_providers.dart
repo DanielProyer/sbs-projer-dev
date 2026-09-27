@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
+import 'package:sbs_projer_app/core/util/aufgaben_betrieb.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
+import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_vorschlag_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/einsatz_providers.dart';
@@ -82,6 +85,12 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
     saisonTermine: saisonTermine,
     aenderungsVorschlaege: ref.watch(offeneVorschlaegeAnzahlProvider),
     heute: heute,
+    // Eigene Aufgabe mit Betrieb (Migration 212): «Rössli, Ilanz» als
+    // Untertitel — es gibt mehrere Betriebe gleichen Namens.
+    betriebAnzeige: (id) {
+      final b = betriebe[id];
+      return b == null ? null : betriebMitOrt(b.name, b.ort);
+    },
   );
 });
 
@@ -97,3 +106,14 @@ final aufgabenJetztProvider = Provider<List<AufgabenEintrag>>((ref) {
 final aufgabenBadgeProvider = Provider<int>(
   (ref) => ref.watch(aufgabenJetztProvider).length,
 );
+
+/// Die eigenen Aufgaben eines Betriebs für die Betriebsseite (Migration
+/// 212): offene zuerst, dann die der letzten 30 Tage erledigten.
+///
+/// Liest aus `aufgabenZeilenProvider` statt eigens abzufragen — jede Aktion
+/// invalidiert ihn schon, die Betriebsseite zieht damit von selbst nach.
+final aufgabenFuerBetriebProvider =
+    FutureProvider.family<List<EigeneAufgabe>, String>((ref, betriebId) async {
+      final zeilen = await ref.watch(aufgabenZeilenProvider.future);
+      return aufgabenFuerBetrieb(zeilen, betriebId, DateTime.now());
+    });
