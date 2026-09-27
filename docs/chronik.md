@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.150.0 Navigation: Leiste Heute · Betriebe · Material · Tour · Mehr, Einsätze unter Mehr, Mehr-Seite als einheitliche Zeilen
 - 27.09.2026 — v0.149.1 «Offen pro Betrieb» nutzt dieselbe Zustell-Regel wie die Rechnungsliste (Tresen = übergeben)
 - 27.09.2026 — v0.149.0 Entscheide-Runde: Statusmodell-Zielbild (Migration 211), Isar eingefroren, Zeit-Nachfrage beim Abschluss, Aufgaben mit Betrieb (212), Planung-Klappe
 - 27.09.2026 — v0.148.0 Bau-Runde «ohne Entscheid»: Statusmodell-Zwischenschritt, Ferien-Altspalten Phase 1, Tourenplan-Reste, Fahrten heute, Aufgaben im Tourenplan
@@ -36,6 +37,26 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.150.0 Navigation aufgeräumt
+
+Auftrag Daniel: Einsätze braucht er selten, Material oft.
+- **Leiste:** Heute · Betriebe · **Material** · Tour · Mehr. «Material» führt
+  auf `/materialien`, mit rotem Zähler-Badge «N niedrig» (Bestand unter
+  Mindestmenge, `niedrigCountProvider`). «Einsätze» liegt jetzt unter Mehr →
+  Unterwegs (erste Zeile, «Reinigungen, Störungen, Montagen»); Einsatz-Detail-
+  seiten markieren «Mehr». Route `/einsaetze` unverändert.
+- **Mehr-Seite:** alle Gruppen als gleich hohe Zeilen (Icon im grünen Kreis,
+  Titel, Untertitel, Zähler-Chip, Pfeil) — das Kachel-Raster (`alsKacheln`,
+  `dashboard_tile.dart`) ist weg; jede Zeile hat einen Untertitel; Material
+  steht nicht mehr doppelt (Wächter). Gilt auch für Bank, Abschlüsse,
+  Auswertungen und die Buchhaltungs-Übersicht.
+- Suche findet Material weiterhin («bestellung», «lager», «bestand» hängen
+  jetzt an den Leisten-Zielen, `navStichwoerter`).
+- Browser geprüft (360 px): Leiste, Mehr-Seite, Material-Badge.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 

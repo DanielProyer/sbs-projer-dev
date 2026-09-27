@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.149.1 live** (eine Zustell-Regel;  (Entscheide-Runde: Statusmodell-Zielbild 211, Isar eingefroren, Zeit-Nachfrage, Aufgaben mit Betrieb 212; davor v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3042 Tests grün**.
+**Stand:** **v0.150.0 live** (Navigation: Material in der Leiste, Einsätze unter Mehr;  (eine Zustell-Regel;  (Entscheide-Runde: Statusmodell-Zielbild 211, Isar eingefroren, Zeit-Nachfrage, Aufgaben mit Betrieb 212; davor v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3042 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -213,6 +213,10 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
     Bleibt ein Anruf.
 
 ### 📱 Klicktests am Handy (offen)
+
+- **v0.150.0** — Leiste: Material-Reiter (Badge bei niedrigem Bestand);
+  Mehr → Unterwegs → Einsätze; Mehr-Seite: alle Zeilen gleich, nichts
+  abgeschnitten; Suche «lager» findet Material.
 
 - **v0.149.0** — Rechnungsliste öffnet auf «Unbezahlt»; Chips und Filter
   «Nicht zugestellt/Gesendet/Übergeben/Erinnert/…»; Mahn-Kurzsymbol bei
