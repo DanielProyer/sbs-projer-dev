@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/material_filter.dart';
@@ -123,6 +124,23 @@ void main() {
     final rect = tester.getRect(find.text('Kategorie 15 · 15'));
     expect(rect.left, greaterThanOrEqualTo(0));
     expect(rect.right, lessThanOrEqualTo(360));
+  });
+
+  testWidgets('Zeile lässt sich mit der Maus ziehen (PC-Browser)',
+      (tester) async {
+    final viele = [
+      for (var i = 1; i <= 15; i++)
+        KategorieChip(id: 'k$i', name: 'Kategorie $i', anzahl: i),
+    ];
+    await _zeige(tester, chips: viele);
+    final vorher = tester.getRect(find.text('Alle')).left;
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(-200, 0),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.text('Alle')).left, lessThan(vorher));
   });
 
   testWidgets('Tippziele mindestens 44 px hoch', (tester) async {

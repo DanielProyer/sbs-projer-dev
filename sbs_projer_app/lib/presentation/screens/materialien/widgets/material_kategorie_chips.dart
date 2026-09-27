@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/material_filter.dart';
@@ -66,6 +67,17 @@ class _MaterialKategorieChipsState extends State<MaterialKategorieChips> {
 
   @override
   Widget build(BuildContext context) {
+    // Maus mit dazu: Flutter zieht Scrollables von Haus aus nur per
+    // Touch/Stift — am PC-Browser blieben hintere Chips sonst unerreichbar.
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: PointerDeviceKind.values.toSet(),
+      ),
+      child: _zeile(),
+    );
+  }
+
+  Widget _zeile() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
