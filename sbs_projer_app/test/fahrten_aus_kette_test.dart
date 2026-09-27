@@ -581,8 +581,7 @@ void main() {
       );
     });
 
-    test('die Kette kommt unverändert im Ergebnis mit (Arbeitszeit-Vorschlag)',
-        () {
+    test('die Kette kommt im Ergebnis mit (Arbeitszeit-Vorschlag)', () {
       final h = halte([
         einsatz('r1', a, von: '08:00', bis: '08:30'),
         einsatz('r2', b, von: '09:30', bis: '10:00'),
