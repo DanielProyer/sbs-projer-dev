@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 BetriebLocal _betrieb() => BetriebLocal()
   ..userId = 'test'
   ..name = 'Test'
+  ..ferienPerioden = const []
   ..status = 'aktiv';
 
 void main() {
@@ -18,8 +19,7 @@ void main() {
     });
     test('in Ferien → false', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 6)
-        ..ferienEnde = DateTime(2026, 7, 20);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 6), bis: DateTime(2026, 7, 20))];
       expect(istOffenerTag(b, DateTime(2026, 7, 10)), isFalse);
     });
     test('Saisonbetrieb ausserhalb Saison → false', () {
@@ -52,8 +52,7 @@ void main() {
     });
     test('überspringt Ferien vorwärts', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 13)
-        ..ferienEnde = DateTime(2026, 7, 17);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 13), bis: DateTime(2026, 7, 17))];
       expect(naechsterOffenerTag(b, DateTime(2026, 7, 13)),
           DateTime(2026, 7, 18));
     });
@@ -82,15 +81,13 @@ void main() {
     });
     test('lange Ferien (≥21 Tage) → Start; kurze werden ignoriert', () {
       final lang = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 1)
-        ..ferienEnde = DateTime(2026, 7, 21);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 1), bis: DateTime(2026, 7, 21))];
       final s = qualifizierteSchliessung(lang, DateTime(2026, 6, 1));
       expect(s!.datum, DateTime(2026, 7, 1));
       expect(s.istSaisonende, isFalse);
 
       final kurz = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 1)
-        ..ferienEnde = DateTime(2026, 7, 20);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 1), bis: DateTime(2026, 7, 20))];
       expect(qualifizierteSchliessung(kurz, DateTime(2026, 6, 1)), isNull);
     });
     test('nächste Schliessung gewinnt (Ferien vor Saisonende)', () {
@@ -99,8 +96,7 @@ void main() {
         ..sommerSaisonAktiv = true
         ..sommerStartDatum = DateTime(2026, 5, 1)
         ..sommerEndeDatum = DateTime(2026, 9, 30)
-        ..ferienStart = DateTime(2026, 7, 1)
-        ..ferienEnde = DateTime(2026, 7, 21);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 1), bis: DateTime(2026, 7, 21))];
       final s = qualifizierteSchliessung(b, DateTime(2026, 6, 1));
       expect(s!.datum, DateTime(2026, 7, 1));
       expect(s.istSaisonende, isFalse);
@@ -111,8 +107,7 @@ void main() {
     // Löwen-Muster (04.08.2026): Ferien 18.07.–06.08., Eröffnungstermin am
     // letzten Ferientag — muss trotz Schliessung planbar sein.
     BetriebLocal ferienBetrieb() => _betrieb()
-      ..ferienStart = DateTime(2026, 7, 18)
-      ..ferienEnde = DateTime(2026, 8, 6);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 18), bis: DateTime(2026, 8, 6))];
 
     test('Eröffnung am letzten Ferientag → true', () {
       expect(
@@ -307,8 +302,7 @@ void main() {
 
   group('saisonPlanungsHinweis', () {
     BetriebLocal ferienBetrieb() => _betrieb()
-      ..ferienStart = DateTime(2026, 7, 18)
-      ..ferienEnde = DateTime(2026, 8, 6);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 18), bis: DateTime(2026, 8, 6))];
     BetriebLocal saisonBetrieb() => _betrieb()
       ..istSaisonbetrieb = true
       ..sommerSaisonAktiv = true
@@ -400,8 +394,7 @@ void main() {
         ..sommerSaisonAktiv = true
         ..sommerStartDatum = DateTime(2026, 5, 1)
         ..sommerEndeDatum = DateTime(2026, 9, 30)
-        ..ferienStart = DateTime(2026, 2, 1)
-        ..ferienEnde = DateTime(2026, 2, 10);
+        ..ferienPerioden = [(von: DateTime(2026, 2, 1), bis: DateTime(2026, 2, 10))];
       expect(oeffnungNach(b, DateTime(2026, 1, 1)), DateTime(2026, 2, 11));
     });
   });
@@ -409,14 +402,12 @@ void main() {
   group('qualifizierteOeffnungNach', () {
     test('kurze Ferien (<21 Tage) zählen nicht als Wiedereröffnung', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 2, 1)
-        ..ferienEnde = DateTime(2026, 2, 10);
+        ..ferienPerioden = [(von: DateTime(2026, 2, 1), bis: DateTime(2026, 2, 10))];
       expect(qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)), isNull);
     });
     test('lange Ferien (≥21 Tage) → Ende+1', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 2, 1)
-        ..ferienEnde = DateTime(2026, 2, 21);
+        ..ferienPerioden = [(von: DateTime(2026, 2, 1), bis: DateTime(2026, 2, 21))];
       expect(
         qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)),
         DateTime(2026, 2, 22),
@@ -428,8 +419,7 @@ void main() {
         ..sommerSaisonAktiv = true
         ..sommerStartDatum = DateTime(2026, 5, 1)
         ..sommerEndeDatum = DateTime(2026, 9, 30)
-        ..ferienStart = DateTime(2026, 2, 1)
-        ..ferienEnde = DateTime(2026, 2, 10);
+        ..ferienPerioden = [(von: DateTime(2026, 2, 1), bis: DateTime(2026, 2, 10))];
       expect(
         qualifizierteOeffnungNach(b, DateTime(2026, 1, 1)),
         DateTime(2026, 5, 1),
@@ -444,8 +434,7 @@ void main() {
   group('eroeffnungsVorschlagsTag', () {
     // Ferien 20.07.–10.08. (22 Tage, qualifiziert) → offen ab 11.08.
     BetriebLocal flora() => _betrieb()
-      ..ferienStart = DateTime(2026, 7, 20)
-      ..ferienEnde = DateTime(2026, 8, 10);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 20), bis: DateTime(2026, 8, 10))];
 
     test('letzter Ferientag → Vorschlag an diesem Tag', () {
       expect(
@@ -499,8 +488,7 @@ void main() {
     });
     test('kurze Ferien (<21 Tage) lösen keinen Vorschlag aus', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 20)
-        ..ferienEnde = DateTime(2026, 7, 29);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 20), bis: DateTime(2026, 7, 29))];
       expect(
         eroeffnungsVorschlagsTag(
           betrieb: b,
@@ -526,8 +514,7 @@ void main() {
   group('endreinigungsVorschlagsTag', () {
     // Ferien 20.07.–10.08.; letzter offener Tag davor = 19.07.
     BetriebLocal flora() => _betrieb()
-      ..ferienStart = DateTime(2026, 7, 20)
-      ..ferienEnde = DateTime(2026, 8, 10);
+      ..ferienPerioden = [(von: DateTime(2026, 7, 20), bis: DateTime(2026, 8, 10))];
 
     test('letzter offener Tag vor der Schliessung → Vorschlag', () {
       expect(

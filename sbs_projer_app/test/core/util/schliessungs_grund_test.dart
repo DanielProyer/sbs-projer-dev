@@ -5,6 +5,7 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 BetriebLocal _betrieb() => BetriebLocal()
   ..userId = 'test'
   ..name = 'Test'
+  ..ferienPerioden = const []
   ..status = 'aktiv';
 
 // 03.08.2026 ist ein Montag.
@@ -30,15 +31,13 @@ void main() {
 
     test('Betriebsferien nennen das Enddatum', () {
       final b = _betrieb()
-        ..ferienStart = DateTime(2026, 7, 27)
-        ..ferienEnde = DateTime(2026, 8, 16);
+        ..ferienPerioden = [(von: DateTime(2026, 7, 27), bis: DateTime(2026, 8, 16))];
       expect(schliessungsGrund(b, _montag), 'Betriebsferien bis 16.08.');
     });
 
     test('Ferien aus Slot 5 werden ebenso gefunden', () {
       final b = _betrieb()
-        ..ferien5Start = DateTime(2026, 8, 1)
-        ..ferien5Ende = DateTime(2026, 8, 5);
+        ..ferienPerioden = [(von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 5))];
       expect(schliessungsGrund(b, _montag), 'Betriebsferien bis 05.08.');
     });
 
@@ -74,8 +73,7 @@ void main() {
     test('Ferien schlagen Ruhetag (der dringendere Grund zuerst)', () {
       final b = _betrieb()
         ..ruhetage = ['Mo']
-        ..ferienStart = DateTime(2026, 8, 1)
-        ..ferienEnde = DateTime(2026, 8, 20);
+        ..ferienPerioden = [(von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 20))];
       expect(schliessungsGrund(b, _montag), 'Betriebsferien bis 20.08.');
     });
 
@@ -85,8 +83,7 @@ void main() {
         _betrieb()..ruhetage = ['Mo'],
         _betrieb()..status = 'inaktiv',
         _betrieb()
-          ..ferienStart = DateTime(2026, 8, 1)
-          ..ferienEnde = DateTime(2026, 8, 9),
+          ..ferienPerioden = [(von: DateTime(2026, 8, 1), bis: DateTime(2026, 8, 9))],
         _betrieb()
           ..istSaisonbetrieb = true
           ..winterSaisonAktiv = true

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/data/local/betrieb_ferien_local_export.dart';
+import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_ferien.dart';
 import 'package:sbs_projer_app/data/mappers/betrieb_ferien_mapper.dart';
 import 'package:sbs_projer_app/services/storage/isar_service_export.dart';
@@ -49,6 +50,29 @@ class BetriebFerienRepository {
           .toList();
     }
     return IsarService.betriebFerienFilterByBetrieb(betriebId);
+  }
+
+  /// Lädt die Perioden genau dieses Betriebs und hängt sie an
+  /// [BetriebLocal.ferienPerioden] — für Leser, die einen Betrieb einzeln
+  /// holen (`BetriebRepository.getById`) und danach Ferien auswerten.
+  ///
+  /// WARUM: `ferienSlots` fällt seit 27.09.2026 nicht mehr auf die
+  /// Altspalten zurück; ein Betrieb ohne geladene Perioden hätte sonst still
+  /// keine Ferien. Die Listen-Leser bekommen die Perioden über
+  /// `betriebeStreamProvider` bzw. `mitFerienPerioden`.
+  ///
+  /// Ohne `serverId` (neuer, noch nicht synchronisierter Betrieb) gibt es
+  /// keine Zeilen — dann eine leere Liste ohne Abfrage. Ladefehler werden
+  /// NICHT geschluckt: Der Aufrufer entscheidet, was ohne Ferien sicher ist.
+  static Future<BetriebLocal> periodenAnhaengen(BetriebLocal b) async {
+    final id = b.serverId;
+    if (id == null || id.isEmpty) {
+      b.ferienPerioden = const [];
+      return b;
+    }
+    final ferien = await getFuerBetrieb(id);
+    b.ferienPerioden = [for (final f in ferien) (von: f.von, bis: f.bis)];
+    return b;
   }
 
   /// Legt eine neue Ferien-Periode an. Bei `quelle` 'kunde' oder 'vor_ort'

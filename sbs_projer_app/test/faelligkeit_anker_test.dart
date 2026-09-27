@@ -6,6 +6,7 @@ import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 BetriebLocal saisonBetrieb() => BetriebLocal()
   ..name = 'Test'
+  ..ferienPerioden = const []
   ..status = 'aktiv'
   ..istSaisonbetrieb = true
   ..winterSaisonAktiv = true
@@ -20,8 +21,7 @@ BetriebLocal ganzjahresBetrieb() => BetriebLocal()
   ..name = 'Test'
   ..status = 'aktiv'
   ..istSaisonbetrieb = false
-  ..ferienStart = DateTime(2026, 5, 1)
-  ..ferienEnde = DateTime(2026, 5, 28)
+  ..ferienPerioden = [(von: DateTime(2026, 5, 1), bis: DateTime(2026, 5, 28))]
   ..ruhetage = [];
 
 void main() {
@@ -62,8 +62,7 @@ void main() {
     );
     test('Ganzjahresbetrieb ohne Schliessung -> Anker = Reinigungsdatum', () {
       final b = ganzjahresBetrieb()
-        ..ferienStart = null
-        ..ferienEnde = null;
+        ..ferienPerioden = const [];
       expect(
         faelligkeitsAnker(b, DateTime(2026, 4, 30)),
         DateTime(2026, 4, 30),
@@ -159,8 +158,7 @@ void main() {
       ..name = 'Muloin'
       ..status = 'aktiv'
       ..istSaisonbetrieb = false
-      ..ferienStart = DateTime(2026, 6, 26)
-      ..ferienEnde = DateTime(2026, 7, 27)
+      ..ferienPerioden = [(von: DateTime(2026, 6, 26), bis: DateTime(2026, 7, 27))]
       ..ruhetage = [];
 
     AnlageLocal anlage() => AnlageLocal()
@@ -203,8 +201,7 @@ void main() {
       ..name = 'Flora'
       ..status = 'aktiv'
       ..istSaisonbetrieb = false
-      ..ferienStart = DateTime(2026, 7, 20)
-      ..ferienEnde = DateTime(2026, 8, 10)
+      ..ferienPerioden = [(von: DateTime(2026, 7, 20), bis: DateTime(2026, 8, 10))]
       ..ruhetage = [];
 
     AnlageLocal anlage() => AnlageLocal()
@@ -228,7 +225,8 @@ void main() {
           FaelligkeitsStatus.eroeffnungFaellig);
     });
     test('kurze Ferien (<21 Tage) lösen keinen Eröffnungs-Hinweis aus', () {
-      final b = flora()..ferienEnde = DateTime(2026, 7, 29);
+      final b = flora()
+        ..ferienPerioden = [(von: DateTime(2026, 7, 20), bis: DateTime(2026, 7, 29))];
       expect(
           getFaelligkeit(anlage(), DateTime(2026, 7, 25),
               betrieb: b, letzteServiceArt: 'Service'),
