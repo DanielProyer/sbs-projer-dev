@@ -344,10 +344,16 @@ class _BuchungFormScreenState extends ConsumerState<BuchungFormScreen>
                             labelText: 'Zahlungsweg (freiwillig)',
                           ),
                           items: [
-                            for (final z in kZahlungswegeFreiBuchen)
-                              DropdownMenuItem(
+                            // Erster Eintrag «keiner» (null): Eine Wahl
+                            // lässt sich so wieder leeren.
+                            for (final z in kZahlungswegOptionenFreiBuchen)
+                              DropdownMenuItem<String>(
                                 value: z,
-                                child: Text(_zahlungswegFreiLabels[z] ?? z),
+                                child: Text(
+                                  z == null
+                                      ? 'keiner'
+                                      : _zahlungswegFreiLabels[z] ?? z,
+                                ),
                               ),
                           ],
                           onChanged: (v) => setState(() => _zahlungsweg = v),

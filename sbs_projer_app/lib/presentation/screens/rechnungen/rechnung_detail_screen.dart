@@ -713,11 +713,15 @@ class _RechnungDetailContentState
       );
 
       // 5. versendet_am setzen (nur bei scharfem Versand).
-      // Rückfall neben dem serverseitigen Vermerk; beide idempotent.
+      // Rückfall neben dem serverseitigen Vermerk. Das Erstversanddatum
+      // bleibt (B4): `_rechnung` ist der Stand VOR dem Versand (neu geladen
+      // in Schritt 1) — der Server hat versendet_am soeben auf heute
+      // gesetzt, hier kommt das erste Datum zurück. Mehr Zeit für den
+      // Kunden gibt die neue Fälligkeit aus Schritt 1.
       final istScharf = MailConfig.istScharf('reinigung');
       if (istScharf) {
         await RechnungRepository.update(_rechnung.id, {
-          'versendet_am': DateTime.now().toIso8601String().split('T').first,
+          'versendet_am': ReinigungRechnungVersand.versendetAmFeld(_rechnung),
           'versandart': 'rechnung_mail',
         });
         // Status nur offen → gesendet (R4): Ein Neuversand dreht eine

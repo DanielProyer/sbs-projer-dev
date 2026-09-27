@@ -15,6 +15,17 @@ library;
 /// Die einzigen Zahlungswege, die «Frei buchen» anbietet und speichert.
 const kZahlungswegeFreiBuchen = ['kasse', 'bank', 'privat', 'intern'];
 
+/// Einträge des freien Dropdowns: zuerst «keiner» (`null`), dann
+/// [kZahlungswegeFreiBuchen].
+///
+/// WARUM (27.09.2026): «Freiwillig» hiess bisher nur «am Anfang leer» — ein
+/// einmal gewählter Weg liess sich nicht mehr leeren, ausser über einen
+/// Moduswechsel. Wer sich verklickt hatte, buchte mit falschem Zahlungsweg.
+const kZahlungswegOptionenFreiBuchen = <String?>[
+  null,
+  ...kZahlungswegeFreiBuchen,
+];
+
 /// Zahlungsweg beim Umschalten auf bzw. Speichern in «Frei buchen»: ein
 /// erlaubter Wert bleibt, alles andere wird `null` (kein Zahlungsweg).
 String? zahlungswegFuerFreiBuchen(String? bisher) =>

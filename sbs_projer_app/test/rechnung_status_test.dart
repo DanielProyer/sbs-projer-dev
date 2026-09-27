@@ -233,4 +233,22 @@ void main() {
       expect(statusNachVersand('offen', vollMitGuthabenGedeckt: true), 'offen');
     });
   });
+
+  group('versendetAmNachVersand — das Erstversanddatum bleibt', () {
+    final jetzt = DateTime(2026, 9, 27, 14, 30);
+
+    test('erster Versand: heute', () {
+      expect(versendetAmNachVersand(null, jetzt), jetzt);
+    });
+
+    test('Neuversand: das Datum des ersten Versands bleibt', () {
+      final erst = DateTime(2026, 8, 3);
+      expect(versendetAmNachVersand(erst, jetzt), erst);
+    });
+
+    test('auch ein Neuversand am selben Tag ändert nichts', () {
+      final erst = DateTime(2026, 9, 27);
+      expect(versendetAmNachVersand(erst, jetzt), erst);
+    });
+  });
 }

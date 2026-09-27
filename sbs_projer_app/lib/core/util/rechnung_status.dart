@@ -104,6 +104,18 @@ String anzeigeStatus(Rechnung r) {
   return _anzeigeTexte[k] ?? k;
 }
 
+/// `versendet_am` nach einem (Neu-)Versand: Das Datum des ERSTEN Versands
+/// bleibt, nur ein erster Versand setzt [jetzt].
+///
+/// WARUM (Analyse 25.09.2026, Abschnitt 2): Jeder Neuversand überschrieb
+/// `versendet_am` — das Erstversanddatum ging verloren. Es ist aber die
+/// Zustellung, an der Mahnfristen und die Frage «wann gestellt?» hängen
+/// (`mahnregeln.dart`, Jahrgangs-Abschreibung, Kontoauszug). Ein Neuversand,
+/// der dem Kunden bewusst mehr Zeit gibt, setzt dafür `faelligkeitsdatum`
+/// neu (Rechnungsdetail «neu versenden»: heute + 30).
+DateTime versendetAmNachVersand(DateTime? bisher, DateTime jetzt) =>
+    bisher ?? jetzt;
+
 /// Status nach einem (Neu-)Versand der Rechnung.
 ///
 /// WARUM (Analyse 25.09.2026, R4): Der Versand setzte pauschal `gesendet`. Ein

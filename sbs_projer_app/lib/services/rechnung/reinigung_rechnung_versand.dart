@@ -115,10 +115,22 @@ class ReinigungRechnungVersand {
   /// `freigegeben`/`bezahlt` darf ein Versand ebenso wenig zurückdrehen.
   static Future<void> vermerkeVersand(Rechnung rechnung) async {
     await RechnungRepository.update(rechnung.id, {
-      'versendet_am': DateTime.now().toIso8601String().split('T').first,
+      'versendet_am': versendetAmFeld(rechnung),
     });
     await hebeStatusNachVersand(rechnung);
   }
+
+  /// Wert für `versendet_am` nach einem Versand von [rechnung] (Stand VOR
+  /// dem Versand): das Erstversanddatum bleibt (B4, [versendetAmNachVersand]).
+  ///
+  /// Wird auch geschrieben, wenn es schon steht: `send-rechnung-mail` setzt
+  /// `versendet_am` serverseitig bei jedem Versand auf heute — der Client
+  /// stellt das Erstversanddatum danach wieder her.
+  static String versendetAmFeld(Rechnung rechnung) =>
+      versendetAmNachVersand(rechnung.versendetAm, DateTime.now())
+          .toIso8601String()
+          .split('T')
+          .first;
 
   /// Nur der Status-Schritt von [vermerkeVersand]: `offen` → `gesendet`,
   /// abgesichert gegen den DB-Stand. Für Aufrufer, die `versendet_am` selbst

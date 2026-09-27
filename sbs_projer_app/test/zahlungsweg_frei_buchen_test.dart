@@ -33,6 +33,21 @@ void main() {
     });
   });
 
+  group('kZahlungswegOptionenFreiBuchen', () {
+    test('zuerst «keiner» (null), dann die vier Wege', () {
+      expect(
+        kZahlungswegOptionenFreiBuchen,
+        [null, 'kasse', 'bank', 'privat', 'intern'],
+      );
+    });
+
+    test('jede Option ist speicherbar', () {
+      for (final z in kZahlungswegOptionenFreiBuchen) {
+        expect(zahlungswegFreiErlaubt(z), isTrue, reason: '$z');
+      }
+    });
+  });
+
   group('zahlungswegFreiErlaubt', () {
     test('kein Zahlungsweg ist erlaubt', () {
       expect(zahlungswegFreiErlaubt(null), isTrue);
@@ -97,8 +112,10 @@ void main() {
     expect(frei.value, isNull);
     expect(
       frei.items!.map((i) => i.value),
-      ['kasse', 'bank', 'privat', 'intern'],
+      [null, 'kasse', 'bank', 'privat', 'intern'],
     );
+    // Leer steht als «keiner» da, nicht als leeres Feld.
+    expect(find.text('keiner'), findsOneWidget);
 
     // Speichern scheitert hier an den leeren Pflichtfeldern (Betrag,
     // Konten) — der Zahlungsweg meldet sich dabei nicht.
@@ -137,5 +154,51 @@ void main() {
       find.byType(DropdownButton<String>),
     );
     expect(frei.value, 'intern');
+  });
+
+  testWidgets('ein gewählter Zahlungsweg lässt sich mit «keiner» leeren', (
+    tester,
+  ) async {
+    // Bis 27.09.2026 blieb eine einmal getroffene Wahl stehen — «freiwillig»
+    // hiess nur: am Anfang leer lassen.
+    tester.view.physicalSize = const Size(1000, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          manuelleBuchungsVorlagenProvider.overrideWith((ref) async => []),
+        ],
+        child: const MaterialApp(home: BuchungFormScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Frei buchen'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bank').last);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
+          .value,
+      'bank',
+    );
+
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('keiner').last);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      tester
+          .widget<DropdownButton<String>>(find.byType(DropdownButton<String>))
+          .value,
+      isNull,
+    );
+    expect(find.text('keiner'), findsOneWidget);
   });
 }

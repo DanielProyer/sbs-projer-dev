@@ -82,9 +82,12 @@ bool istZugestellt(Rechnung r) =>
 DateTime zustelldatum(Rechnung r) =>
     _tag(r.versendetAm ?? r.uebergebenAm ?? r.rechnungsdatum);
 
-/// Ist die Rechnung erst nach ihrem Fälligkeitsdatum zugestellt worden
-/// (z. B. «erneut senden»), laufen die 30 Tage ab der Zustellung — sonst
-/// würde eine eben zugestellte Rechnung sofort gemahnt.
+/// Ist die Rechnung erst nach ihrem Fälligkeitsdatum zugestellt worden (erster
+/// Versand verspätet), laufen die 30 Tage ab der Zustellung — sonst würde
+/// eine eben zugestellte Rechnung sofort gemahnt. Ein NEUversand verschiebt
+/// die Zustellung seit B4 (27.09.2026) nicht mehr (`versendet_am` bleibt das
+/// Erstversanddatum); «neu versenden» im Rechnungsdetail setzt dafür die
+/// Fälligkeit neu.
 DateTime massgebendeFaelligkeit(Rechnung r) {
   final z = zustelldatum(r);
   final f = _tag(r.faelligkeitsdatum);
