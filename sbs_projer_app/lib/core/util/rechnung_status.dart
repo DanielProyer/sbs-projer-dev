@@ -13,6 +13,9 @@
 /// liest nur noch Felder.
 library;
 
+// Gegenseitiger Import mit mahnregeln.dart (das hier istOffen/istZugestellt
+// liest) — in Dart zulässig; der Mahnbereich bleibt so EINE Regel dort.
+import 'package:sbs_projer_app/core/util/mahnregeln.dart' show imMahnbereich;
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
@@ -48,6 +51,21 @@ int mahnstufeVon(Rechnung r) =>
 
 /// Offen und mindestens einmal gemahnt.
 bool istGemahnt(Rechnung r) => istOffen(r) && mahnstufeVon(r) > 0;
+
+/// Nachweislich beim Kunden: per Mail/Post versandt (`versendet_am`), am
+/// Tresen übergeben (`uebergeben_am`) oder Versandart Tresen — das
+/// Übergabedatum wird erst seit v0.71.0 gespeichert, davor gilt eine
+/// Tresen-Rechnung als übergeben (Entscheid Daniel 23.09.2026).
+///
+/// EINE Wahrheit für Anzeige ([anzeigeSchluessel]) und Mahnwesen
+/// (`mahnregeln.dart` liest sie von hier): Bis 27.09.2026 stand eine
+/// Tresen-Rechnung ohne Übergabedatum in der Liste als «Nicht zugestellt»,
+/// während der Mahnlauf sie als zugestellt mahnte (Review M2; 257 offene
+/// Tresen-Rechnungen ohne `uebergeben_am` am 27.09.2026).
+bool istZugestellt(Rechnung r) =>
+    r.versendetAm != null ||
+    r.uebergebenAm != null ||
+    r.versandart == 'rechnung_tresen';
 
 /// Anzeige-Schlüssel einer Rechnung — KEINE DB-Werte (ausser bezahlt und
 /// abgeschrieben). Für Text ([anzeigeTextFuer]), Farbe
@@ -109,7 +127,8 @@ const _stufenSchluessel = {
 /// 2. ein unbekannter Wert kommt roh durch — sichtbar statt als «offen»;
 /// 3. die Mahnstufe aus `mahnung_stufe`;
 /// 4. `freigegeben_am` (Heineken-Monatsrechnung);
-/// 5. zugestellt: `versendet_am` («Gesendet»), sonst `uebergeben_am`;
+/// 5. zugestellt ([istZugestellt]): `versendet_am` («Gesendet»), sonst am
+///    Tresen — `uebergeben_am` oder Versandart Tresen («Übergeben»);
 /// 6. sonst «Nicht zugestellt».
 String anzeigeSchluessel(Rechnung r) {
   final s = r.zahlungsstatus;
@@ -119,7 +138,7 @@ String anzeigeSchluessel(Rechnung r) {
   if (stufe != null) return stufe;
   if (r.freigegebenAm != null) return RechnungAnzeige.freigegeben;
   if (r.versendetAm != null) return RechnungAnzeige.gesendet;
-  if (r.uebergebenAm != null) return RechnungAnzeige.uebergeben;
+  if (istZugestellt(r)) return RechnungAnzeige.uebergeben;
   return RechnungAnzeige.nichtZugestellt;
 }
 
@@ -159,8 +178,13 @@ const kAnzeigeFilterSchluessel = [
 /// Mail-Rechnungen boten kein Mahnen an, die nie zugestellten dagegen
 /// schon. Jetzt: jede offene, ZUGESTELLTE Kunden-/Jahresrechnung. Heineken
 /// hat kein Mahnwesen; eine nicht zugestellte Rechnung mahnt man nicht.
+///
+/// Nur im Mahnbereich ([imMahnbereich]: ab `kMahnStart`, ohne vermerkten
+/// Zahlungseingang) — dieselbe Menge, die der Mahnlauf anfasst. Sonst bot
+/// die Liste ~114 Altrechnungen von vor 2026 einen Mahnschritt an, den der
+/// Mahnlauf nie ausführt (Altlast: jahrgangsweise Abschreibung; Review K3).
 String? naechsteMahnAktion(Rechnung r) {
-  if (!kZahlbareTypen.contains(r.rechnungstyp)) return null;
+  if (!imMahnbereich(r)) return null;
   return switch (anzeigeSchluessel(r)) {
     RechnungAnzeige.gesendet ||
     RechnungAnzeige.uebergeben => RechnungAnzeige.erinnert,

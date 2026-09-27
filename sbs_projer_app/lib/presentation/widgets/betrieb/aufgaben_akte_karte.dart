@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart'
+    show kurzeFehlermeldung;
 import 'package:sbs_projer_app/core/util/aufgabe.dart' show faelligText;
 import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart'
+    show aufgabenZeilenProvider;
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgaben_aktionen.dart';
 import 'package:sbs_projer_app/presentation/widgets/detail/detail_karte.dart';
@@ -26,7 +30,8 @@ class AufgabenAkteKarte extends ConsumerWidget {
       heute: DateTime.now(),
       onNeu: () => neueAufgabeDialog(context, ref, betriebId: betriebId),
       onBearbeiten: (a) => aufgabeBearbeitenDialog(context, ref, a),
-      onErledigen: (a) => eigeneAufgabeErledigen(context, ref, a.id),
+      onErledigen: (a) => eigeneAufgabeErledigen(context, a.id),
+      onNeuLaden: () => ref.invalidate(aufgabenZeilenProvider),
     );
   }
 }
@@ -42,6 +47,9 @@ class AufgabenAkteInhalt extends StatelessWidget {
   final ValueChanged<EigeneAufgabe> onBearbeiten;
   final ValueChanged<EigeneAufgabe> onErledigen;
 
+  /// «Erneut laden» nach einem Ladefehler (K8).
+  final VoidCallback onNeuLaden;
+
   const AufgabenAkteInhalt({
     super.key,
     required this.aufgaben,
@@ -49,6 +57,7 @@ class AufgabenAkteInhalt extends StatelessWidget {
     required this.onNeu,
     required this.onBearbeiten,
     required this.onErledigen,
+    required this.onNeuLaden,
   });
 
   @override
@@ -83,7 +92,40 @@ class AufgabenAkteInhalt extends StatelessWidget {
       ),
       kinder: aufgaben.when(
         loading: () => const [_Hinweis('Wird geladen …')],
-        error: (e, _) => [_Hinweis('Aufgaben nicht geladen: $e', rot: true)],
+        // Kurz und ohne rohen Fehlertext, mit Ausweg (K8) — bis 27.09.2026
+        // stand hier nie etwas: der Provider schluckte den Fehler.
+        error: (e, _) => [
+          _Hinweis(
+            'Aufgaben nicht geladen: ${kurzeFehlermeldung(e)}',
+            rot: true,
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: InkWell(
+              key: const Key('aufgaben_neu_laden'),
+              onTap: onNeuLaden,
+              borderRadius: BorderRadius.circular(16),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.refresh, size: 18, color: AppColors.primary),
+                    SizedBox(width: 4),
+                    Text(
+                      'Erneut laden',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
         data: (liste) => [
           if (liste.isEmpty) const _Hinweis('Keine offenen Aufgaben'),
           for (final a in liste)

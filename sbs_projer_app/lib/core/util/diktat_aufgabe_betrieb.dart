@@ -12,6 +12,8 @@
 library;
 
 import 'package:sbs_projer_app/core/util/einsatz_betrieb_match.dart';
+import 'package:sbs_projer_app/core/util/google_termin_match.dart'
+    show normalisiereText, unterscheidendeTokens;
 import 'package:sbs_projer_app/data/models/einsatz_diktat_ergebnis.dart';
 
 /// Zuordnung: [id]/[name] nur, wenn eindeutig; sonst höchstens
@@ -43,6 +45,18 @@ DiktatBetrieb betriebAusText(String text, List<BetriebEintrag> betriebe) {
   );
 }
 
+/// Nennt [erkannt] den Betrieb [b] exakt? Jeder unterscheidende Namensteil
+/// (ohne Gattungswörter wie «Restaurant») steht — nach der Umlaut-Faltung,
+/// «Rossli» = «Rössli» — unverändert im erkannten Namen; ein Ort daneben
+/// stört nicht («Rössli Ilanz»). Ein Tippfehler-Treffer («Adlar» →
+/// «Adler») oder ein Teiltreffer («Sunset» → «Sunset Seehotel») zählt nicht.
+bool nenntBetriebExakt(String erkannt, BetriebEintrag b) {
+  final namensTeile = unterscheidendeTokens(b.name);
+  if (namensTeile.isEmpty) return false;
+  final woerter = normalisiereText(erkannt).split(' ').toSet();
+  return namensTeile.every(woerter.contains);
+}
+
 /// Betrieb einer diktierten Aufgabe aus dem Ergebnis von `parse-einsatz`
 /// und dem Rohtext [text]:
 ///
@@ -50,6 +64,10 @@ DiktatBetrieb betriebAusText(String text, List<BetriebEintrag> betriebe) {
 /// 2. Sie nennt Kandidaten → die, Daniel wählt.
 /// 3. Sie hat einen Namen erkannt, aber keinen Betrieb gefunden → die
 ///    App-Erkennung auf diesen Namen (verhörte Eigennamen: «Rossli»).
+///    Vorgewählt nur bei einem EXAKTEN Namenstreffer ([nenntBetriebExakt]);
+///    ein bloss ähnlicher Einzeltreffer kommt als Chip zum Antippen — die
+///    Tippfehler-Toleranz macht aus «Adlar» sonst still den «Adler»
+///    (Review K6, 27.09.2026).
 /// 4. Sie hat gar nichts erkannt → die App-Erkennung auf den ganzen Text,
 ///    aber NUR als Kandidat zum Antippen, nie vorgewählt: Die Function hat
 ///    den Satz mit der ganzen Betriebsliste gelesen und keinen Betrieb
@@ -84,16 +102,23 @@ DiktatBetrieb aufgabeBetriebAusDiktat({
 
   // 3.
   final erkannt = ergebnis.betriebNameErkannt;
-  if (erkannt != null) return betriebAusText(erkannt, betriebe);
+  if (erkannt != null) {
+    final ausName = betriebAusText(erkannt, betriebe);
+    final id = ausName.id;
+    if (id == null) return ausName;
+    final b = betriebe.firstWhere((b) => b.id == id);
+    return nenntBetriebExakt(erkannt, b) ? ausName : _nurChip(ausName);
+  }
 
   // 4.
-  final ausText = betriebAusText(text, betriebe);
-  if (ausText.id != null) {
-    return (
-      id: null,
-      name: null,
-      kandidaten: [EinsatzBetriebKandidat(id: ausText.id!, name: ausText.name!)],
-    );
-  }
-  return ausText;
+  return _nurChip(betriebAusText(text, betriebe));
 }
+
+/// Ein eindeutiger Treffer, aber nur als Kandidat zum Antippen.
+DiktatBetrieb _nurChip(DiktatBetrieb d) => d.id == null
+    ? d
+    : (
+        id: null,
+        name: null,
+        kandidaten: [EinsatzBetriebKandidat(id: d.id!, name: d.name!)],
+      );

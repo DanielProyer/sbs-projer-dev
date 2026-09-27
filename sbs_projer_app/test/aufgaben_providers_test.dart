@@ -38,6 +38,7 @@ void main() {
     List<TerminDto> termine = const [],
     int vorschlaege = 0,
     List<Aufgabe> mahnfaelle = const [],
+    Object? zeilenFehler,
   }) => [
     stoerungenProvider.overrideWithValue(stoerungen),
     montagenProvider.overrideWithValue(const []),
@@ -50,8 +51,40 @@ void main() {
     mahnlaufAufgabeProvider.overrideWith((ref) async => const []),
     draussenAufgabenProvider.overrideWith((ref) async => const []),
     mahnfallAufgabenProvider.overrideWith((ref) async => mahnfaelle),
-    aufgabenZeilenProvider.overrideWith((ref) async => zeilen),
+    aufgabenZeilenProvider.overrideWith((ref) async {
+      if (zeilenFehler != null) throw zeilenFehler;
+      return zeilen;
+    }),
   ];
+
+  // Review K8: Der Tabellen-Fehler wird nicht mehr geschluckt — die
+  // Betriebsseite zeigt ihn; die Aufgabenliste läuft ohne eigene Aufgaben
+  // weiter wie bisher.
+  test(
+    'Tabelle nicht ladbar: Liste bleibt stehen, Betriebsseite sieht den Fehler',
+    () async {
+      final container = ProviderContainer(
+        overrides: basis(
+          detektoren: [
+            const Aufgabe(
+              key: 'mahnlauf',
+              titel: 'Mahnlauf',
+              route: '/buchhaltung/mahnwesen',
+            ),
+          ],
+          zeilenFehler: Exception('offline'),
+        ),
+      );
+      addTearDown(container.dispose);
+
+      final liste = await container.read(aufgabenListeProvider.future);
+      expect(liste.map((e) => e.titel), contains('Mahnlauf'));
+      await expectLater(
+        container.read(aufgabenFuerBetriebProvider('b1').future),
+        throwsA(isA<Exception>()),
+      );
+    },
+  );
 
   test(
     'anstehendeEinsaetzeProvider: offen/geplant/inArbeit, erledigte nicht, Saison-Termine nicht',

@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
+import 'package:sbs_projer_app/presentation/widgets/aufgaben_aktionen.dart';
 import 'package:sbs_projer_app/presentation/widgets/betrieb/aufgaben_akte_karte.dart';
 
 /// Sektion «Aufgaben (n)» auf der Betriebsseite (Migration 212, Entscheid
@@ -27,6 +30,7 @@ final _erledigt = EigeneAufgabe(
 
 class _Aufrufe {
   var neu = 0;
+  var neuLaden = 0;
   final bearbeitet = <String>[];
   final erledigt = <String>[];
 }
@@ -52,6 +56,7 @@ Future<_Aufrufe> _zeige(
               onNeu: () => r.neu++,
               onBearbeiten: (a) => r.bearbeitet.add(a.id),
               onErledigen: (a) => r.erledigt.add(a.id),
+              onNeuLaden: () => r.neuLaden++,
             ),
           ],
         ),
@@ -115,6 +120,26 @@ void main() {
     expect(find.text('Wird geladen …'), findsOneWidget);
   });
 
+  // Review K8: Bis 27.09.2026 schluckte der Provider den Fehler — hier
+  // stand dann «Keine offenen Aufgaben».
+  testWidgets('Ladefehler: kurze Meldung ohne Rohtext, «Erneut laden»', (
+    tester,
+  ) async {
+    final r = await _zeige(
+      tester,
+      AsyncValue.error(
+        Exception('ClientException: Failed to fetch, uri=https://x/rest/v1'),
+        StackTrace.empty,
+      ),
+    );
+    expect(find.text('Aufgaben nicht geladen: keine Verbindung'), findsOneWidget);
+    expect(find.textContaining('ClientException'), findsNothing);
+    expect(find.text('Keine offenen Aufgaben'), findsNothing);
+    await tester.tap(find.text('Erneut laden'));
+    expect(r.neuLaden, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('langer Titel am Handy ohne Überlauf', (tester) async {
     await _zeige(
       tester,
@@ -135,6 +160,79 @@ void main() {
     expect(find.byType(ListTile), findsNothing);
     expect(find.byType(TextButton), findsNothing);
     expect(find.byType(FilledButton), findsNothing);
+  });
+
+  // Review K7: Der Kreis liegt direkt neben der Zeile — ein Fehlgriff hakte
+  // bisher unwiderruflich ab.
+  group('Abhaken mit «Rückgängig»', () {
+    Future<({List<String> erledigt, List<String> geoeffnet, List<int> laeufe})>
+    abhaken(WidgetTester tester, {Object? fehler}) async {
+      final erledigt = <String>[];
+      final geoeffnet = <String>[];
+      final laeufe = [0];
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            aufgabenZeilenProvider.overrideWith((ref) async {
+              laeufe[0]++;
+              return const [];
+            }),
+            draussenAufgabenProvider.overrideWith((ref) async => const []),
+            aufgabenListeProvider.overrideWith((ref) async => const []),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Consumer(
+                builder: (context, ref, _) {
+                  // hält die Tabelle am Leben — zählt das Neuladen
+                  ref.watch(aufgabenZeilenProvider);
+                  return GestureDetector(
+                    onTap: () => eigeneAufgabeErledigen(
+                      context,
+                      'o1',
+                      erledigen: (id) async {
+                        if (fehler != null) throw fehler;
+                        erledigt.add(id);
+                      },
+                      wiederOeffnen: (id) async => geoeffnet.add(id),
+                    ),
+                    child: const Text('abhaken'),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('abhaken'));
+      await tester.pumpAndSettle();
+      return (erledigt: erledigt, geoeffnet: geoeffnet, laeufe: laeufe);
+    }
+
+    testWidgets('«Erledigt» mit «Rückgängig», das wieder öffnet und neu lädt',
+        (tester) async {
+      final r = await abhaken(tester);
+      expect(r.erledigt, ['o1']);
+      expect(r.laeufe.single, 2); // nach dem Abhaken neu geladen
+      expect(find.text('Erledigt'), findsOneWidget);
+      await tester.tap(find.text('Rückgängig'));
+      await tester.pumpAndSettle();
+      expect(r.geoeffnet, ['o1']);
+      expect(r.laeufe.single, 3); // nach dem Rückgängig neu geladen
+    });
+
+    testWidgets('Fehler beim Abhaken: Meldung, kein «Rückgängig»', (
+      tester,
+    ) async {
+      final r = await abhaken(
+        tester,
+        fehler: Exception('ClientException: Failed to fetch'),
+      );
+      expect(r.erledigt, isEmpty);
+      expect(find.text('Nicht erledigt: keine Verbindung'), findsOneWidget);
+      expect(find.text('Rückgängig'), findsNothing);
+    });
   });
 
   test('Betriebsseite: Sektion nach «Geplanter Service», vor den Einsätzen', () {

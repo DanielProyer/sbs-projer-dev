@@ -33,17 +33,31 @@ bool _eingeloggt() {
 /// Die Zeilen der Tabelle `aufgaben` (eigene, Snoozes, Marker) — eine
 /// Abfrage, die Detektoren und die Liste teilen. Nach jeder Aktion
 /// invalidieren.
+///
+/// Ein Ladefehler wird NICHT geschluckt (Review K8, 27.09.2026): Bis dahin
+/// lieferte er still eine leere Liste — die Betriebsseite zeigte «Keine
+/// offenen Aufgaben», obwohl nur das Netz fehlte. Leser, die ohne die
+/// Tabelle weiterarbeiten sollen (Detektoren, Aufgabenliste), nehmen
+/// [aufgabenZeilenOderLeer].
 final aufgabenZeilenProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
   if (!_eingeloggt()) return const [];
+  return AufgabenRepository.alleZeilen();
+});
+
+/// [aufgabenZeilenProvider] für Leser, die ohne die Tabelle weiterarbeiten:
+/// Ein Ladefehler zählt dort als «keine Zeilen» — die übrigen Aufgaben
+/// (Mahnlauf, MWST, …) bleiben sichtbar. Beobachtet den Provider, zieht
+/// also nach jedem Invalidieren nach.
+Future<List<Map<String, dynamic>>> aufgabenZeilenOderLeer(Ref ref) async {
   try {
-    return await AufgabenRepository.alleZeilen();
+    return await ref.watch(aufgabenZeilenProvider.future);
   } catch (e) {
     debugPrint('[Aufgaben] Tabelle nicht ladbar: $e');
     return const [];
   }
-});
+}
 
 /// Die sechs Detektoren (Heineken-Rechnung, MWST, Mahnlauf, Saisondaten,
 /// fehlende Buchungen, Versandvermerk) — unverändert aus dem früheren
@@ -55,7 +69,7 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
   if (!_eingeloggt()) return const [];
   final heute = DateTime.now();
   final client = SupabaseService.client;
-  final zeilen = await ref.watch(aufgabenZeilenProvider.future);
+  final zeilen = await aufgabenZeilenOderLeer(ref);
   final marker = zeilen
       .where((z) => z['typ'] == 'marker' && z['key'] != null)
       .map((z) => z['key'] as String)

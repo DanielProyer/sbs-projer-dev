@@ -111,6 +111,28 @@ void main() {
     expect(e.wert?.betriebId, isNull);
   });
 
+  // Review K5: Das leer getippte Feld sah nach «ohne Betrieb» aus,
+  // gespeichert wurde der alte.
+  testWidgets('Betrieb leer getippt → ohne Betrieb gespeichert', (
+    tester,
+  ) async {
+    final e = await _oeffne(tester, betriebId: '1');
+    await tester.enterText(find.byKey(const Key('aufgabe_titel')), 'Bank');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Adler, Chur'),
+      '',
+    );
+    await tester.pump();
+    expect(find.byIcon(Icons.clear), findsNothing); // kein Betrieb mehr
+    // Vorschlagsliste schliessen (sie liegt über den Knöpfen).
+    await tester.tap(find.byKey(const Key('aufgabe_titel')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('aufgabe_speichern')));
+    await tester.pumpAndSettle();
+    expect(e.fertig, isTrue);
+    expect(e.wert?.betriebId, isNull);
+  });
+
   testWidgets('Betrieb über die Suche wählen', (tester) async {
     final e = await _oeffne(tester);
     await tester.enterText(find.byKey(const Key('aufgabe_titel')), 'Fass');

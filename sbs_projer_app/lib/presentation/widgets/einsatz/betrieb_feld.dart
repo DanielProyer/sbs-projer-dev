@@ -11,6 +11,11 @@ enum BetriebLeeren {
 
   /// Feld leer tippen (Eigenauftrag, Eröffnungsreinigung).
   tippen,
+
+  /// Beides: Kreuz-Knopf UND Feld leer tippen (Aufgaben-Dialog). Dort sah
+  /// ein leer getipptes Feld nach «ohne Betrieb» aus, gespeichert wurde aber
+  /// der alte (Review K5, 27.09.2026).
+  beides,
 }
 
 /// Vorschläge des Betriebfelds für die Eingabe [suche].
@@ -124,7 +129,7 @@ class BetriebFeld extends StatelessWidget {
           decoration: InputDecoration(
             labelText: label,
             prefixIcon: const Icon(Icons.store),
-            suffixIcon: leeren == BetriebLeeren.knopf && betriebId != null
+            suffixIcon: leeren != BetriebLeeren.tippen && betriebId != null
                 ? IconButton(
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: () {
@@ -138,7 +143,7 @@ class BetriebFeld extends StatelessWidget {
           validator: pflichtMeldung == null
               ? null
               : (_) => betriebId == null ? pflichtMeldung : null,
-          onChanged: leeren == BetriebLeeren.tippen
+          onChanged: leeren != BetriebLeeren.knopf
               ? (v) {
                   if (v.isEmpty) {
                     onGeaendert?.call();

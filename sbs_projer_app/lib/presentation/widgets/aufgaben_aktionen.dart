@@ -311,23 +311,63 @@ Future<void> neueAufgabeDialog(
 
 /// Eine eigene Aufgabe abhaken — von der Betriebsseite aus, wo es keinen
 /// [AufgabenEintrag] gibt. Gleiches Neuladen wie [AufgabenAktionen].
+///
+/// Danach «Erledigt» mit «Rückgängig» (Review K7, 27.09.2026): Der Kreis
+/// liegt direkt neben der Zeile, die zum Bearbeiten öffnet — ein
+/// Fehlgriff hakte bisher unwiderruflich ab.
+///
+/// [erledigen]/[wiederOeffnen] nur für den Test.
 Future<void> eigeneAufgabeErledigen(
   BuildContext context,
-  WidgetRef ref,
-  String id,
-) async {
+  String id, {
+  Future<void> Function(String id) erledigen =
+      AufgabenRepository.eigeneErledigen,
+  Future<void> Function(String id) wiederOeffnen =
+      AufgabenRepository.eigeneWiederOeffnen,
+}) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  // Der Container statt `ref` für «Rückgängig»: Die SnackBar überlebt die
+  // Betriebsseite, ein `ref` des verlassenen Widgets wäre dann ungültig.
+  final container = ProviderScope.containerOf(context, listen: false);
+  void neuLaden() {
+    container.invalidate(aufgabenZeilenProvider);
+    container.invalidate(draussenAufgabenProvider);
+    container.invalidate(aufgabenListeProvider);
+  }
+
   try {
-    await AufgabenRepository.eigeneErledigen(id);
+    await erledigen(id);
   } catch (e) {
     messenger?.showSnackBar(
       SnackBar(content: Text('Nicht erledigt: ${kurzeFehlermeldung(e)}')),
     );
+    return;
   } finally {
-    ref.invalidate(aufgabenZeilenProvider);
-    ref.invalidate(draussenAufgabenProvider);
-    ref.invalidate(aufgabenListeProvider);
+    neuLaden();
   }
+  messenger?.showSnackBar(
+    SnackBar(
+      content: const Text('Erledigt'),
+      action: SnackBarAction(
+        label: 'Rückgängig',
+        onPressed: () async {
+          try {
+            await wiederOeffnen(id);
+          } catch (e) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Nicht zurückgenommen: ${kurzeFehlermeldung(e)}',
+                ),
+              ),
+            );
+          } finally {
+            neuLaden();
+          }
+        },
+      ),
+    ),
+  );
 }
 
 /// Dialog «Aufgabe bearbeiten» — Titel, Datum und Betrieb einer eigenen

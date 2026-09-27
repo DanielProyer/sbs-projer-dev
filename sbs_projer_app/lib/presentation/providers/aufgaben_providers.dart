@@ -43,7 +43,10 @@ final aufgabenListeProvider = FutureProvider<List<AufgabenEintrag>>((
     ref.watch(draussenAufgabenProvider.future),
   ).wait;
   final detektoren = [...ohneMahnlauf, ...mahnlauf, ...mahnfaelle, ...draussen];
-  final zeilen = await ref.watch(aufgabenZeilenProvider.future);
+  // Ohne Tabelle bleibt die Liste stehen (Detektoren, Einsätze, Termine) —
+  // nur die eigenen Aufgaben fehlen dann; die Betriebsseite meldet den
+  // Fehler (K8).
+  final zeilen = await aufgabenZeilenOderLeer(ref);
   final termine = await ref.watch(offeneTermineProvider.future);
 
   final saisonVorschlaege = <SaisonVorschlag>[

@@ -8,6 +8,11 @@ library;
 
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
+// istZugestellt lebt seit 27.09.2026 in rechnung_status.dart (EINE Wahrheit
+// für Anzeige und Mahnwesen, Review M2) — bisherige Importe von hier gelten
+// weiter.
+export 'package:sbs_projer_app/core/util/rechnung_status.dart'
+    show istZugestellt;
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/camt/zahlername.dart';
 
@@ -68,14 +73,11 @@ bool imMahnbereich(Rechnung r) =>
     r.zahlungEingegangenAm == null &&
     (r.zahlungBetrag ?? 0) == 0;
 
-/// Nachweislich beim Kunden: per Mail, am Tresen übergeben (mit Datum) oder
-/// Versandart Tresen — das Übergabedatum wird erst seit v0.71.0 gespeichert,
-/// davor gilt das Rechnungsdatum (Entscheid Daniel 23.09.2026).
-bool istZugestellt(Rechnung r) =>
-    r.versendetAm != null ||
-    r.uebergebenAm != null ||
-    r.versandart == 'rechnung_tresen';
-
+/// Zustelldatum für die Fristen: Versand, sonst Übergabe, sonst — bei einer
+/// Tresen-Rechnung ohne Übergabedatum (vor v0.71.0 nicht gespeichert) — das
+/// Rechnungsdatum (Entscheid Daniel 23.09.2026). OB zugestellt, sagt
+/// [istZugestellt] (seit 27.09.2026 in `rechnung_status.dart`, von hier
+/// weiter exportiert).
 DateTime zustelldatum(Rechnung r) =>
     _tag(r.versendetAm ?? r.uebergebenAm ?? r.rechnungsdatum);
 

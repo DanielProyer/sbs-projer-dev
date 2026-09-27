@@ -19,6 +19,8 @@ import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
 import 'package:sbs_projer_app/core/util/einsatz_start.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
+import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart'
+    show aufgabenListeProvider;
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart'
     show tagHeute;
@@ -45,9 +47,16 @@ Future<void> zeigeDiktatSheet(BuildContext context) {
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => const DiktatSheet(),
+  ).whenComplete(() {
     // Die Warteschlange kann sich geändert haben — die Aufgabe
     // «N Diktate warten» neu zählen (V9).
-  ).whenComplete(() => container.invalidate(draussenAufgabenProvider));
+    container.invalidate(draussenAufgabenProvider);
+    // Eine diktierte Aufgabe steht in der Tabelle `aufgaben` — ohne das
+    // Neuladen erschien sie in Liste, Glocke und Betriebsseite erst nach
+    // einem Neustart (Review M5, 27.09.2026).
+    container.invalidate(aufgabenZeilenProvider);
+    container.invalidate(aufgabenListeProvider);
+  });
 }
 
 enum _View { diktieren, einsatz, neuerBetrieb }
@@ -200,6 +209,19 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     return null;
   }
 
+  /// [id] nur, wenn es den Betrieb in der Liste gibt. Eine von der Function
+  /// erfundene Id scheiterte beim Speichern am Fremdschlüssel — bei einer
+  /// Aufgabe erst, nachdem Daniel die Art gewechselt hatte (Review K6).
+  String? _bekannteBetriebId(String? id) =>
+      _nameFuerBetrieb(id) != null ? id : null;
+
+  /// Art wechseln — und die Betriebs-Id erneut gegen die Liste prüfen: Je
+  /// nach Art stammt sie aus einem anderen Weg (K6).
+  void _artWechseln(String art) => setState(() {
+    _art = art;
+    _betriebId = _bekannteBetriebId(_betriebId);
+  });
+
   void _uebernehmen(String text, EinsatzDiktatErgebnis e) {
     setState(() {
       _loading = false;
@@ -216,9 +238,16 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       } else {
         _view = _View.einsatz;
         _art = _artOptionen.contains(e.art) ? e.art : 'aufgabe';
-        _betriebId = e.betriebId;
-        _betriebName = _nameFuerBetrieb(e.betriebId) ?? e.betriebNameErkannt;
-        _kandidaten = e.betriebId == null ? e.betriebKandidaten : const [];
+        // Nur eine bekannte Id — auch wenn später auf «Aufgabe» gewechselt
+        // wird, darf keine erfundene mitreisen (K6).
+        _betriebId = _bekannteBetriebId(e.betriebId);
+        _betriebName = _nameFuerBetrieb(_betriebId) ?? e.betriebNameErkannt;
+        _kandidaten = _betriebId == null
+            ? [
+                for (final k in e.betriebKandidaten)
+                  if (_nameFuerBetrieb(k.id) != null) k,
+              ]
+            : const [];
         if (_art == 'aufgabe') {
           // Aufgabe mit Betriebsbezug (Migration 212): Die Function nennt
           // den Betrieb auch hier, lässt ihn aber aus der Beschreibung weg
@@ -852,7 +881,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
                   text: _artLabel(a),
                   icon: _artIcon(a),
                   ausgewaehlt: _art == a,
-                  onTap: () => setState(() => _art = a),
+                  onTap: () => _artWechseln(a),
                 ),
             ],
           ),

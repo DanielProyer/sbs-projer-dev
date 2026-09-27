@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/util/mahnregeln.dart' as mr;
 import 'package:sbs_projer_app/core/util/offene_pro_betrieb.dart' as opb;
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
@@ -80,6 +81,10 @@ void main() {
       expect(opb.istOffen(rg(status: 'abgeschrieben')), isFalse);
     });
 
+    test('istZugestellt: mahnregeln liefert dieselbe Funktion (M2)', () {
+      expect(identical(mr.istZugestellt, istZugestellt), isTrue);
+    });
+
     test('jede zahlbare Rechnung ist offen', () {
       for (final s in kZahlbareStatus) {
         expect(istOffen(rg(status: s)), isTrue, reason: s);
@@ -95,6 +100,7 @@ void main() {
       DateTime? versendet,
       DateTime? uebergeben,
       DateTime? freigegeben,
+      String? versandart,
     }) =>
         Rechnung(
           id: 'r1',
@@ -109,9 +115,43 @@ void main() {
           versendetAm: versendet,
           uebergebenAm: uebergeben,
           freigegebenAm: freigegeben,
+          versandart: versandart,
         );
     final tag = DateTime(2026, 9, 2);
 
+    // Review M2: 257 offene Tresen-Rechnungen ohne uebergeben_am standen als
+    // «Nicht zugestellt» in der Liste, während der Mahnlauf sie mahnte.
+    test('Tresen ohne Übergabedatum gilt als übergeben (wie im Mahnwesen)', () {
+      final r = mit(versandart: 'rechnung_tresen');
+      expect(anzeigeStatus(r), 'Übergeben');
+      expect(anzeigeSchluessel(r), RechnungAnzeige.uebergeben);
+      expect(istZugestellt(r), isTrue);
+    });
+
+    test('Mail/Post ohne Versanddatum bleibt «Nicht zugestellt»', () {
+      for (final art in ['rechnung_mail', 'rechnung_post', null]) {
+        final r = mit(versandart: art);
+        expect(anzeigeSchluessel(r), RechnungAnzeige.nichtZugestellt,
+            reason: '$art');
+        expect(istZugestellt(r), isFalse, reason: '$art');
+      }
+    });
+
+    test('Anzeige und istZugestellt sagen dasselbe (EINE Wahrheit)', () {
+      const zugestellt = {RechnungAnzeige.gesendet, RechnungAnzeige.uebergeben};
+      for (final art in ['rechnung_tresen', 'rechnung_mail', null]) {
+        for (final v in [null, tag]) {
+          for (final u in [null, tag]) {
+            final r = mit(versandart: art, versendet: v, uebergeben: u);
+            expect(
+              zugestellt.contains(anzeigeSchluessel(r)),
+              istZugestellt(r),
+              reason: '$art/$v/$u',
+            );
+          }
+        }
+      }
+    });
     test('bezahlt und abgeschrieben gehen allem vor', () {
       // Auch mit Mahnstufe, Versand und Freigabe: erledigt ist erledigt.
       final b = mit(status: 'bezahlt', stufe: 3, versendet: tag);
@@ -250,19 +290,59 @@ void main() {
       int stufe = 0,
       DateTime? versendet,
       DateTime? uebergeben,
+      DateTime? datum,
+      String? versandart,
+      DateTime? zahlungEingegangen,
+      double? zahlungBetrag,
     }) =>
         Rechnung(
           id: 'r1',
           userId: 'u1',
           rechnungstyp: typ,
-          rechnungsdatum: DateTime(2026, 9, 1),
+          rechnungsdatum: datum ?? DateTime(2026, 9, 1),
           faelligkeitsdatum: DateTime(2026, 10, 1),
           zahlungsstatus: status,
           mahnungStufe: stufe,
           versendetAm: versendet,
           uebergebenAm: uebergeben,
+          versandart: versandart,
+          zahlungEingegangenAm: zahlungEingegangen,
+          zahlungBetrag: zahlungBetrag,
         );
     final tag = DateTime(2026, 9, 2);
+
+    // Review K3: ~114 Altrechnungen vor kMahnStart boten ein Mahnsymbol an.
+    test('nur im Mahnbereich: Altrechnung vor 2026 → kein Symbol', () {
+      expect(
+        naechsteMahnAktion(r(datum: DateTime(2025, 12, 31), versendet: tag)),
+        isNull,
+      );
+      expect(
+        naechsteMahnAktion(
+          r(datum: DateTime(2025, 6, 1), stufe: 2, versendet: tag),
+        ),
+        isNull,
+      );
+      expect(
+        naechsteMahnAktion(r(datum: DateTime(2026, 1, 1), versendet: tag)),
+        RechnungAnzeige.erinnert,
+      );
+    });
+
+    test('vermerkter Zahlungseingang → kein Symbol (wie der Mahnlauf)', () {
+      expect(
+        naechsteMahnAktion(r(versendet: tag, zahlungEingegangen: tag)),
+        isNull,
+      );
+      expect(naechsteMahnAktion(r(versendet: tag, zahlungBetrag: 50)), isNull);
+    });
+
+    test('Tresen ohne Übergabedatum ist zugestellt → Erinnerung (M2)', () {
+      expect(
+        naechsteMahnAktion(r(versandart: 'rechnung_tresen')),
+        RechnungAnzeige.erinnert,
+      );
+    });
 
     test('jede zugestellte offene Rechnung → Erinnerung (auch gesendete)', () {
       expect(naechsteMahnAktion(r(versendet: tag)), RechnungAnzeige.erinnert);

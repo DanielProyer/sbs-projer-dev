@@ -180,6 +180,9 @@ class _AufgabeDialogState extends State<AufgabeDialog> {
                 betriebId: _betriebId,
                 label: 'Betrieb (optional)',
                 mitOrt: true,
+                // Kreuz UND leer tippen: Ein leeres Feld heisst «ohne
+                // Betrieb» (K5).
+                leeren: BetriebLeeren.beides,
                 onGewaehlt: (b) => setState(() => _betriebId = b.serverId),
                 onGeleert: () => setState(() => _betriebId = null),
               ),

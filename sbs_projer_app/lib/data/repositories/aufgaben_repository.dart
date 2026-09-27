@@ -120,4 +120,16 @@ class AufgabenRepository {
         .eq('id', id);
     await GoogleCalendarSyncService.push('aufgabe', id);
   }
+
+  /// Nimmt das Abhaken zurück — «Rückgängig» nach dem Abhaken auf der
+  /// Betriebsseite (Review K7, 27.09.2026). Der Push legt den
+  /// Kalendereintrag wieder an, wenn die Aufgabe ein Datum hat.
+  static Future<void> eigeneWiederOeffnen(String id) async {
+    await SupabaseService.client
+        .from('aufgaben')
+        .update({'erledigt_am': null})
+        .eq('id', id)
+        .eq('typ', 'eigene');
+    await GoogleCalendarSyncService.push('aufgabe', id);
+  }
 }
