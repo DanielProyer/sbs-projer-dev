@@ -153,6 +153,16 @@ void main() {
     expect(find.byType(PageView), findsNothing);
   });
 
+  testWidgets('Karten ohne FAB — er läge über dem Vormerken-Kreis',
+      (tester) async {
+    await _zeige(tester);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    await _tippe(tester, find.byTooltip('Karten'));
+    expect(find.byType(FloatingActionButton), findsNothing);
+    await _tippe(tester, find.byTooltip('Liste'));
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+  });
+
   testWidgets('Karten lassen sich auch mit der Maus wischen (PC-Browser)',
       (tester) async {
     await _zeige(tester);

@@ -249,7 +249,9 @@ class _MaterialienListScreenState
           ),
         ],
       ),
-      floatingActionButton: _istGast
+      // In den Karten kein FAB: Er läge genau über dem Vormerken-Kreis
+      // unten rechts. Neu anlegen geht von der Liste aus.
+      floatingActionButton: _istGast || karten
           ? null
           : FloatingActionButton(
               onPressed: () => context.push('/materialien/neu'),
