@@ -2,22 +2,21 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Wächter: Nach einem Versand wird `gesendet` nie pauschal geschrieben.
+/// Wächter: Ein Versand schreibt keinen Status.
 ///
 /// WARUM (Analyse 25.09.2026, R4): Vier Stellen setzten nach dem Mailversand
 /// `'zahlungsstatus': 'gesendet'` ohne Rücksicht auf den aktuellen Stand. Ein
 /// Neuversand aus dem Reinigungsdetail hätte eine bezahlte oder gemahnte
-/// Rechnung zurückgedreht. Der Weg führt jetzt über
-/// `ReinigungRechnungVersand.vermerkeVersand` / `hebeStatusNachVersand`
-/// (nur `offen` → `gesendet`, abgesichert per `.eq('zahlungsstatus','offen')`).
+/// Rechnung zurückgedreht. Bis Migration 211 führte der Weg deshalb über
+/// `hebeStatusNachVersand` (nur `offen` → `gesendet`).
 ///
-/// Seit B3 (27.09.2026) gilt das auch für die Heineken-Monatsrechnung: Ihr
-/// Mailversand schrieb `gesendet` ebenfalls pauschal — ein Versand aus einem
-/// veralteten Bildschirmstand hätte eine freigegebene (gebuchte) oder
-/// bezahlte Monatsrechnung auf `gesendet` zurückgedreht, am Buchungsschutz
-/// von `_updateStatus` vorbei.
+/// Seit Migration 211 (27.09.2026) gibt es `gesendet` nicht mehr: Die
+/// Zustellung IST `versendet_am`, `ReinigungRechnungVersand.vermerkeVersand`
+/// schreibt nur noch das Datum. Auch die Heineken-Monatsrechnung (B3) —
+/// ihre Freigabe steht in `freigegeben_am`, ein Versand kann sie nicht
+/// zurückdrehen.
 void main() {
-  test('kein pauschales zahlungsstatus: gesendet — auch nicht Heineken', () {
+  test('kein zahlungsstatus: gesendet — auch nicht Heineken', () {
     final muster = RegExp(r"'zahlungsstatus'\s*:\s*'gesendet'");
     final treffer = <String>[];
     for (final f in Directory('lib')
@@ -36,8 +35,21 @@ void main() {
       treffer,
       isEmpty,
       reason:
-          'Versandstatus über ReinigungRechnungVersand.vermerkeVersand setzen '
-          '(nur offen → gesendet):\n${treffer.join('\n')}',
+          'Den Versand hält versendet_am fest (ReinigungRechnungVersand.'
+          'vermerkeVersand), keinen Status:\n${treffer.join('\n')}',
     );
+  });
+
+  test('vermerkeVersand schreibt nur versendet_am, hebeStatus ist weg', () {
+    final code = File(
+      'lib/services/rechnung/reinigung_rechnung_versand.dart',
+    ).readAsStringSync();
+    final start = code.indexOf('static Future<void> vermerkeVersand(');
+    expect(start, isNot(-1));
+    final ende = code.indexOf('\n  }', start);
+    final rumpf = code.substring(start, ende);
+    expect(rumpf, contains("'versendet_am'"));
+    expect(rumpf, isNot(contains('zahlungsstatus')));
+    expect(code, isNot(contains('hebeStatusNachVersand')));
   });
 }

@@ -26,6 +26,10 @@ Rechnung rg(
   double guthaben = 0,
   String? betrieb,
   int stufe = 0,
+  DateTime? freigegeben,
+  DateTime? erinnerung,
+  DateTime? mahnung1,
+  DateTime? mahnung2,
 }) => Rechnung(
   id: id,
   userId: 'u',
@@ -37,6 +41,10 @@ Rechnung rg(
   zahlungsstatus: status,
   guthabenVerrechnet: guthaben,
   mahnungStufe: stufe,
+  freigegebenAm: freigegeben,
+  erinnerungAm: erinnerung,
+  mahnung1Am: mahnung1,
+  mahnung2Am: mahnung2,
 );
 
 Buchung bu(
@@ -92,9 +100,9 @@ Pruefbefund lauf(String id, AbschlussKontext k) =>
 void main() {
   group('zaehltAlsForderung', () {
     test('Kunden- und Jahresrechnungen zählen, solange nicht erledigt', () {
-      for (final s in ['offen', 'gesendet', 'erinnert', 'mahnung_1',
-          'mahnung_2']) {
-        expect(zaehltAlsForderung(rg('a', 10, status: s)), isTrue, reason: s);
+      for (final stufe in [0, 1, 2, 3]) {
+        expect(zaehltAlsForderung(rg('a', 10, stufe: stufe)), isTrue,
+            reason: 'Stufe $stufe');
       }
       expect(
         zaehltAlsForderung(rg('a', 10, typ: 'jahresrechnung')),
@@ -107,17 +115,24 @@ void main() {
       );
     });
 
-    test('Heineken erst ab freigegeben (vorher kein Debitor gebucht)', () {
-      for (final s in ['offen', 'gesendet', 'bezahlt']) {
-        expect(
-          zaehltAlsForderung(rg('h', 10, typ: 'heineken_monat', status: s)),
-          isFalse,
-          reason: s,
-        );
-      }
+    test('Heineken erst ab freigegeben_am (vorher kein Debitor gebucht)', () {
+      expect(
+        zaehltAlsForderung(rg('h', 10, typ: 'heineken_monat')),
+        isFalse,
+      );
+      expect(
+        zaehltAlsForderung(rg(
+          'h',
+          10,
+          typ: 'heineken_monat',
+          status: 'bezahlt',
+          freigegeben: DateTime(2026, 3, 5),
+        )),
+        isFalse,
+      );
       expect(
         zaehltAlsForderung(
-          rg('h', 10, typ: 'heineken_monat', status: 'freigegeben'),
+          rg('h', 10, typ: 'heineken_monat', freigegeben: DateTime(2026, 3, 5)),
         ),
         isTrue,
       );
@@ -125,14 +140,15 @@ void main() {
   });
 
   group('offeneForderungenSumme', () {
-    test('Brutto der offenen Rechnungen, erledigte und Heineken-gesendet '
-        'nicht', () {
+    test('Brutto der offenen Rechnungen, erledigte und nicht freigegebene '
+        'Heineken nicht', () {
       final s = offeneForderungenSumme([
         rg('a', 100),
-        rg('b', 50, typ: 'jahresrechnung', status: 'mahnung_1'),
+        rg('b', 50, typ: 'jahresrechnung', stufe: 2),
         rg('c', 70, status: 'bezahlt'),
-        rg('h1', 1000, typ: 'heineken_monat', status: 'gesendet'),
-        rg('h2', 2000, typ: 'heineken_monat', status: 'freigegeben'),
+        rg('h1', 1000, typ: 'heineken_monat'),
+        rg('h2', 2000,
+            typ: 'heineken_monat', freigegeben: DateTime(2026, 3, 5)),
       ], const []);
       expect(s, closeTo(2150, 0.001));
     });
@@ -323,37 +339,47 @@ void main() {
     });
   });
 
-  group('statusMahnstufeWiderspruch', () {
-    test('offen/gesendet ohne Mahnstufe: stimmig', () {
+  // Seit Migration 211: Mahnstufe gegen Mahndaten (der Status bleibt beim
+  // Mahnen `offen`, der alte Status-Widerspruch kann nicht mehr entstehen).
+  group('statusMahnstufeWiderspruch (Stufe gegen Mahndaten)', () {
+    final t = DateTime(2026, 4, 1);
+
+    test('ungemahnt ohne Mahndatum: stimmig', () {
       expect(statusMahnstufeWiderspruch(rg('a', 10)), isFalse);
-      expect(statusMahnstufeWiderspruch(rg('a', 10, status: 'gesendet')),
-          isFalse);
     });
 
-    test('offen/gesendet mit Mahnstufe: Widerspruch', () {
+    test('Stufe ohne ihr Datum: Widerspruch', () {
       expect(statusMahnstufeWiderspruch(rg('a', 10, stufe: 1)), isTrue);
       expect(
-        statusMahnstufeWiderspruch(rg('a', 10, status: 'gesendet', stufe: 2)),
+        statusMahnstufeWiderspruch(rg('a', 10, stufe: 3, erinnerung: t)),
         isTrue,
       );
     });
 
-    test('gemahnt mit Mahnstufe: stimmig', () {
-      expect(
-        statusMahnstufeWiderspruch(rg('a', 10, status: 'erinnert', stufe: 1)),
-        isFalse,
-      );
-      expect(
-        statusMahnstufeWiderspruch(rg('a', 10, status: 'mahnung_2', stufe: 3)),
-        isFalse,
-      );
+    test('Mahndatum ohne Stufe: Widerspruch (z. B. Zahlungs-Rücknahme alt)',
+        () {
+      expect(statusMahnstufeWiderspruch(rg('a', 10, mahnung1: t)), isTrue);
     });
 
-    test('gemahnt ohne Mahnstufe: Widerspruch', () {
-      for (final s in ['erinnert', 'mahnung_1', 'mahnung_2']) {
-        expect(statusMahnstufeWiderspruch(rg('a', 10, status: s)), isTrue,
-            reason: s);
-      }
+    test('Stufe mit passendem höchsten Datum: stimmig', () {
+      expect(
+        statusMahnstufeWiderspruch(rg('a', 10, stufe: 1, erinnerung: t)),
+        isFalse,
+      );
+      expect(
+        statusMahnstufeWiderspruch(
+          rg('a', 10, stufe: 3, erinnerung: t, mahnung1: t, mahnung2: t),
+        ),
+        isFalse,
+      );
+      expect(stufeAusMahndaten(rg('a', 10, mahnung1: t)), 2);
+    });
+
+    test('erledigte Rechnungen prüft die Regel nicht', () {
+      expect(
+        statusMahnstufeWiderspruch(rg('a', 10, status: 'bezahlt', stufe: 2)),
+        isFalse,
+      );
     });
 
     test('Regel: 3 Rechnungen, 2 widersprüchlich → gelb, ist 2', () {
@@ -362,7 +388,7 @@ void main() {
         kx(offeneVoll: [
           rg('a', 10),
           rg('b', 10, stufe: 1),
-          rg('c', 10, status: 'mahnung_1'),
+          rg('c', 10, erinnerung: t),
         ]),
       );
       expect(b.status, PruefStatus.gelb);

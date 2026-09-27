@@ -26,32 +26,59 @@ bool hatHeinekenErtragsbuchung(List<Buchung> buchungen, String rechnungId) =>
           ),
     );
 
+/// Warum die Freigabe der Heineken-Rechnung [rechnungId] NICHT
+/// zurückgenommen werden darf — `null` = darf («Auf gesendet zurücksetzen»).
+///
+/// - Eine aktive Zahlungsbuchung (beleg_typ `zahlung`): Die Zahlung stünde
+///   sonst auf einer nicht freigegebenen Rechnung — genau der Zustand, den
+///   `zahlung_erfassen` verhindert (Migration 211).
+/// - Die Ertragsbuchung 1100/3400 steht noch (M5): sonst stünde ein Ertrag
+///   ohne Forderung da, die Regel «1100 = offene Rechnungen» meldete eine
+///   Differenz.
+String? freigabeRuecknahmeSperre(List<Buchung> buchungen, String rechnungId) {
+  final zahlung = buchungen.any(
+    (b) =>
+        b.belegId == rechnungId &&
+        b.belegTyp == 'zahlung' &&
+        zaehltFuerSaldo(istStorniert: b.istStorniert, stornoVonId: b.stornoVonId),
+  );
+  if (zahlung) {
+    return 'Eine Zahlung ist gebucht — zuerst die Zahlung zurücknehmen.';
+  }
+  if (hatHeinekenErtragsbuchung(buchungen, rechnungId)) {
+    return 'Die Ertragsbuchung steht noch — zuerst Ertragsbuchung '
+        'stornieren (Journal).';
+  }
+  return null;
+}
+
 /// Erstellt Buchhaltungs-Buchungen für den Heineken-Rechnungsworkflow.
 /// - Freigabe → Debitoren-Buchung (Soll 1100 / Haben 3400) + MwSt
 /// - Bezahlt → Zahlungseingang (Soll 1020 / Haben 1100)
 class HeinekenBuchungService {
-  /// Gibt die Rechnung frei: **erst** die Ertragsbuchung, **dann** der
-  /// Status.
+  /// Gibt die Rechnung frei: **erst** die Ertragsbuchung, **dann**
+  /// `freigegeben_am` (seit Migration 211 statt des Status «freigegeben»).
   ///
   /// WARUM diese Reihenfolge: Bis v0.138 setzte der Detail-Screen zuerst
   /// «freigegeben» und buchte danach. Brach die Buchung ab (Netz weg,
   /// Handy weggesteckt), stand eine freigegebene Rechnung ohne Ertrag da —
   /// und die Monatsprüfung zeigte grün (R3). Jetzt wirft ein Buchungsfehler,
-  /// bevor der Status angefasst wird; die Rechnung bleibt «gesendet» und
+  /// bevor die Freigabe vermerkt wird; die Rechnung bleibt «gesendet» und
   /// die Freigabe lässt sich einfach wiederholen.
   ///
   /// `null` von [buchen] heisst: Die Buchung existiert schon — dann wird
-  /// nur noch der Status nachgezogen. [buchen]/[statusSetzen] sind nur für
-  /// Tests austauschbar.
+  /// nur noch die Freigabe nachgezogen. [buchen]/[statusSetzen] sind nur für
+  /// Tests austauschbar; [jetzt] ebenso.
   static Future<Buchung?> freigeben(
     Rechnung rechnung, {
     Future<Buchung?> Function(Rechnung r)? buchen,
     Future<void> Function(String id, Map<String, dynamic> daten)?
         statusSetzen,
+    DateTime? jetzt,
   }) async {
     final buchung = await (buchen ?? createFromRechnung)(rechnung);
     await (statusSetzen ?? RechnungRepository.update)(rechnung.id, {
-      'zahlungsstatus': 'freigegeben',
+      'freigegeben_am': (jetzt ?? DateTime.now()).toUtc().toIso8601String(),
     });
     return buchung;
   }

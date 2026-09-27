@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
-import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rechnung_versand_status.dart';
 import 'package:sbs_projer_app/core/util/suche.dart';
@@ -40,38 +39,38 @@ const _monatNamen = [
   'Dezember',
 ];
 
-/// Nächster Schritt: Mahnstufen führen in den Mahnlauf, `mahnung_2` ins
-/// Abschreiben. Einen direkten Statuswechsel gibt es nicht mehr — «bezahlt»
-/// setzt nur `zahlung_erfassen` (ZahlungKern).
-String? _naechsterStatus(String current) {
-  switch (current) {
-    case 'offen':
-      return 'erinnert';
-    case 'erinnert':
-      return 'mahnung_1';
-    case 'mahnung_1':
-      return 'mahnung_2';
-    case 'mahnung_2':
-      return 'abgeschrieben';
-    default:
-      return null;
-  }
-}
+/// Vorgabe des Statusfilters beim Öffnen (Entscheid 4, 27.09.2026):
+/// «Unbezahlt» — offen und gemahnt, dieselbe Menge wie die Summenkarte
+/// «Offene Forderungen». Bis Migration 211 stand die Liste auf «alle».
+const kRechnungStatusVorgabe = 'unbezahlt';
 
 /// Werte des Status-Filters (Dropdown), die auch per `?status=` kommen dürfen.
-/// Die Status-Werte sind Anzeige-Schlüssel ([kAnzeigeFilterSchluessel]).
+/// Die Status-Werte sind Anzeige-Schlüssel ([kAnzeigeFilterSchluessel]);
+/// `nicht_versendet` ist die Frühwarnung (Mail/Post ab Scharfstellung, siehe
+/// `rechnungNichtVersendet`), `unbezahlt` jede nicht erledigte Rechnung.
 const rechnungStatusFilterWerte = {
+  kRechnungStatusVorgabe,
   'alle',
   'mahnfaellig',
   'nicht_versendet',
-  'unbezahlt',
   ...kAnzeigeFilterSchluessel,
 };
 
-/// Start-Filter aus dem Query-Parameter `status` — Unbekanntes wird «alle»,
-/// damit ein Tippfehler in einem Link die Liste nicht leer zeigt.
-String rechnungStartStatus(String? wert) =>
-    rechnungStatusFilterWerte.contains(wert) ? wert! : 'alle';
+/// `?status=`-Werte von vor Migration 211 → Filter von heute. Der Filter
+/// «Offen» hiess so, zeigte aber nur die NICHT zugestellten (Anzeige-
+/// Schlüssel) — neben «Unbezahlt» ein Missverständnis.
+const _alteStatusWerte = {'offen': RechnungAnzeige.nichtZugestellt};
+
+/// Start-Filter aus dem Query-Parameter `status`. Fehlt er oder ist er
+/// unbekannt (Tippfehler im Link), gilt die Vorgabe [kRechnungStatusVorgabe]
+/// — ausser die Liste öffnet mit einem Suchbegriff ([mitSuche]): Dann «alle»,
+/// sonst versteckte die Vorgabe genau den bezahlten Treffer, den die Suche
+/// gerade gezeigt hat (wie der Jahresfilter, der dafür auf «alle» springt).
+String rechnungStartStatus(String? wert, {bool mitSuche = false}) {
+  final w = _alteStatusWerte[wert] ?? wert;
+  if (w != null && rechnungStatusFilterWerte.contains(w)) return w;
+  return mitSuche ? 'alle' : kRechnungStatusVorgabe;
+}
 
 class RechnungenListScreen extends ConsumerStatefulWidget {
   final String? startSuche;
@@ -90,15 +89,18 @@ class RechnungenListScreen extends ConsumerStatefulWidget {
 class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   final _suchController = TextEditingController();
   String _searchQuery = '';
-  String _statusFilter = 'alle';
+  String _statusFilter = kRechnungStatusVorgabe;
   int _selectedYear = DateTime.now().year; // 0 = Alle Jahre
   int _selectedMonth = 0; // 0 = Alle Monate
 
   @override
   void initState() {
     super.initState();
-    _statusFilter = rechnungStartStatus(widget.startStatus);
     final start = widget.startSuche;
+    _statusFilter = rechnungStartStatus(
+      widget.startStatus,
+      mitSuche: start != null && start.isNotEmpty,
+    );
     if (start != null && start.isNotEmpty) {
       _suchController.text = start;
       _searchQuery = start;
@@ -362,10 +364,10 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        // «unbezahlt» = dieselbe Menge wie die Karte ([istOffen]); «offen»
-        // hiesse seit K1 nur «noch nicht zugestellt» (27.09.2026).
+        // «unbezahlt» = dieselbe Menge wie die Karte ([istOffen]); der
+        // Anzeige-Schlüssel «nicht zugestellt» wäre nur ein Teil davon.
         onTap: () => setState(() {
-          _statusFilter = 'unbezahlt';
+          _statusFilter = kRechnungStatusVorgabe;
           _selectedYear = 0;
           _selectedMonth = 0;
         }),
@@ -469,13 +471,13 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
         // Anzeige-Filter: gemessen an heute. Die Sicherungen (Bankauszug als
         // Stichtag, Sperren) greifen erst im Mahnlauf, wo gemahnt wird.
         if (faelligeStufe(r, stichtag: DateTime.now()) == null) return false;
-      } else if (_statusFilter == 'unbezahlt') {
+      } else if (_statusFilter == kRechnungStatusVorgabe) {
         // Offen und gemahnt — dieselbe Menge wie der Geld-Block der Akte.
-        if (Zahlungsstatus.erledigt.contains(r.zahlungsstatus)) return false;
+        if (!istOffen(r)) return false;
       } else if (_statusFilter != 'alle' &&
           anzeigeSchluessel(r) != _statusFilter) {
-        // Derselbe Schlüssel wie Chip und Farbe (K1): «Offen» zeigt nur, was
-        // auch «Offen» heisst; gesendete stehen unter «Gesendet».
+        // Derselbe Schlüssel wie Chip und Farbe (K1): «Nicht zugestellt»
+        // zeigt nur, was auch so heisst; gesendete stehen unter «Gesendet».
         return false;
       }
       // Dieselbe Trefferregel wie die App-Suche — sonst findet «pub cham»
@@ -605,6 +607,8 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                 nullable: false,
                 value: _statusFilter,
                 options: [
+                  // Vorgabe zuerst (Entscheid 4, 27.09.2026).
+                  const (kRechnungStatusVorgabe, 'Unbezahlt (inkl. gemahnt)'),
                   const ('alle', 'Alle Status'),
                   const ('mahnfaellig', 'Mahnfällig'),
                   (
@@ -613,12 +617,13 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
                         ? 'Nicht versendet ($nichtVersendetCount)'
                         : 'Nicht versendet',
                   ),
-                  const ('unbezahlt', 'Unbezahlt (inkl. gemahnt)'),
                   // Dieselben Wörter wie der Chip («1. Mahnung»).
                   for (final k in kAnzeigeFilterSchluessel)
                     (k, anzeigeTextFuer(k)),
                 ],
-                onChanged: (v) => setState(() => _statusFilter = v ?? 'alle'),
+                onChanged: (v) => setState(
+                  () => _statusFilter = v ?? kRechnungStatusVorgabe,
+                ),
               ),
               AppFilterDropdown<int>(
                 hint: 'Alle Jahre',
@@ -810,22 +815,20 @@ class _RechnungenListScreenState extends ConsumerState<RechnungenListScreen> {
   }
 
   Future<void> _showStatusDialog(Rechnung rechnung) async {
-    final naechster = _naechsterStatus(rechnung.zahlungsstatus);
+    final naechster = naechsteMahnAktion(rechnung);
     if (naechster == null) return;
 
     // Mahnstufen nur noch über den Mahnlauf (v0.134.0): Dort gelten die
     // Sicherungen gegen das Mahnen bezahlter Rechnungen (aktueller
     // Bankauszug, ungeklärte Gutschrift, gebuchte Zahlung) und es gibt eine
     // Vorschau. Die frühere Direkt-Eskalation hier ging an allem vorbei.
-    if (naechster == 'erinnert' ||
-        naechster == 'mahnung_1' ||
-        naechster == 'mahnung_2') {
+    if (naechster != RechnungAnzeige.abgeschrieben) {
       await context.push('/rechnungen/mahnlauf?rechnung=${rechnung.id}');
       return;
     }
 
-    // Übrig bleibt nur das Abschreiben (Mahnstufe 2 → abgeschrieben).
-    if (naechster == 'abgeschrieben') {
+    // Übrig bleibt nur das Abschreiben (letzte Mahnung → abgeschrieben).
+    {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -1044,7 +1047,9 @@ class _RechnungListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = rechnungStatusFarbe(anzeigeSchluessel(rechnung));
-    final naechster = _naechsterStatus(rechnung.zahlungsstatus);
+    // Kurzsymbol für jede offene, zugestellte Kunden-/Jahresrechnung
+    // (Entscheid 3a, 27.09.2026) — Heineken und nicht Zugestelltes nie.
+    final naechster = naechsteMahnAktion(rechnung);
     final nichtVersendet = rechnungNichtVersendet(rechnung);
 
     return Card(
@@ -1084,14 +1089,14 @@ class _RechnungListItem extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (naechster != null && rechnung.rechnungstyp != 'heineken_monat')
+            if (naechster != null)
               IconButton(
                 icon: Icon(
-                  _statusUpIcon(rechnung.zahlungsstatus),
+                  _naechsterSchrittIcon(naechster),
                   size: 18,
                   color: rechnungStatusFarbe(naechster),
                 ),
-                tooltip: naechster == 'abgeschrieben'
+                tooltip: naechster == RechnungAnzeige.abgeschrieben
                     ? 'Abschreiben'
                     : 'Im Mahnlauf mahnen',
                 onPressed: onStatusChange,
@@ -1108,20 +1113,14 @@ class _RechnungListItem extends StatelessWidget {
     );
   }
 
-  IconData _statusUpIcon(String status) {
-    switch (status) {
-      case 'offen':
-        return Icons.notifications;
-      case 'erinnert':
-        return Icons.warning_amber;
-      case 'mahnung_1':
-        return Icons.gavel;
-      case 'mahnung_2':
-        return Icons.block;
-      default:
-        return Icons.arrow_forward;
-    }
-  }
+  /// Symbol des NÄCHSTEN Schritts ([naechsteMahnAktion]).
+  IconData _naechsterSchrittIcon(String naechster) => switch (naechster) {
+        RechnungAnzeige.erinnert => Icons.notifications,
+        RechnungAnzeige.mahnung1 => Icons.warning_amber,
+        RechnungAnzeige.mahnung2 => Icons.gavel,
+        RechnungAnzeige.abgeschrieben => Icons.block,
+        _ => Icons.arrow_forward,
+      };
 
   String _buildSubtitle() {
     final parts = <String>[];

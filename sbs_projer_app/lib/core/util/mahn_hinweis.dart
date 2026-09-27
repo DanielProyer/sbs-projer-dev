@@ -9,6 +9,7 @@ library;
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
@@ -57,8 +58,9 @@ class MahnHinweis {
   }
 }
 
-bool _gemahnt(Rechnung r) =>
-    r.zahlungsstatus == 'mahnung_1' || r.zahlungsstatus == 'mahnung_2';
+/// Ab der 1. Mahnung (Stufe 2) — eine blosse Erinnerung zeigt noch kein Band.
+/// Seit Migration 211 aus `mahnung_stufe`, nicht aus dem Status.
+bool _gemahnt(Rechnung r) => mahnstufeVon(r) >= MahnStufe.mahnung1.wert;
 
 /// [rechnungen] = alle Rechnungen des Betriebs; [imMahnfall] = Rechnung-Ids
 /// in sperrenden Mahnfällen des Betriebs (`sperrtRechnungen`).
@@ -103,8 +105,7 @@ List<String> abschliessbareMahnfaelle({
   required Set<String> kassierteIds,
 }) {
   final status = {for (final r in rechnungen) r.id: r.zahlungsstatus};
-  bool erledigt(String id) =>
-      status[id] == 'bezahlt' || status[id] == 'abgeschrieben';
+  bool erledigt(String id) => kErledigteStatus.contains(status[id]);
   return [
     for (final f in faelle)
       if (f.rechnungIds.any(kassierteIds.contains) &&

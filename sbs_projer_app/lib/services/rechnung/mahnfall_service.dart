@@ -71,7 +71,9 @@ class MahnfallService {
   // ─── Fall eröffnen ───────────────────────────────────────────────────────
 
   /// Fall eröffnen + Heineken-Mail. Prüft vorher frisch aus der DB, dass jede
-  /// Rechnung noch `mahnung_2` und im Mahnbereich ist, und dass keine der
+  /// Rechnung noch auf der letzten Mahnstufe (`mahnung_stufe` 3, seit
+  /// Migration 211 statt Status `mahnung_2`) und im Mahnbereich ist, und dass
+  /// keine der
   /// Rechnungen schon in einem sperrenden Fall steckt ([sperrtRechnungen]).
   ///
   /// Der Fall wird VOR der Mail angelegt (Protokoll, wie beim Mahnlauf):
@@ -99,7 +101,9 @@ class MahnfallService {
       frisch = <Rechnung>[];
       for (final r in rechnungen) {
         final db = await RechnungRepository.getById(r.id);
-        if (db == null || !imMahnbereich(db) || db.zahlungsstatus != 'mahnung_2') {
+        if (db == null ||
+            !imMahnbereich(db) ||
+            mahnstufeVon(db) < MahnStufe.letzte.wert) {
           throw MahnfallFehler(
             'Rechnung ${r.rechnungsnummer ?? r.id} wurde inzwischen geändert — '
             'kein Fall eröffnet',

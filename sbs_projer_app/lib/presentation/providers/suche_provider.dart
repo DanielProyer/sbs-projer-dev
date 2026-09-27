@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/config/bereiche.dart';
 import 'package:sbs_projer_app/core/util/navigation_ziele.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/suche.dart';
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/kontakt_providers.dart';
@@ -110,7 +111,7 @@ final suchEingabeProvider = Provider<SuchEingabe>((ref) {
             betriebName: r.betriebId == null ? null : namen[r.betriebId],
             datum: r.rechnungsdatum,
             brutto: r.betragBrutto,
-            zahlungsstatus: r.zahlungsstatus,
+            zahlungsstatus: anzeigeSchluessel(r),
           ),
     ],
     bereiche: bereiche,

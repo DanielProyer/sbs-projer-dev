@@ -705,9 +705,9 @@ class _RechnungDetailContentState
           'rechnungId': _rechnung.id,
           'userId': SupabaseService.dataUserId,
           // Versandvermerk serverseitig (ab Function v15) — greift auch, wenn
-          // die Antwort dieses Aufrufs verloren geht. Der Server hebt dabei nur
-          // «offen» auf «gesendet»; beim Neuversand einer bereits gemahnten
-          // Rechnung bleibt die Mahnstufe deshalb stehen.
+          // die Antwort dieses Aufrufs verloren geht. Der Server setzt nur
+          // `versendet_am` (falls leer), keinen Status (seit Migration 211) —
+          // Mahnstufe und Zahlung bleiben bei einem Neuversand unberührt.
           'markiereVersandt': MailConfig.istScharf('reinigung'),
           if (protokoll != null) 'protokollFotoPfad': protokoll,
         },
@@ -725,10 +725,8 @@ class _RechnungDetailContentState
           'versendet_am': ReinigungRechnungVersand.versendetAmFeld(_rechnung),
           'versandart': 'rechnung_mail',
         });
-        // Status nur offen → gesendet (R4): Ein Neuversand dreht eine
-        // bezahlte oder gemahnte Rechnung nicht zurück. Geprüft gegen den
-        // DB-Stand, wie serverseitig in send-rechnung-mail.
-        await ReinigungRechnungVersand.hebeStatusNachVersand(_rechnung);
+        // Kein Status-Schritt mehr (Migration 211): Die Zustellung IST
+        // versendet_am.
         await _reloadRechnung();
       }
       ref.invalidate(rechnungenStreamProvider);

@@ -26,6 +26,10 @@ class Rechnung {
   /// Im letzten Mahnschreiben gesetzte Zahlungsfrist (Versand + 10 Tage).
   /// Grundlage für die Fälligkeit der nächsten Stufe (siehe `mahnregeln.dart`).
   final DateTime? mahnFristBis;
+
+  /// Heineken-Monatsrechnung: Zeitpunkt der Freigabe (Ertragsbuchung
+  /// 1100/3400). Seit Migration 211 statt des Status «freigegeben».
+  final DateTime? freigegebenAm;
   final String? pdfUrl;
   final String? qrReferenz;
 
@@ -66,6 +70,7 @@ class Rechnung {
     this.mahnung1Am,
     this.mahnung2Am,
     this.mahnFristBis,
+    this.freigegebenAm,
     this.pdfUrl,
     this.qrReferenz,
     this.rechnungsadresse,
@@ -126,6 +131,9 @@ class Rechnung {
       mahnFristBis: json['mahn_frist_bis'] != null
           ? DateTime.parse(json['mahn_frist_bis'])
           : null,
+      freigegebenAm: json['freigegeben_am'] != null
+          ? DateTime.parse(json['freigegeben_am'])
+          : null,
       pdfUrl: json['pdf_url'],
       qrReferenz: json['qr_referenz'],
       rechnungsadresse: json['rechnungsadresse'] is Map
@@ -171,6 +179,7 @@ class Rechnung {
       'mahnung_1_am': mahnung1Am?.toIso8601String().split('T').first,
       'mahnung_2_am': mahnung2Am?.toIso8601String().split('T').first,
       'mahn_frist_bis': mahnFristBis?.toIso8601String().split('T').first,
+      'freigegeben_am': freigegebenAm?.toUtc().toIso8601String(),
       'pdf_url': pdfUrl,
       'qr_referenz': qrReferenz,
       'rechnungsadresse': rechnungsadresse,
@@ -212,6 +221,7 @@ class Rechnung {
       mahnung1Am: mahnung1Am,
       mahnung2Am: mahnung2Am,
       mahnFristBis: mahnFristBis,
+      freigegebenAm: freigegebenAm,
       pdfUrl: pdfUrl,
       qrReferenz: qrReferenz,
       rechnungsadresse: rechnungsadresse,

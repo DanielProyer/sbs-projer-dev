@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rechnungsadresse_zeilen.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/models/betrieb_rechnungsadresse.dart';
@@ -280,13 +281,7 @@ class KontoauszugPdfService {
     // Rechnungen, während der Betrag daneben nur das Jahr umfasst — zwei
     // Zahlen, die nicht zusammengehören. Ohne Jahresangabe ist beides
     // identisch, das bisherige Verhalten ändert sich also nicht.
-    final offeneAnzahl = gefiltert
-        .where(
-          (r) =>
-              r.zahlungsstatus != 'bezahlt' &&
-              r.zahlungsstatus != 'abgeschrieben',
-        )
-        .length;
+    final offeneAnzahl = gefiltert.where(istOffen).length;
 
     // Laufender Saldo je Zeile.
     final salden = <double>[];
@@ -407,29 +402,25 @@ class KontoauszugPdfService {
   /// offen, und der Fehler fiele erst bei der nächsten Mahnung auf. Ohne
   /// Referenz ordnet man von Hand zu — sichtbar und richtig.
   static String? einzelReferenz(List<Rechnung> gefiltert) {
-    final offen = gefiltert
-        .where(
-          (r) =>
-              r.zahlungsstatus != 'bezahlt' &&
-              r.zahlungsstatus != 'abgeschrieben',
-        )
-        .toList();
+    final offen = gefiltert.where(istOffen).toList();
     if (offen.length != 1) return null;
     final ref = offen.single.qrReferenz;
     return (ref == null || ref.isEmpty) ? null : ref;
   }
 
+  /// Status-Spalte im Kunden-PDF. Erledigte bekommen keinen Text (Zahlung
+  /// bzw. Abschreibung hat eine eigene Zeile); sonst die Mahnstufe aus
+  /// `mahnung_stufe` (seit Migration 211 — der Status bleibt beim Mahnen
+  /// `offen`) oder «offen». Bewusst eigene, knappe Wörter für den Kunden
+  /// («2. Mahnung» statt «Letzte Mahnung»).
   static String? _statusLabel(Rechnung r) {
-    switch (r.zahlungsstatus) {
-      case 'bezahlt':
-        return null; // Zahlung hat eigene Zeile
-      case 'abgeschrieben':
-        return null;
-      case 'erinnert':
+    if (!istOffen(r)) return null;
+    switch (mahnstufeVon(r)) {
+      case 1:
         return 'erinnert';
-      case 'mahnung_1':
+      case 2:
         return '1. Mahnung';
-      case 'mahnung_2':
+      case 3:
         return '2. Mahnung';
       default:
         return 'offen';

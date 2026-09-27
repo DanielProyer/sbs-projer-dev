@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/core/util/mahnregeln.dart';
-import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/mahnfall.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
@@ -270,7 +270,7 @@ MahnlaufDaten baueMahnlauf({
 
   final inFrist = kandidaten
       .where((r) =>
-          Zahlungsstatus.gemahnt.contains(r.zahlungsstatus) &&
+          istGemahnt(r) &&
           istZugestellt(r) &&
           !faelligeIds.contains(r.id))
       .toList();

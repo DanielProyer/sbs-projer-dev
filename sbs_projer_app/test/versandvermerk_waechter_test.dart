@@ -26,8 +26,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Tagen — der Abschluss im Reinigungsformular schaltete ihn nur nie ein.
 ///
 /// AUSNAHME Mahnungen: Dort ist `versendet_am` das Datum der Erstversendung
-/// und der Status darf nicht auf «gesendet» zurückfallen. Die Function
-/// erkennt sie an `pdfPath: 'mahnung_…'` und überspringt den Vermerk selbst.
+/// der Rechnung, nicht der Mahnung. Die Function erkennt sie an
+/// `pdfPath: 'mahnung_…'` und überspringt den Vermerk selbst.
 void main() {
   test('jeder Rechnungs-Mailversand schickt markiereVersandt mit', () {
     final verstoesse = <String>[];
@@ -92,15 +92,10 @@ void main() {
       reason: 'versendet_am nur setzen, wenn es leer ist',
     );
 
-    // Der Status-Schritt bleibt: nur offen → gesendet.
-    final status = funktion.indexOf(
-      'JSON.stringify({ zahlungsstatus: "gesendet" })',
-    );
-    expect(status, isNot(-1));
-    expect(
-      funktion.substring(funktion.lastIndexOf('await fetch(', status), status),
-      contains('zahlungsstatus=eq.offen'),
-    );
+    // Seit Migration 211 KEIN Status-Schritt mehr: Die Zustellung IST
+    // versendet_am; ein `zahlungsstatus: "gesendet"` scheiterte am CHECK
+    // und meldete den Vermerk als fehlgeschlagen, obwohl die Mail raus ist.
+    expect(funktion, isNot(contains('zahlungsstatus')));
   });
 }
 

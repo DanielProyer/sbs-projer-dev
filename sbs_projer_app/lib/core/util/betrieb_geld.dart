@@ -7,7 +7,6 @@
 library;
 
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
-import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 class BetriebGeldStand {
@@ -19,11 +18,8 @@ class BetriebGeldStand {
   /// Höchste Mahnstufe unter den offenen Rechnungen: 0 = ungemahnt,
   /// 1 = Erinnerung, 2 = 1. Mahnung, 3 = 2. Mahnung ([mahnstufeLabel]).
   ///
-  /// Aus dem `zahlungsstatus` abgeleitet, nicht aus `mahnung_stufe` — auch
-  /// wenn der Mahnlauf dort seit dem Fix (26.09.2026, `MahnStufeX.wert`)
-  /// korrekt 1–3 schreibt: `zahlungsstatus` ist der Wert, mit dem der Rest
-  /// der App (Mahnregeln, Korrektur-Sperre) ohnehin schon rechnet, eine
-  /// zweite Quelle für dieselbe Information bräuchte es hier nicht.
+  /// Aus `mahnung_stufe` ([mahnstufeVon]) — seit Migration 211 die EINE
+  /// Quelle der Mahnung; der Status bleibt beim Mahnen `offen`.
   final int hoechsteMahnstufe;
 
   /// Verfügbares Kundenguthaben (Konto 2030), nie negativ.
@@ -55,12 +51,7 @@ BetriebGeldStand betriebGeldStand(
     anzahl++;
     final f = r.faelligkeitsdatum;
     if (DateTime(f.year, f.month, f.day).isBefore(stichtag)) ueberfaellig++;
-    final stufe = switch (r.zahlungsstatus) {
-      Zahlungsstatus.erinnert => 1,
-      Zahlungsstatus.mahnung1 => 2,
-      Zahlungsstatus.mahnung2 => 3,
-      _ => 0,
-    };
+    final stufe = mahnstufeVon(r);
     if (stufe > mahnstufe) mahnstufe = stufe;
   }
   return BetriebGeldStand(
@@ -80,6 +71,7 @@ String mahnstufeLabel(int stufe) => switch (stufe) {
 };
 
 /// Ziel des Geld-Blocks: Rechnungsliste, gesucht nach dem Betriebsnamen und
-/// auf den Statusfilter «offen» gestellt (Review Runde 5).
+/// auf den Statusfilter «Unbezahlt» gestellt (Review Runde 5) — ausdrücklich,
+/// denn mit Suchbegriff öffnet die Liste sonst auf «alle».
 String betriebOffeneRechnungenRoute(String betriebName) =>
     '/rechnungen?suche=${Uri.encodeQueryComponent(betriebName)}&status=unbezahlt';

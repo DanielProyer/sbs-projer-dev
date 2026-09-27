@@ -154,9 +154,11 @@ async function downloadFromStorage(bucket: string, path: string): Promise<Uint8A
  *   ihre eigene Antwort ankam). Wer dem Kunden mehr Zeit geben will, setzt
  *   in der App die Fälligkeit neu (Rechnungsdetail «neu versenden»).
  *   Dieselbe Regel gilt in der App: `versendetAmNachVersand`.
- * - `zahlungsstatus` wechselt NUR von "offen" auf "gesendet". Der Filter
- *   `zahlungsstatus=eq.offen` sorgt dafür, dass Mahnstufen (erinnert,
- *   mahnung_1, …) und "bezahlt" unangetastet bleiben.
+ * - `zahlungsstatus` wird NICHT angefasst (seit Migration 211, 27.09.2026).
+ *   Bis dahin hob diese Funktion "offen" auf "gesendet". Seither sagt der
+ *   Status nur noch, ob Geld fliesst (offen/bezahlt/abgeschrieben); die
+ *   Zustellung IST `versendet_am`, die Mahnstufe `mahnung_stufe`. Ein
+ *   "gesendet" scheitert am CHECK.
  * - `user_id` ist immer Teil des Filters.
  *
  * WICHTIG: Diese Funktion wirft NIE. Zum Zeitpunkt des Aufrufs ist die Mail
@@ -185,10 +187,11 @@ async function markiereRechnungVersandt(
   const basis = `${supabaseUrl}/rest/v1/rechnungen?id=eq.${rechnungId}&user_id=eq.${userId}`;
 
   try {
-    // 1. Versanddatum — unabhängig vom Status, aber nur beim ERSTEN Versand
-    //    (`versendet_am=is.null`). Beim Neuversand trifft der Filter keine
-    //    Zeile: PostgREST antwortet trotzdem 204, der Vermerk gilt als gesetzt
-    //    (er steht ja schon).
+    // Versanddatum — unabhängig vom Status, aber nur beim ERSTEN Versand
+    // (`versendet_am=is.null`). Beim Neuversand trifft der Filter keine
+    // Zeile: PostgREST antwortet trotzdem 204, der Vermerk gilt als gesetzt
+    // (er steht ja schon). Einen Status-Schritt gibt es seit Migration 211
+    // nicht mehr (siehe oben).
     const datumRes = await fetch(`${basis}&versendet_am=is.null`, {
       method: "PATCH",
       headers,
@@ -196,17 +199,6 @@ async function markiereRechnungVersandt(
     });
     if (!datumRes.ok) {
       console.error(`markiereRechnungVersandt: versendet_am fehlgeschlagen (${datumRes.status}): ${await datumRes.text()}`);
-      return false;
-    }
-
-    // 2. Status nur von "offen" auf "gesendet" heben.
-    const statusRes = await fetch(`${basis}&zahlungsstatus=eq.offen`, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({ zahlungsstatus: "gesendet" }),
-    });
-    if (!statusRes.ok) {
-      console.error(`markiereRechnungVersandt: zahlungsstatus fehlgeschlagen (${statusRes.status}): ${await statusRes.text()}`);
       return false;
     }
 
@@ -507,7 +499,7 @@ Deno.serve(async (req: Request) => {
     // 5. Versand SERVERSEITIG vermerken (ab v15). Ab hier ist die Mail beim
     //    Kunden — alles Folgende darf den Erfolg nicht mehr umkehren.
     //    Mahnungen sind ausgenommen: dort ist `versendet_am` das Datum der
-    //    Erstversendung und der Status darf nicht auf "gesendet" zurückfallen.
+    //    Erstversendung der Rechnung, nicht der Mahnung.
     let versandVermerkt = false;
     const istMahnung = typeof pdfPath === "string" && pdfPath.startsWith("mahnung_");
     if (markiereVersandt === true && rechnungId && !istMahnung) {

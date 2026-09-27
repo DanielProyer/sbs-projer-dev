@@ -16,7 +16,6 @@ import 'package:sbs_projer_app/presentation/providers/heineken_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/heineken_buchung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/heineken_rechnung_service.dart';
 import 'package:sbs_projer_app/services/rechnung/reinigung_rechnung_versand.dart';
-import 'package:sbs_projer_app/services/rechnung/zahlung_kern.dart';
 import 'package:sbs_projer_app/services/pdf/rechnung_pdf_storage.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,6 +25,7 @@ import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/mwst_satz.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 
 class HeinekenRechnungDetailScreen extends ConsumerStatefulWidget {
   final String rechnungId;
@@ -204,10 +204,9 @@ class _HeinekenRechnungDetailScreenState
       );
 
       // Bleibt als Rückfall neben dem serverseitigen Vermerk; beide idempotent.
-      // Status nur offen → gesendet, geprüft gegen den DB-Stand (B3): Ein
-      // Versand aus einem veralteten Bildschirmstand drehte eine
-      // freigegebene (gebuchte) oder bezahlte Monatsrechnung sonst auf
-      // «gesendet» zurück — am Buchungsschutz von _updateStatus vorbei.
+      // Nur versendet_am (seit Migration 211 kein Status mehr): Freigabe und
+      // Zahlung stehen in eigenen Feldern, ein Versand aus einem veralteten
+      // Bildschirmstand kann sie nicht zurückdrehen (B3).
       await ReinigungRechnungVersand.vermerkeVersand(_rechnung!);
 
       ref.invalidate(heinekenRechnungenProvider);
@@ -367,8 +366,9 @@ class _HeinekenRechnungDetailScreenState
     if (ok == true) await _freigeben();
   }
 
-  /// Freigabe: erst Ertragsbuchung, dann Status (R3). Scheitert die
-  /// Buchung, bleibt die Rechnung «gesendet» — nichts Halbes bleibt stehen.
+  /// Freigabe: erst Ertragsbuchung, dann `freigegeben_am` (R3). Scheitert
+  /// die Buchung, bleibt die Rechnung «gesendet» — nichts Halbes bleibt
+  /// stehen.
   Future<void> _freigeben() async {
     final r = _rechnung;
     if (r == null) return;
@@ -434,74 +434,89 @@ class _HeinekenRechnungDetailScreenState
     _load();
   }
 
-  Future<void> _updateStatus(String newStatus) async {
-    if (newStatus == 'freigegeben') return _freigebenMitPruefung();
-    // M5: Zurück auf «gesendet» nur ohne aktive Ertragsbuchung — sonst stünde
-    // ein Ertrag 1100/3400 ohne Forderung da (Regel 1100 meldete Differenz).
-    if (newStatus == 'gesendet' && _rechnung?.zahlungsstatus == 'freigegeben') {
-      final messenger = ScaffoldMessenger.of(context);
-      try {
-        final buchungen = await BuchungRepository.getByBeleg(widget.rechnungId);
-        if (hatHeinekenErtragsbuchung(buchungen, widget.rechnungId)) {
-          messenger.showSnackBar(
-            const SnackBar(
-              duration: Duration(seconds: 8),
-              content: Text(
-                'Nicht zurückgesetzt: Die Ertragsbuchung steht noch — '
-                'zuerst Ertragsbuchung stornieren (Journal).',
-              ),
-            ),
-          );
-          return;
-        }
-      } catch (e) {
+  /// Menü-Aktionen des Heineken-Ablaufs. Seit Migration 211 schreibt keine
+  /// davon einen Status — Versand, Freigabe und Zahlung sind eigene Felder
+  /// (`versendet_am`, `freigegeben_am`, `zahlungsstatus`). «Bezahlt» setzt
+  /// ausschliesslich der Bankabgleich über ZahlungKern.
+  Future<void> _menuAktion(String aktion) async {
+    switch (aktion) {
+      case 'freigeben':
+        return _freigebenMitPruefung();
+      case 'freigabe_zurueck':
+        return _freigabeZuruecknehmen();
+      case 'versand_zurueck':
+        return _versandZuruecknehmen();
+    }
+  }
+
+  /// «Auf gesendet zurücksetzen»: `freigegeben_am` leeren — nur ohne
+  /// Zahlungsbuchung (dann stünde eine Zahlung auf einer nicht freigegebenen
+  /// Rechnung) und ohne aktive Ertragsbuchung (M5: sonst stünde ein Ertrag
+  /// 1100/3400 ohne Forderung da, die Regel 1100 meldete eine Differenz).
+  /// Die DB setzt es zusätzlich nur, solange die Rechnung unbezahlt ist.
+  Future<void> _freigabeZuruecknehmen() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final buchungen = await BuchungRepository.getByBeleg(widget.rechnungId);
+      final grund = freigabeRuecknahmeSperre(buchungen, widget.rechnungId);
+      if (grund != null) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(
-              'Buchungen nicht geprüft, nicht zurückgesetzt: '
-              '${kurzeFehlermeldung(e)}',
-            ),
+            duration: const Duration(seconds: 8),
+            content: Text('Nicht zurückgesetzt: $grund'),
           ),
         );
         return;
       }
-    }
-    if (newStatus == 'bezahlt') {
-      // Runde 3: Status + Zahlungseingang atomar über ZahlungKern — die DB
-      // setzt «bezahlt» nur zusammen mit der Buchung (vorher zwei Schritte:
-      // Status zuerst, Buchung danach; brach die ab, stand «bezahlt» ohne
-      // Zahlung da).
-      try {
-        final aktuell = await RechnungRepository.getById(widget.rechnungId);
-        if (aktuell == null) throw Exception('Rechnung nicht gefunden');
-        await HeinekenBuchungService.createZahlungseingang(
-          aktuell,
-          datum: DateTime.now(),
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Zahlungseingang gebucht')),
-          );
-        }
-        ref.invalidate(buchungenStreamProvider);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              duration: const Duration(seconds: 8),
-              content: Text(
-                'Nicht bezahlt gesetzt: ${ZahlungKern.meldung(e)}',
-              ),
+      final ok =
+          await RechnungRepository.freigabeZuruecknehmen(widget.rechnungId);
+      if (!ok) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nicht zurückgesetzt: Die Rechnung ist inzwischen bezahlt.',
             ),
-          );
-        }
+          ),
+        );
       }
-    } else {
-      await RechnungRepository.update(widget.rechnungId, {
-        'zahlungsstatus': newStatus,
-      });
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Freigabe nicht zurückgesetzt: ${kurzeFehlermeldung(e)}',
+          ),
+        ),
+      );
     }
+    ref.invalidate(heinekenRechnungenProvider);
+    _load();
+  }
 
+  /// «Auf nicht versendet zurücksetzen»: `versendet_am` leeren, damit die
+  /// Mail neu geschickt werden kann (früher Status `gesendet` → `offen`). Die
+  /// DB setzt es nur, solange die Rechnung weder freigegeben noch bezahlt ist.
+  Future<void> _versandZuruecknehmen() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final ok =
+          await RechnungRepository.versandZuruecknehmen(widget.rechnungId);
+      if (!ok) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nicht zurückgesetzt: Die Rechnung ist inzwischen freigegeben '
+              'oder bezahlt.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Versand nicht zurückgesetzt: ${kurzeFehlermeldung(e)}'),
+        ),
+      );
+    }
     ref.invalidate(heinekenRechnungenProvider);
     _load();
   }
@@ -591,6 +606,15 @@ class _HeinekenRechnungDetailScreenState
 
     final monat = r.heinekenMonat;
     final monatsName = monat != null ? _monatFormat.format(monat) : 'Unbekannt';
+    // Stufe im Ablauf offen → gesendet → freigegeben → bezahlt, aus den
+    // Feldern abgeleitet (Migration 211) — steuert Menü und Knöpfe.
+    final stufe = heinekenStufe(
+      zahlungsstatus: r.zahlungsstatus,
+      versendetAm: r.versendetAm,
+      freigegebenAm: r.freigegebenAm,
+    );
+    final freigegebenOderBezahlt = stufe == RechnungAnzeige.freigegeben ||
+        stufe == RechnungAnzeige.bezahlt;
 
     return Scaffold(
       appBar: AppBar(
@@ -600,10 +624,10 @@ class _HeinekenRechnungDetailScreenState
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
-                case 'offen':
-                case 'gesendet':
-                case 'freigegeben':
-                  _updateStatus(value);
+                case 'freigeben':
+                case 'freigabe_zurueck':
+                case 'versand_zurueck':
+                  _menuAktion(value);
                   break;
                 case 'pdf_neu':
                   _regenerierePdf();
@@ -614,20 +638,21 @@ class _HeinekenRechnungDetailScreenState
               }
             },
             itemBuilder: (context) => [
-              // Status-Flow: offen → gesendet → freigegeben → bezahlt
-              if (r.zahlungsstatus == 'gesendet') ...[
+              // Ablauf: offen → gesendet → freigegeben → bezahlt — seit
+              // Migration 211 aus den Feldern (heinekenStufe).
+              if (stufe == RechnungAnzeige.gesendet) ...[
                 const PopupMenuItem(
-                  value: 'freigegeben',
+                  value: 'freigeben',
                   child: Text('Als freigegeben markieren'),
                 ),
                 const PopupMenuItem(
-                  value: 'offen',
-                  child: Text('Auf offen zurücksetzen'),
+                  value: 'versand_zurueck',
+                  child: Text('Auf nicht versendet zurücksetzen'),
                 ),
               ],
-              if (r.zahlungsstatus == 'freigegeben')
+              if (stufe == RechnungAnzeige.freigegeben)
                 const PopupMenuItem(
-                  value: 'gesendet',
+                  value: 'freigabe_zurueck',
                   child: Text('Auf gesendet zurücksetzen'),
                 ),
               PopupMenuItem(
@@ -664,9 +689,7 @@ class _HeinekenRechnungDetailScreenState
 
           // R3: freigegeben/bezahlt, aber die Ertragsbuchung fehlt —
           // Monatsprüfung meldet es rot und führt hierher.
-          if (_ertragGebucht == false &&
-              (r.zahlungsstatus == 'freigegeben' ||
-                  r.zahlungsstatus == 'bezahlt')) ...[
+          if (_ertragGebucht == false && freigegebenOderBezahlt) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -791,10 +814,10 @@ class _HeinekenRechnungDetailScreenState
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: r.zahlungsstatus == 'offen' ? _sendMail : null,
+              onPressed: stufe == Zahlungsstatus.offen ? _sendMail : null,
               icon: const Icon(Icons.send),
               label: Text(
-                r.zahlungsstatus == 'offen'
+                stufe == Zahlungsstatus.offen
                     ? 'Mail an Heineken senden'
                     : 'Mail versendet${r.versendetAm != null ? " am ${_dateFormat.format(r.versendetAm!)}" : ""}',
               ),
@@ -807,15 +830,13 @@ class _HeinekenRechnungDetailScreenState
             // CanvasKit toter Knopf wäre hier teuer (CLAUDE.md). `laeuft`
             // sperrt ihn, bis die Freigabe durch ist (I2).
             child: TapKnopf(
-              onTap: r.zahlungsstatus == 'gesendet'
+              onTap: stufe == RechnungAnzeige.gesendet
                   ? _freigebenMitPruefung
                   : null,
               laeuft: _freigabeLaeuft,
               icon: Icons.task_alt,
-              text:
-                  r.zahlungsstatus == 'freigegeben' ||
-                      r.zahlungsstatus == 'bezahlt'
-                  ? 'Freigegeben'
+              text: freigegebenOderBezahlt
+                  ? 'Freigegeben${r.freigegebenAm != null ? " am ${_dateFormat.format(r.freigegebenAm!.toLocal())}" : ""}'
                   : 'Als freigegeben markieren',
             ),
           ),
@@ -827,7 +848,7 @@ class _HeinekenRechnungDetailScreenState
               onPressed: null,
               icon: const Icon(Icons.check_circle),
               label: Text(
-                r.zahlungsstatus == 'bezahlt'
+                stufe == RechnungAnzeige.bezahlt
                     ? 'Bezahlt'
                     : 'Zahlung über Bankabgleich',
               ),
@@ -852,25 +873,7 @@ class _StatusBanner extends StatelessWidget {
     // Farbe aus der einen Tabelle — dieselbe wie Liste und Chip (K1,
     // 27.09.2026; vorher hier «Gesendet» blau, in der Liste grau).
     final color = rechnungStatusFarbe(schluessel);
-    final IconData icon;
-    switch (schluessel) {
-      case 'bezahlt':
-        icon = Icons.check_circle;
-      case 'gesendet':
-        icon = Icons.send;
-      case 'freigegeben':
-        icon = Icons.task_alt;
-      case 'erinnert':
-        icon = Icons.notifications;
-      case 'mahnung_1':
-        icon = Icons.warning;
-      case 'mahnung_2':
-        icon = Icons.gavel;
-      case 'abgeschrieben':
-        icon = Icons.block;
-      default:
-        icon = Icons.hourglass_empty;
-    }
+    final icon = rechnungStatusSymbol(schluessel);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

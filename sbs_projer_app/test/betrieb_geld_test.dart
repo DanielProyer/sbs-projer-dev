@@ -36,7 +36,7 @@ void main() {
   test('summiert zuZahlen der zahlbaren Kunden- und Jahresrechnungen', () {
     final g = betriebGeldStand([
       rechnung(brutto: 177.30),
-      rechnung(typ: 'jahresrechnung', status: 'gesendet', brutto: 500),
+      rechnung(typ: 'jahresrechnung', brutto: 500),
       // Guthaben verrechnet: nur der Rest zählt.
       rechnung(brutto: 100, guthaben: 40),
     ], 0, heute: heute);
@@ -49,8 +49,8 @@ void main() {
     final g = betriebGeldStand([
       rechnung(status: 'bezahlt'),
       rechnung(status: 'abgeschrieben'),
-      rechnung(typ: 'heineken_monatsrechnung', status: 'freigegeben'),
-      rechnung(typ: 'heineken_monatsrechnung', status: 'offen'),
+      rechnung(typ: 'heineken_monat'),
+      rechnung(typ: 'heineken_monat', mahnstufe: 1),
     ], 0, heute: heute);
     expect(g.offenCHF, 0);
     expect(g.anzahlOffen, 0);
@@ -58,28 +58,30 @@ void main() {
 
   test('gemahnte Rechnungen sind offen, höchste Mahnstufe gewinnt', () {
     final g = betriebGeldStand([
-      rechnung(status: 'erinnert'),
-      rechnung(status: 'mahnung_2', mahnstufe: 2),
+      rechnung(mahnstufe: 1),
+      rechnung(mahnstufe: 3),
       // Bezahlte mit alter Mahnstufe zählt nicht mehr.
-      rechnung(status: 'bezahlt', mahnstufe: 2),
+      rechnung(status: 'bezahlt', mahnstufe: 3),
     ], 0, heute: heute);
     expect(g.anzahlOffen, 2);
     expect(g.hoechsteMahnstufe, 3);
     expect(mahnstufeLabel(g.hoechsteMahnstufe), '2. Mahnung');
   });
 
-  test('Mahnstufe kommt aus dem Status, nicht aus mahnung_stufe', () {
-    // Bewusst zwei unabhängige Quellen: Selbst wenn mahnung_stufe (hier 0)
-    // vom Status abweicht, zählt für die Anzeige nur zahlungsstatus.
-    final g = betriebGeldStand([
-      rechnung(status: 'erinnert', mahnstufe: 0),
-    ], 0, heute: heute);
+  test('Mahnstufe kommt aus mahnung_stufe (seit Migration 211 die EINE Quelle)',
+      () {
+    final g = betriebGeldStand([rechnung(mahnstufe: 1)], 0, heute: heute);
     expect(g.hoechsteMahnstufe, 1);
     expect(mahnstufeLabel(1), 'Erinnerung');
     expect(mahnstufeLabel(2), '1. Mahnung');
     expect(
-      betriebGeldStand([rechnung(status: 'gesendet')], 0, heute: heute)
-          .hoechsteMahnstufe,
+      betriebGeldStand([rechnung()], 0, heute: heute).hoechsteMahnstufe,
+      0,
+    );
+    // Ein Altwert im Status (vor 211) ist nicht zahlbar und zählt nicht.
+    expect(
+      betriebGeldStand([rechnung(status: 'erinnert')], 0, heute: heute)
+          .anzahlOffen,
       0,
     );
   });

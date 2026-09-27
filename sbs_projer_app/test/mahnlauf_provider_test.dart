@@ -7,6 +7,12 @@ import 'package:sbs_projer_app/presentation/providers/mahnlauf_provider.dart';
 /// Die reine Aufbereitung der Mahnlauf-Seite. Hier entscheidet sich, welche
 /// Betriebe Daniel zum Mahnen angeboten werden — jeder Test ist eine Art,
 /// wie eine bezahlte Rechnung trotzdem in die Liste rutschen könnte.
+///
+/// Die Fälle sprechen in den alten Stufen-Wörtern (`status: 'mahnung_1'`);
+/// seit Migration 211 steht die Mahnung in `mahnung_stufe`, der Status
+/// bleibt `offen` — [_r] übersetzt.
+const _stufeAus = {'erinnert': 1, 'mahnung_1': 2, 'mahnung_2': 3};
+
 Rechnung _r({
   required String id,
   String betrieb = 'b1',
@@ -32,7 +38,8 @@ Rechnung _r({
       rechnungsdatum: datum,
       faelligkeitsdatum: datum.add(const Duration(days: 30)),
       betragBrutto: brutto,
-      zahlungsstatus: status,
+      zahlungsstatus: _stufeAus.containsKey(status) ? 'offen' : status,
+      mahnungStufe: _stufeAus[status] ?? 0,
       versandart: versandart,
       versendetAm: versendet,
       erinnerungAm: erinnerung,

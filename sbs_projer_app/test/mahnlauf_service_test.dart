@@ -34,13 +34,14 @@ void main() {
   }
 
   group('updateFuerStufe', () {
-    test('1. Mahnung am 23.09.2026: Status, Stufe, Frist +10 Tage — '
+    test('1. Mahnung am 23.09.2026: Stufe, Frist +10 Tage — kein Status, '
         'keine anderen Datumsfelder', () {
       final m = MahnlaufService.updateFuerStufe(
         MahnStufe.mahnung1,
         DateTime.utc(2026, 9, 23),
       );
-      expect(m['zahlungsstatus'], 'mahnung_1');
+      // Seit Migration 211 kein Status mehr — die Mahnung ist die Stufe.
+      expect(m.containsKey('zahlungsstatus'), isFalse);
       expect(m['mahnung_stufe'], 2);
       expect(m['letzte_mahnung_am'], '2026-09-23');
       expect(m['mahnung_1_am'], '2026-09-23');
@@ -48,7 +49,7 @@ void main() {
       // Nur die stufeneigenen Datumsfelder — kein erinnerung_am/mahnung_2_am.
       expect(m.containsKey('erinnerung_am'), isFalse);
       expect(m.containsKey('mahnung_2_am'), isFalse);
-      expect(m.keys, hasLength(5));
+      expect(m.keys, hasLength(4));
     });
 
     test('Erinnerung setzt erinnerung_am, nicht mahnung_1_am/mahnung_2_am', () {
@@ -56,19 +57,19 @@ void main() {
         MahnStufe.erinnerung,
         DateTime.utc(2026, 9, 23),
       );
-      expect(m['zahlungsstatus'], 'erinnert');
+      expect(m.containsKey('zahlungsstatus'), isFalse);
       expect(m['mahnung_stufe'], 1);
       expect(m['erinnerung_am'], '2026-09-23');
       expect(m.containsKey('mahnung_1_am'), isFalse);
       expect(m.containsKey('mahnung_2_am'), isFalse);
     });
 
-    test('Letzte Mahnung setzt mahnung_2_am, Status mahnung_2', () {
+    test('Letzte Mahnung setzt mahnung_2_am, Stufe 3', () {
       final m = MahnlaufService.updateFuerStufe(
         MahnStufe.letzte,
         DateTime.utc(2026, 9, 23),
       );
-      expect(m['zahlungsstatus'], 'mahnung_2');
+      expect(m.containsKey('zahlungsstatus'), isFalse);
       expect(m['mahnung_stufe'], 3);
       expect(m['mahnung_2_am'], '2026-09-23');
       expect(m.containsKey('erinnerung_am'), isFalse);
@@ -79,7 +80,6 @@ void main() {
   group('vorherStand', () {
     test('enthält genau die sieben Felder im DB-Format (yyyy-MM-dd oder null)', () {
       final r = rechnung(
-        zahlungsstatus: 'mahnung_1',
         mahnungStufe: 2,
         letzteMahnungAm: DateTime.utc(2026, 9, 10),
         erinnerungAm: DateTime.utc(2026, 8, 20),
@@ -96,7 +96,7 @@ void main() {
         'mahnung_2_am',
         'mahn_frist_bis',
       });
-      expect(v['zahlungsstatus'], 'mahnung_1');
+      expect(v['zahlungsstatus'], 'offen');
       expect(v['mahnung_stufe'], 2);
       expect(v['letzte_mahnung_am'], '2026-09-10');
       expect(v['erinnerung_am'], '2026-08-20');
@@ -140,7 +140,7 @@ void main() {
 
     test('unverändert seit dem Schreiben -> ja', () {
       final aktuell = {
-        'zahlungsstatus': nachher['zahlungsstatus'],
+        'zahlungsstatus': 'offen',
         'mahnung_stufe': nachher['mahnung_stufe'],
         'letzte_mahnung_am': nachher['letzte_mahnung_am'],
       };
@@ -173,7 +173,7 @@ void main() {
 
     test('seither weiter gemahnt (höhere Stufe) -> nein', () {
       final aktuell = {
-        'zahlungsstatus': 'mahnung_1',
+        'zahlungsstatus': 'offen',
         // nachher (Erinnerung) hat mahnung_stufe 1 — 2 (Mahnung 1) muss sich
         // davon unterscheiden, sonst prüft der Test nichts (Fix 26.09.2026:
         // wert ist jetzt index+1, Erinnerung also nicht mehr 0).
@@ -187,7 +187,7 @@ void main() {
 
     test('kein nachher-Zustand (altes Schreiben) -> nein, nie automatisch', () {
       final aktuell = {
-        'zahlungsstatus': nachher['zahlungsstatus'],
+        'zahlungsstatus': 'offen',
         'mahnung_stufe': nachher['mahnung_stufe'],
         'letzte_mahnung_am': nachher['letzte_mahnung_am'],
       };
@@ -198,13 +198,64 @@ void main() {
 
     test('letzte_mahnung_am weicht ab (z.B. manuell korrigiert) -> nein, "geändert"', () {
       final aktuell = {
-        'zahlungsstatus': nachher['zahlungsstatus'],
+        'zahlungsstatus': 'offen',
         'mahnung_stufe': nachher['mahnung_stufe'],
         'letzte_mahnung_am': '2026-09-24',
       };
       final p = MahnlaufService.darfZuruecksetzen(aktuell, nachher);
       expect(p.erlaubt, isFalse);
       expect(p.grund, 'geändert');
+    });
+
+    test('Schreiben von vor Migration 211 (nachher «erinnert», Stufe 0): '
+        'passt zur umgeschriebenen Rechnung (offen, Stufe 1)', () {
+      final alt = {
+        'zahlungsstatus': 'erinnert',
+        'mahnung_stufe': 0, // Enum-Index vor v0.144.0
+        'letzte_mahnung_am': '2026-09-23',
+      };
+      final aktuell = {
+        'zahlungsstatus': 'offen',
+        'mahnung_stufe': 1,
+        'letzte_mahnung_am': '2026-09-23',
+      };
+      expect(MahnlaufService.darfZuruecksetzen(aktuell, alt).erlaubt, isTrue);
+    });
+  });
+
+  group('gespeicherterStand (Vorher/Nachher von vor Migration 211)', () {
+    test('Altwert → offen, Stufe mindestens die des Altwerts', () {
+      final s = MahnlaufService.gespeicherterStand({
+        'zahlungsstatus': 'mahnung_1',
+        'mahnung_stufe': 0,
+        'erinnerung_am': '2026-08-20',
+      });
+      expect(s['zahlungsstatus'], 'offen');
+      expect(s['mahnung_stufe'], 2);
+      expect(s['erinnerung_am'], '2026-08-20');
+    });
+
+    test('gesendet → offen, Stufe bleibt', () {
+      final s = MahnlaufService.gespeicherterStand({
+        'zahlungsstatus': 'gesendet',
+        'mahnung_stufe': 0,
+      });
+      expect(s['zahlungsstatus'], 'offen');
+      expect(s['mahnung_stufe'], 0);
+    });
+
+    test('neues Nachher ohne Status → offen; höhere Stufe gewinnt', () {
+      final s = MahnlaufService.gespeicherterStand({'mahnung_stufe': 3});
+      expect(s['zahlungsstatus'], 'offen');
+      expect(s['mahnung_stufe'], 3);
+    });
+
+    test('bezahlt bleibt bezahlt', () {
+      expect(
+        MahnlaufService.gespeicherterStand({'zahlungsstatus': 'bezahlt'})[
+            'zahlungsstatus'],
+        'bezahlt',
+      );
     });
   });
 
@@ -290,8 +341,8 @@ void main() {
     };
     final vorher = {
       'r1': {'zahlungsstatus': 'offen', 'mahnung_stufe': 0},
-      'r2': {'zahlungsstatus': 'erinnert', 'mahnung_stufe': 0},
-      'r3': {'zahlungsstatus': 'gesendet', 'mahnung_stufe': 0},
+      'r2': {'zahlungsstatus': 'offen', 'mahnung_stufe': 1},
+      'r3': {'zahlungsstatus': 'offen', 'mahnung_stufe': 0},
     };
 
     test('nur die schon gesetzten (vor der gescheiterten) werden zurückgesetzt', () {
@@ -302,10 +353,13 @@ void main() {
         vorher: vorher,
       );
       expect(plan.map((s) => s.rechnungId), ['r1', 'r2']);
-      // Zurück auf den Vorher-Stand, aber nur, wenn noch der gesetzte Status gilt.
+      // Zurück auf den Vorher-Stand, aber nur, wenn noch die gesetzte Stufe
+      // gilt (seit Migration 211 bleibt der Status beim Mahnen `offen`).
       expect(plan.first.felder, vorher['r1']);
-      expect(plan.first.erwarteterStatus, 'erinnert');
-      expect(plan[1].erwarteterStatus, 'mahnung_1');
+      expect(plan.first.erwarteterStatus, 'offen');
+      expect(plan.first.erwarteteStufe, 1);
+      expect(plan[1].erwarteterStatus, 'offen');
+      expect(plan[1].erwarteteStufe, 2);
     });
 
     test('scheitert schon die erste: nichts zurückzusetzen', () {

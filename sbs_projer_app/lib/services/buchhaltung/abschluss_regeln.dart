@@ -3,7 +3,6 @@ import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
-import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
@@ -382,21 +381,28 @@ class DebitorenStatusRegel extends AbschlussRegel {
   }
 }
 
-/// Passen Zahlungsstatus und Mahnstufe nicht zusammen?
+/// Höchste Mahnstufe, die ein Mahndatum belegt: `mahnung_2_am` → 3,
+/// `mahnung_1_am` → 2, `erinnerung_am` → 1, sonst 0.
+int stufeAusMahndaten(Rechnung r) => r.mahnung2Am != null
+    ? 3
+    : r.mahnung1Am != null
+        ? 2
+        : r.erinnerungAm != null
+            ? 1
+            : 0;
+
+/// Passen Mahnstufe und Mahndaten nicht zusammen?
 ///
-/// «offen»/«gesendet» mit einer Mahnstufe > 0, oder «erinnert»/«mahnung_1»/
-/// «mahnung_2» mit Stufe 0. Beides entstand früher durch Wege, die nur eines
-/// der beiden Felder setzten (Status-Fallback in der Rechnungsliste,
-/// Zahlungs-Rücknahme vor ZahlungKern). Der Mahnlauf rechnet mit der Stufe —
-/// ein Widerspruch führt zur falschen nächsten Mahnung.
-bool statusMahnstufeWiderspruch(Rechnung r) {
-  // Bewusst eigene Menge: nur die Status, die «ungemahnt» BEHAUPTEN
-  // (nicht freigegeben/erledigt) — siehe rechnung_status_waechter_test.
-  const ungemahnt = {'offen', 'gesendet'};
-  return (ungemahnt.contains(r.zahlungsstatus) && r.mahnungStufe > 0) ||
-      (Zahlungsstatus.gemahnt.contains(r.zahlungsstatus) &&
-          r.mahnungStufe == 0);
-}
+/// Bis Migration 211 prüfte die Regel Status gegen Stufe («gesendet» mit
+/// Stufe 2 nach einer Zahlungs-Rücknahme, «erinnert» mit Stufe 0 aus dem
+/// Mahnlauf vor v0.144.0). Seit 211 trägt `mahnung_stufe` die Mahnung
+/// allein — dieser Widerspruch kann nicht mehr entstehen. Übrig bleibt der
+/// zwischen Stufe und Datum: Der Mahnlauf setzt mit jeder Stufe ihr Datum,
+/// die Rücknahmen stellen beides zusammen wieder her. Weichen sie ab, hat
+/// ein Weg nur eines der Felder gesetzt — und `faelligeStufe`, das mit Stufe
+/// UND Datum der Frist rechnet, mahnt falsch oder gar nicht.
+bool statusMahnstufeWiderspruch(Rechnung r) =>
+    istOffen(r) && mahnstufeVon(r) != stufeAusMahndaten(r);
 
 class StatusMahnstufeRegel extends AbschlussRegel {
   @override
@@ -404,7 +410,7 @@ class StatusMahnstufeRegel extends AbschlussRegel {
   @override
   String get gruppe => 'Debitoren';
   @override
-  String get titel => 'Status und Mahnstufe widersprüchlich';
+  String get titel => 'Mahnstufe und Mahndaten widersprüchlich';
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
     final n = k.offeneRechnungenVoll.where(statusMahnstufeWiderspruch).length;
@@ -414,8 +420,8 @@ class StatusMahnstufeRegel extends AbschlussRegel {
       soll: '0',
       hinweis: n == 0
           ? ''
-          : 'Mahnstufe im Rechnungsdetail prüfen (Rücknahme über ZahlungKern '
-              'stellt beide her).',
+          : 'Mahnstufe und Mahndaten im Rechnungsdetail prüfen (die '
+              'Rücknahmen über Mahnlauf und ZahlungKern stellen beide her).',
       route: '/rechnungen',
     );
   }
@@ -425,13 +431,12 @@ class StatusMahnstufeRegel extends AbschlussRegel {
 ///
 /// Kunden- und Jahresrechnungen, solange weder bezahlt noch abgeschrieben —
 /// ihr Debitor entsteht mit der Ertragsbuchung. Heineken-Monatsrechnungen
-/// erst **ab `freigegeben`**: Vorher ist bewusst noch nichts gebucht
-/// (die Freigabe bucht 1100/3400); `bezahlt` ist erledigt.
+/// erst **ab der Freigabe** (`freigegeben_am`, seit Migration 211): Vorher
+/// ist bewusst noch nichts gebucht (die Freigabe bucht 1100/3400); `bezahlt`
+/// ist erledigt.
 bool zaehltAlsForderung(Rechnung r) {
   if (!istOffen(r)) return false;
-  if (r.rechnungstyp == 'heineken_monat') {
-    return r.zahlungsstatus == 'freigegeben';
-  }
+  if (r.rechnungstyp == 'heineken_monat') return r.freigegebenAm != null;
   return true;
 }
 

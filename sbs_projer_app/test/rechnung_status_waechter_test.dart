@@ -11,8 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 /// `gesendet` (gemahnte Rechnungen hätten keine Zahlung mehr bekommen), und
 /// «erledigt» (bezahlt/abgeschrieben) war an 14 Stellen selbst
 /// ausgeschrieben, «gemahnt» an drei. Die Mengen stehen deshalb an EINER
-/// Stelle: `istOffen`/`istZahlbar`/`anzeigeStatus` in `rechnung_status.dart`,
-/// `Zahlungsstatus.erledigt`/`.gemahnt` in `zahlungsstatus.dart`.
+/// Stelle: `istOffen`/`istZahlbar`/`istGemahnt`/`anzeigeStatus` in
+/// `rechnung_status.dart`, `Zahlungsstatus.erledigt` in `zahlungsstatus.dart`.
+/// Seit Migration 211 (27.09.2026) kennt der Status nur noch
+/// offen/bezahlt/abgeschrieben — Mahnstufe (`mahnung_stufe`), Zustellung
+/// (`versendet_am`) und Heineken-Freigabe (`freigegeben_am`) sind Felder.
 ///
 /// Gezählt werden:
 /// - `zahlungsstatus == 'x'` / `!= 'x'` (auch `row['zahlungsstatus']`),
@@ -23,22 +26,22 @@ import 'package:flutter_test/flutter_test.dart';
 ///   `['offen', 'gesendet']`.
 ///
 /// Stehen bleiben dürfen (und sind im Zählstand enthalten) Stellen, die
-/// BEWUSST einen einzelnen Wert meinen — Stand 27.09.2026:
+/// BEWUSST einen einzelnen Wert meinen — Stand 27.09.2026 nach Migration 211:
 /// - `aufgaben_detektoren_provider.dart`, `monats_pruef_provider.dart`,
-///   `rechnung_versand_status.dart`: `offen` heisst dort «noch nicht
-///   versendet» (Versandvermerk-Frühwarnung), nicht «unbezahlt».
+///   `rechnung_versand_status.dart`: `offen` + `versendet_am` leer heisst
+///   dort «noch nicht versendet» (Versandvermerk-Frühwarnung).
 /// - `einzel_abschreibung.dart`: je ein eigener Grund für `bezahlt` und
 ///   `abgeschrieben`.
-/// - `mahnregeln.dart`, `mahnfall_service.dart`: Eskalation nur ab
-///   `mahnung_2`; `mahn_hinweis.dart`: Band erst ab 1. Mahnung.
 /// - `rechnung_detail_screen.dart`: «Zahlung rückgängig» nur bei `bezahlt`.
-/// - `abschluss_regeln.dart`: `statusMahnstufeWiderspruch` braucht die
-///   ungemahnten Werte `offen`/`gesendet`; `zaehltAlsForderung` die
-///   Heineken-Freigabe.
-/// - `monats_regeln.dart`: die geordnete Heineken-Stufenleiter.
+/// - `monats_regeln.dart`: die geordnete Heineken-Stufenleiter (seit 211
+///   aus `heinekenStufe`, kein DB-Wert).
 /// - `kontoauszug_pdf_service.dart`: getrennte Zeilen für bezahlt und
-///   abgeschrieben im Kunden-PDF (und zwei offene Mengen, die bei der
-///   nächsten Berührung auf `istOffen` gehören).
+///   abgeschrieben im Kunden-PDF.
+/// Mit 211 weggefallen: die Mahnstufen-Vergleiche (`mahnregeln.dart`,
+/// `mahnfall_service.dart`, `mahn_hinweis.dart`, `abschluss_regeln.dart` —
+/// jetzt `mahnstufeVon`/`istGemahnt`), die Heineken-Freigabe
+/// (`zaehltAlsForderung` → `freigegeben_am`) und die zwei offenen Mengen im
+/// Kontoauszug (→ `istOffen`).
 ///
 /// Nicht gezählt: die Definitionen selbst und der Heineken-Workflow
 /// (`offen → gesendet → freigegeben → bezahlt`, jeder Schritt ein eigener
@@ -50,8 +53,9 @@ void main() {
   test('rohe zahlungsstatus-Vergleiche werden nicht mehr', () {
     // Startwert 27.09.2026 (B2): 47 Treffer vor der Umstellung, 26 davon
     // auf istOffen / Zahlungsstatus.erledigt / .gemahnt umgestellt → 21.
+    // Migration 211 (Statusmodell-Zielbild, 27.09.2026): 21 → 11.
     // Darf nur sinken.
-    const erlaubt = 21;
+    const erlaubt = 11;
 
     const werte = 'offen|gesendet|freigegeben|bezahlt|erinnert|mahnung_1|'
         'mahnung_2|abgeschrieben';

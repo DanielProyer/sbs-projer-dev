@@ -144,7 +144,9 @@ class VersandvermerkRegel extends MonatsRegel {
 
 /// Die Stufen der Heineken-Monatsrechnung (CLAUDE.md):
 /// `offen → gesendet → freigegeben → bezahlt`. «Mindestens Stufe X» heisst:
-/// Der aktuelle Status liegt an oder hinter dieser Stelle.
+/// Die aktuelle Stufe liegt an oder hinter dieser Stelle. Seit Migration 211
+/// ist das kein DB-Status mehr, sondern `heinekenStufe` aus
+/// `versendet_am`/`freigegeben_am`/`zahlungsstatus` (MonatsKontext).
 const _heinekenStufen = ['offen', 'gesendet', 'freigegeben', 'bezahlt'];
 
 bool _mindestens(String? status, String stufe) {

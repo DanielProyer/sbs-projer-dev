@@ -8,6 +8,7 @@ Rechnung _r({
   required DateTime datum,
   DateTime? faellig,
   String status = 'offen',
+  int stufe = 0,
   String? versandart = 'rechnung_mail',
   DateTime? versendet,
   DateTime? uebergeben,
@@ -41,7 +42,7 @@ Rechnung _r({
       'mahnung_1_am': mahnung1?.toIso8601String().split('T').first,
       'mahnung_2_am': mahnung2?.toIso8601String().split('T').first,
       'mahn_frist_bis': frist?.toIso8601String().split('T').first,
-      'mahnung_stufe': 0,
+      'mahnung_stufe': stufe,
       'zahlung_eingegangen_am':
           zahlungEingegangen?.toIso8601String().split('T').first,
       'zahlung_betrag': zahlungBetrag,
@@ -111,7 +112,7 @@ void main() {
       final e = _r(
         datum: d(2026, 8, 1),
         versendet: d(2026, 8, 1),
-        status: 'erinnert',
+        stufe: 1, // erinnert (seit Migration 211 nur noch die Stufe)
         erinnerung: d(2026, 9, 15),
         frist: d(2026, 9, 25),
       );
@@ -123,7 +124,7 @@ void main() {
       final e = _r(
         datum: d(2026, 8, 1),
         versendet: d(2026, 8, 1),
-        status: 'mahnung_1',
+        stufe: 2, // 1. Mahnung
         mahnung1: d(2026, 9, 1),
       );
       // Frist 11.09. + 5 = 16.09. + 3 Puffer = 19.09.
@@ -135,11 +136,37 @@ void main() {
       final e = _r(
         datum: d(2026, 5, 1),
         versendet: d(2026, 5, 1),
-        status: 'mahnung_2',
+        stufe: 3, // letzte Mahnung
         mahnung2: d(2026, 7, 1),
         frist: d(2026, 7, 11),
       );
       expect(faelligeStufe(e, stichtag: d(2026, 9, 20)), isNull);
+    });
+
+    test('Migration 211: die Stufe zählt, nicht der Status', () {
+      // Gleiche Rechnung, Stufe 0 → Erinnerung; Stufe 1 ohne Frist-Ablauf →
+      // nichts. Vor 211 hätte `offen` hier immer die Erinnerung ausgelöst.
+      final basis = _r(datum: d(2026, 8, 1), versendet: d(2026, 8, 1));
+      expect(faelligeStufe(basis, stichtag: d(2026, 9, 13)), MahnStufe.erinnerung);
+      final erinnert = _r(
+        datum: d(2026, 8, 1),
+        versendet: d(2026, 8, 1),
+        stufe: 1,
+        erinnerung: d(2026, 9, 12),
+        frist: d(2026, 9, 22),
+      );
+      expect(faelligeStufe(erinnert, stichtag: d(2026, 9, 13)), isNull);
+    });
+
+    test('ein Altwert (vor 211) löst nichts aus (I-4)', () {
+      for (final alt in ['gesendet', 'erinnert', 'mahnung_1', 'freigegeben']) {
+        final r = _r(
+          datum: d(2026, 8, 1),
+          versendet: d(2026, 8, 1),
+          status: alt,
+        );
+        expect(faelligeStufe(r, stichtag: d(2026, 12, 31)), isNull, reason: alt);
+      }
     });
 
     test('nicht zugestellt oder Altlast: nie', () {
@@ -423,7 +450,6 @@ void main() {
       expect(MahnStufe.erinnerung.wert, 1);
       expect(MahnStufe.mahnung1.wert, 2);
       expect(MahnStufe.letzte.wert, 3);
-      expect(MahnStufe.letzte.status, 'mahnung_2');
       expect(MahnStufe.mahnung1.titel, '1. Mahnung');
       expect(MahnStufe.letzte.titel, 'Letzte Mahnung');
     });
@@ -553,10 +579,10 @@ void main() {
   });
 
   group('eskalationFaellig', () {
-    test('mahnung_2, Frist + 5 Tage vor dem Puffer-Stichtag → true', () {
+    test('letzte Mahnung, Frist + 5 Tage vor dem Puffer-Stichtag → true', () {
       final r = _r(
           datum: DateTime.utc(2026, 6, 1),
-          status: 'mahnung_2',
+          stufe: 3,
           mahnung2: DateTime.utc(2026, 9, 1),
           frist: DateTime.utc(2026, 9, 11));
       // Frist 11.09. + 5 = 16.09.; Stichtag 19.09. − 3 = 16.09. → erreicht
@@ -566,17 +592,21 @@ void main() {
     test('ohne mahn_frist_bis zählt mahnung_2_am + 10', () {
       final r = _r(
           datum: DateTime.utc(2026, 6, 1),
-          status: 'mahnung_2',
+          stufe: 3,
           mahnung2: DateTime.utc(2026, 9, 1));
       expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 9, 19)), isTrue);
     });
-    test('andere Stufe oder bezahlt → false', () {
-      final r = _r(datum: DateTime.utc(2026, 6, 1), status: 'mahnung_1',
+    test('andere Stufe, bezahlt oder Altwert → false', () {
+      final r = _r(datum: DateTime.utc(2026, 6, 1), stufe: 2,
           mahnung1: DateTime.utc(2026, 8, 1));
       expect(eskalationFaellig(r, stichtag: DateTime.utc(2026, 12, 1)), isFalse);
-      final b = _r(datum: DateTime.utc(2026, 6, 1), status: 'mahnung_2',
+      final b = _r(datum: DateTime.utc(2026, 6, 1), stufe: 3,
           mahnung2: DateTime.utc(2026, 8, 1), zahlungEingegangen: DateTime.utc(2026, 8, 5));
       expect(eskalationFaellig(b, stichtag: DateTime.utc(2026, 12, 1)), isFalse);
+      // Status `mahnung_2` ohne Stufe (vor Migration 211) zählt nicht mehr.
+      final alt = _r(datum: DateTime.utc(2026, 6, 1), status: 'mahnung_2',
+          mahnung2: DateTime.utc(2026, 8, 1));
+      expect(eskalationFaellig(alt, stichtag: DateTime.utc(2026, 12, 1)), isFalse);
     });
   });
 }

@@ -385,11 +385,13 @@ class MahnlaufService {
     }
   }
 
-  /// Setzt die Stufen — aber nur, wo der Status noch der beim Erstellen
-  /// gelesene ist (optimistisches Sperren, Review 23.09.2026, M-2). Hat
-  /// inzwischen jemand die Rechnung bezahlt gesetzt oder ein zweiter Lauf
-  /// (anderes Gerät) gemahnt, trifft das Update keine Zeile: Abbruch, statt
-  /// den neueren Stand zu überschreiben.
+  /// Setzt die Stufen — aber nur, wo Status UND Mahnstufe noch die beim
+  /// Erstellen gelesenen sind (optimistisches Sperren, Review 23.09.2026,
+  /// M-2). Hat inzwischen jemand die Rechnung bezahlt gesetzt oder ein
+  /// zweiter Lauf (anderes Gerät) gemahnt, trifft das Update keine Zeile:
+  /// Abbruch, statt den neueren Stand zu überschreiben. Seit Migration 211
+  /// bleibt der Status beim Mahnen `offen` — ein zweiter Lauf ist nur noch an
+  /// `mahnung_stufe` zu erkennen.
   ///
   /// Trifft ein Update keine Zeile, räumt der Lauf selbst auf (Review N-1):
   /// die bereits gesetzten Rechnungen zurück (wieder optimistisch), das
@@ -409,6 +411,7 @@ class MahnlaufService {
         id,
         updates[id]!,
         erwarteterStatus: vorher[id]!['zahlungsstatus'] as String,
+        erwarteteStufe: vorher[id]!['mahnung_stufe'] as int,
         nurOhneZahlung: true,
       );
       if (ok) continue;
@@ -426,6 +429,7 @@ class MahnlaufService {
           s.rechnungId,
           s.felder,
           erwarteterStatus: s.erwarteterStatus,
+          erwarteteStufe: s.erwarteteStufe,
         );
         if (!zurueck) sauber = false;
       }
@@ -437,10 +441,16 @@ class MahnlaufService {
 
   /// Welche Rechnungen muss der Abbruch zurücksetzen, und worauf? Die in
   /// [reihenfolge] VOR der [gescheitert]en — nur sie wurden schon gesetzt.
-  /// Zurück auf [vorher], aber nur, wenn der Status noch der gesetzte
-  /// ([updates]) ist. Rein, getestet.
-  static List<({String rechnungId, Map<String, dynamic> felder, String erwarteterStatus})>
-      aufraeumPlan({
+  /// Zurück auf [vorher], aber nur, wenn die Rechnung noch auf der gesetzten
+  /// Stufe ([updates]) steht — der Status bleibt beim Mahnen unverändert
+  /// (seit 211), erwartet wird also der aus [vorher]. Rein, getestet.
+  static List<
+      ({
+        String rechnungId,
+        Map<String, dynamic> felder,
+        String erwarteterStatus,
+        int erwarteteStufe,
+      })> aufraeumPlan({
     required List<String> reihenfolge,
     required String gescheitert,
     required Map<String, Map<String, dynamic>> updates,
@@ -453,23 +463,26 @@ class MahnlaufService {
         (
           rechnungId: id,
           felder: vorher[id]!,
-          erwarteterStatus: updates[id]!['zahlungsstatus'] as String,
+          erwarteterStatus: vorher[id]!['zahlungsstatus'] as String,
+          erwarteteStufe: updates[id]!['mahnung_stufe'] as int,
         ),
     ];
   }
 
   /// Direkt vor dem Protokoll: Jede Rechnung noch im Mahnbereich (keine
-  /// Zahlung vermerkt) und im gelesenen Status? Sonst Abbruch — noch ist
-  /// nichts geschrieben, also ohne Id.
+  /// Zahlung vermerkt), im gelesenen Status und auf der gelesenen Mahnstufe?
+  /// Sonst Abbruch — noch ist nichts geschrieben, also ohne Id.
   static Future<void> _statusAbgleich(
     List<MahnPosten> posten,
     Map<String, Map<String, dynamic>> vorher,
   ) async {
     for (final p in posten) {
       final db = await RechnungRepository.getById(p.rechnung.id);
+      final v = vorher[p.rechnung.id]!;
       if (db == null ||
           !imMahnbereich(db) ||
-          db.zahlungsstatus != vorher[p.rechnung.id]!['zahlungsstatus']) {
+          db.zahlungsstatus != v['zahlungsstatus'] ||
+          db.mahnungStufe != v['mahnung_stufe']) {
         throw _Aufgeraeumt(
           'Rechnung ${p.rechnung.rechnungsnummer ?? p.rechnung.id} wurde '
           'inzwischen geändert — nichts erstellt',
@@ -543,10 +556,14 @@ class MahnlaufService {
         }
         // Auch hier optimistisch: Zwischen Prüfung und Update kann eine
         // Zahlung eingetragen werden — dann trifft das Update keine Zeile.
+        // Beide Stände normalisiert: Ein Schreiben von vor Migration 211
+        // trägt Altwerte (`erinnert`, `gesendet`), die der CHECK ablehnt.
+        final soll = gespeicherterStand(nachher!);
         final ok = await RechnungRepository.updateWennStatus(
           id,
-          Map<String, dynamic>.from(vorher),
-          erwarteterStatus: nachher!['zahlungsstatus'] as String,
+          gespeicherterStand(Map<String, dynamic>.from(vorher)),
+          erwarteterStatus: soll['zahlungsstatus'] as String,
+          erwarteteStufe: soll['mahnung_stufe'] as int,
         );
         if (!ok) {
           uebersprungen.add((rechnungId: id, rechnungsnummer: nr, grund: 'inzwischen geändert'));
@@ -609,10 +626,12 @@ class MahnlaufService {
   /// bleiben unangetastet (kein Eintrag in der Map, kein Überschreiben mit
   /// null). Dieselbe Map wird sowohl für das Update als auch — unverändert —
   /// als `nachher`-Protokollzustand verwendet (siehe `erstellen`).
+  ///
+  /// KEIN `zahlungsstatus` (seit Migration 211): Die Mahnung steht allein in
+  /// `mahnung_stufe`, der Status bleibt `offen`.
   static Map<String, dynamic> updateFuerStufe(MahnStufe stufe, DateTime datum) {
     final datumStr = _dateStr(datum);
     final map = <String, dynamic>{
-      'zahlungsstatus': stufe.status,
       'mahnung_stufe': stufe.wert,
       'letzte_mahnung_am': datumStr,
       'mahn_frist_bis': _dateStr(mahnFrist(datum)),
@@ -650,26 +669,30 @@ class MahnlaufService {
   /// und `letzte_mahnung_am` hat sich die Rechnung seit dem Schreiben nicht
   /// weiterbewegt — jede Abweichung heisst: seither ist etwas passiert
   /// (Zahlung, weitere Mahnung, manuelle Änderung), und das Zurücksetzen
-  /// würde das überschreiben. Rein, ohne I/O — testbar ohne DB.
+  /// würde das überschreiben. Beide Stände werden zuerst in die Form von
+  /// heute gebracht ([gespeicherterStand]): Ein Schreiben von vor Migration
+  /// 211 protokollierte `erinnert`, seit 211 fehlt der Status im Nachher
+  /// ganz. Rein, ohne I/O — testbar ohne DB.
   static Zuruecksetzenpruefung darfZuruecksetzen(
-    Map<String, dynamic> aktuell,
-    Map<String, dynamic>? nachher,
+    Map<String, dynamic> aktuellRoh,
+    Map<String, dynamic>? nachherRoh,
   ) {
-    if (nachher == null) {
+    if (nachherRoh == null) {
       return (
         erlaubt: false,
         grund: 'kein Vergleichszustand (altes Mahnschreiben ohne Protokoll)',
       );
     }
+    final aktuell = gespeicherterStand(aktuellRoh);
+    final nachher = gespeicherterStand(nachherRoh);
     // Bezahlt/abgeschrieben geht IMMER vor — auch wenn zusätzlich die Stufe
     // abweicht (z. B. bezahlt NACH der letzten Mahnung): Das ist der Fall,
     // den es um jeden Preis zu vermeiden gilt.
     if (Zahlungsstatus.erledigt.contains(aktuell['zahlungsstatus'])) {
       return (erlaubt: false, grund: 'inzwischen bezahlt');
     }
-    // Stufe vor dem generischen Status-Vergleich: Eine Eskalation ändert
-    // BEIDES (z. B. 'erinnert' → 'mahnung_1'), soll aber als "weiter gemahnt"
-    // erkannt werden, nicht als unspezifisches "geändert".
+    // Stufe vor dem generischen Status-Vergleich: Eine Eskalation soll als
+    // "weiter gemahnt" erkannt werden, nicht als unspezifisches "geändert".
     if (aktuell['mahnung_stufe'] != nachher['mahnung_stufe']) {
       return (erlaubt: false, grund: 'seither weiter gemahnt');
     }
@@ -678,6 +701,27 @@ class MahnlaufService {
       return (erlaubt: false, grund: 'geändert');
     }
     return (erlaubt: true, grund: null);
+  }
+
+  /// Ein protokollierter Stand (`vorher`/`nachher` eines Mahnschreibens,
+  /// auch der Live-Stand aus [_vergleichsStand]) in der Form von heute:
+  /// - `zahlungsstatus` über [Zahlungsstatus.ausGespeichert] — seit 211
+  ///   schreibt der Mahnlauf keinen Status mehr (fehlt → `offen`), ein
+  ///   Schreiben von davor trägt Altwerte (`erinnert`, `gesendet`), die der
+  ///   CHECK beim Zurückschreiben ablehnen würde;
+  /// - `mahnung_stufe` mindestens die, die ein Altwert ausdrückt (bis
+  ///   v0.144.0 stand bei der Erinnerung 0 — dieselbe Regel wie Migration
+  ///   211 für die Rechnungen selbst).
+  /// Alle übrigen Felder unverändert. Rein.
+  static Map<String, dynamic> gespeicherterStand(Map<String, dynamic> stand) {
+    final status = stand['zahlungsstatus'];
+    final stufe = stand['mahnung_stufe'];
+    final ausAltwert = Zahlungsstatus.stufeAusAltwert(status);
+    return {
+      ...stand,
+      'zahlungsstatus': Zahlungsstatus.ausGespeichert(status),
+      'mahnung_stufe': stufe is int && stufe > ausAltwert ? stufe : ausAltwert,
+    };
   }
 
   static String _dateStr(DateTime d) => d.toIso8601String().split('T').first;
@@ -745,6 +789,7 @@ class MahnlaufService {
         mahnung1Am: r.mahnung1Am,
         mahnung2Am: r.mahnung2Am,
         mahnFristBis: r.mahnFristBis,
+        freigegebenAm: r.freigegebenAm,
         pdfUrl: r.pdfUrl,
         qrReferenz: ref,
         rechnungsadresse: r.rechnungsadresse,

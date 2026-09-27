@@ -8,24 +8,43 @@ import 'package:sbs_projer_app/services/camt/forderungs_abgleich_service.dart'
 
 /// R3 (App-Analyse 25.09.2026): Die Heineken-Freigabe darf nicht übersprungen
 /// werden — sonst fehlt die Ertragsbuchung 1100/3400 für immer.
+///
+/// Seit Migration 211 ist die Freigabe `freigegeben_am`, der Versand
+/// `versendet_am`; der Status sagt nur noch offen/bezahlt/abgeschrieben.
 
+/// Rechnung auf einer Stufe des Heineken-Ablaufs — aus FELDERN gebaut:
+/// `offen` (nichts), `gesendet` (+ versendet_am), `freigegeben`
+/// (+ freigegeben_am), `bezahlt`/`abgeschrieben` (Status), `gemahnt`
+/// (Kunden-/Jahresrechnung mit Mahnstufe 2).
 Rechnung hr(
-  String status, {
+  String stufe, {
   String id = 'h1',
   double brutto = 13966.09,
   String typ = 'heineken_monat',
-}) => Rechnung(
-  id: id,
-  userId: 'u',
-  rechnungsnummer: 'RG-$id',
-  rechnungstyp: typ,
-  rechnungsdatum: DateTime(2026, 9, 1),
-  faelligkeitsdatum: DateTime(2026, 9, 30),
-  betragNetto: brutto / 1.081,
-  mwstBetrag: brutto - brutto / 1.081,
-  betragBrutto: brutto,
-  zahlungsstatus: status,
-);
+}) {
+  final versendet =
+      stufe == 'offen' || stufe == 'abgeschrieben' ? null : DateTime(2026, 9, 2);
+  final freigegeben = stufe == 'freigegeben' || stufe == 'bezahlt'
+      ? DateTime(2026, 9, 5)
+      : null;
+  return Rechnung(
+    id: id,
+    userId: 'u',
+    rechnungsnummer: 'RG-$id',
+    rechnungstyp: typ,
+    rechnungsdatum: DateTime(2026, 9, 1),
+    faelligkeitsdatum: DateTime(2026, 9, 30),
+    betragNetto: brutto / 1.081,
+    mwstBetrag: brutto - brutto / 1.081,
+    betragBrutto: brutto,
+    zahlungsstatus: stufe == 'bezahlt' || stufe == 'abgeschrieben'
+        ? stufe
+        : 'offen',
+    mahnungStufe: stufe == 'gemahnt' ? 2 : 0,
+    versendetAm: versendet,
+    freigegebenAm: freigegeben,
+  );
+}
 
 Buchung bu({
   String belegTyp = 'rechnung',
@@ -69,6 +88,20 @@ void main() {
       expect(heinekenZahlbar(hr('freigegeben', typ: 'kundenrechnung')),
           isFalse);
     });
+
+    test('Migration 211: Freigabe nur aus freigegeben_am, nie aus dem Status',
+        () {
+      // Ein Altwert «freigegeben» ohne Feld (vor 211) zählt nicht.
+      final alt = Rechnung(
+        id: 'h1',
+        userId: 'u',
+        rechnungstyp: 'heineken_monat',
+        rechnungsdatum: DateTime(2026, 9, 1),
+        faelligkeitsdatum: DateTime(2026, 9, 30),
+        zahlungsstatus: 'freigegeben',
+      );
+      expect(heinekenZahlbar(alt), isFalse);
+    });
   });
 
   group('heinekenSperrgrund (M2, frisch gelesen vor dem Buchen)', () {
@@ -90,7 +123,7 @@ void main() {
     test('offene Kundenrechnung ist frei', () {
       expect(zuordnungGesperrt(hr('offen', typ: 'kundenrechnung')), isFalse);
       expect(
-        zuordnungGesperrt(hr('mahnung_1', typ: 'jahresrechnung')),
+        zuordnungGesperrt(hr('gemahnt', typ: 'jahresrechnung')),
         isFalse,
       );
     });
@@ -149,9 +182,38 @@ void main() {
     });
   });
 
+  group('freigabeRuecknahmeSperre («Auf gesendet zurücksetzen»)', () {
+    test('ohne Buchungen: darf', () {
+      expect(freigabeRuecknahmeSperre(const [], 'h1'), isNull);
+    });
+    test('Zahlungsbuchung sperrt', () {
+      expect(
+        freigabeRuecknahmeSperre(
+          [bu(belegTyp: 'zahlung', soll: 1020, haben: 1100)],
+          'h1',
+        ),
+        contains('Zahlung'),
+      );
+    });
+    test('stornierte Zahlung sperrt nicht', () {
+      expect(
+        freigabeRuecknahmeSperre(
+          [bu(belegTyp: 'zahlung', soll: 1020, haben: 1100, storniert: true)],
+          'h1',
+        ),
+        isNull,
+      );
+    });
+    test('aktive Ertragsbuchung sperrt (M5)', () {
+      expect(freigabeRuecknahmeSperre([bu()], 'h1'), contains('Ertragsbuchung'));
+    });
+  });
+
   group('HeinekenBuchungService.freigeben', () {
-    test('erst buchen, dann Status setzen', () async {
+    test('erst buchen, dann freigegeben_am setzen (kein Status mehr)',
+        () async {
       final ablauf = <String>[];
+      Map<String, dynamic>? gesetzt;
       await HeinekenBuchungService.freigeben(
         hr('gesendet'),
         buchen: (r) async {
@@ -159,10 +221,14 @@ void main() {
           return bu();
         },
         statusSetzen: (id, daten) async {
-          ablauf.add('status:${daten['zahlungsstatus']}');
+          ablauf.add('freigabe');
+          gesetzt = daten;
         },
+        jetzt: DateTime.utc(2026, 9, 27, 10),
       );
-      expect(ablauf, ['buchen', 'status:freigegeben']);
+      expect(ablauf, ['buchen', 'freigabe']);
+      expect(gesetzt, {'freigegeben_am': '2026-09-27T10:00:00.000Z'});
+      expect(gesetzt!.containsKey('zahlungsstatus'), isFalse);
     });
 
     test('scheitert die Buchung, bleibt der Status stehen', () async {

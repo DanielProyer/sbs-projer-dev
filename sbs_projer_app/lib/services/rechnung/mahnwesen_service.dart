@@ -64,12 +64,15 @@ class MahnwesenService {
         belegId: rechnung.id,
       );
     }
-    // Nur wenn der Status noch der geprüfte ist — sonst hat inzwischen ein
-    // anderer Weg (Zahlung, Mahnlauf) die Rechnung angefasst.
+    // Nur wenn Status UND Mahnstufe noch die geprüften sind — sonst hat
+    // inzwischen ein anderer Weg (Zahlung, Mahnlauf) die Rechnung angefasst.
+    // Seit Migration 211 bleibt der Status beim Mahnen `offen`; einen
+    // Mahnlauf verrät nur noch die Stufe.
     final ok = await RechnungRepository.updateWennStatus(
       rechnung.id,
       {'zahlungsstatus': 'abgeschrieben'},
       erwarteterStatus: rechnung.zahlungsstatus,
+      erwarteteStufe: rechnung.mahnungStufe,
     );
     if (!ok) {
       throw AbschreibGesperrt(
