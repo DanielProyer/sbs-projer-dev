@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/diktat_aufgabe_betrieb.dart';
 import 'package:sbs_projer_app/core/util/einsatz_betrieb_match.dart'
     show BetriebEintrag;
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
@@ -218,6 +219,20 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
         _betriebId = e.betriebId;
         _betriebName = _nameFuerBetrieb(e.betriebId) ?? e.betriebNameErkannt;
         _kandidaten = e.betriebId == null ? e.betriebKandidaten : const [];
+        if (_art == 'aufgabe') {
+          // Aufgabe mit Betriebsbezug (Migration 212): Die Function nennt
+          // den Betrieb auch hier, lässt ihn aber aus der Beschreibung weg
+          // — ohne Zuordnung ginge er verloren. Eine erfundene Id fällt
+          // dabei weg, ein verhörter Name wird nachgeschlagen.
+          final z = aufgabeBetriebAusDiktat(
+            ergebnis: e,
+            text: text,
+            betriebe: _betriebEintraege,
+          );
+          _betriebId = z.id;
+          _betriebName = z.name ?? e.betriebNameErkannt;
+          _kandidaten = z.kandidaten;
+        }
         _rueckfrage = e.rueckfrage;
         _konfidenz = e.konfidenz;
         _geplantTag = e.geplantAm;
@@ -281,9 +296,27 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     _geplantDauerMin = null;
   });
 
+  /// Betrieb wieder entfernen — nur bei einer Aufgabe, dort ist er
+  /// optional (Migration 212).
+  void _betriebEntfernen() => setState(() {
+    _betriebId = null;
+    _betriebName = null;
+    _kandidaten = const [];
+  });
+
+  /// Text der Betriebszeile. Ohne gewählten Betrieb darf ein nur erkannter
+  /// Name nicht wie eine Auswahl aussehen — bei einer Aufgabe wird er sonst
+  /// als «zugeordnet» gelesen und ohne Betrieb gespeichert.
+  String get _betriebText {
+    if (_betriebId != null) return _betriebName ?? 'Betrieb';
+    if (_art != 'aufgabe') return _betriebName ?? 'Betrieb wählen …';
+    return _betriebName != null
+        ? '«$_betriebName» nicht zugeordnet — wählen …'
+        : 'Ohne Betrieb — wählen …';
+  }
+
   // ─── Speichern: Einsatz ───
 
-  bool get _zeigtBetrieb => _art != 'aufgabe';
   bool get _zeigtBeschreibung =>
       _art != 'eroeffnungsreinigung' && _art != 'endreinigung';
 
@@ -449,6 +482,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
           await AufgabenRepository.eigeneAnlegen(
             beschreibung.isEmpty ? 'Aufgabe (Diktat)' : beschreibung,
             _geplantTag,
+            betriebId: _betriebId,
           );
           break;
       }
@@ -824,30 +858,51 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
           ),
         ),
 
-        if (_zeigtBetrieb) ...[
-          const _SheetTitel('Betrieb'),
-          if (_kandidaten.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final k in _kandidaten)
-                    _Wahlchip(
-                      text: k.name,
-                      ausgewaehlt: _betriebId == k.id,
-                      onTap: () => _kandidatWaehlen(k),
-                    ),
-                ],
+        // Seit Migration 212 auch bei einer Aufgabe — dort optional und
+        // entfernbar (bis v0.148 fiel der diktierte Betrieb hier weg).
+        _SheetTitel(_art == 'aufgabe' ? 'Betrieb (optional)' : 'Betrieb'),
+        if (_kandidaten.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final k in _kandidaten)
+                  _Wahlchip(
+                    text: k.name,
+                    ausgewaehlt: _betriebId == k.id,
+                    onTap: () => _kandidatWaehlen(k),
+                  ),
+              ],
+            ),
+          ),
+        Row(
+          children: [
+            Expanded(
+              child: _SheetAktion(
+                icon: Icons.store,
+                text: _betriebText,
+                onTap: _betriebWaehlen,
               ),
             ),
-          _SheetAktion(
-            icon: Icons.store,
-            text: _betriebName ?? 'Betrieb wählen …',
-            onTap: _betriebWaehlen,
-          ),
-        ],
+            if (_art == 'aufgabe' && _betriebId != null)
+              GestureDetector(
+                key: const Key('diktat_betrieb_entfernen'),
+                onTap: _betriebEntfernen,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.fromLTRB(4, 8, 16, 8),
+                  child: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                    semanticLabel: 'Betrieb entfernen',
+                  ),
+                ),
+              ),
+          ],
+        ),
 
         const _SheetTitel('Termin'),
         if (_geplantTag == null)
