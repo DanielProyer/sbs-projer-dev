@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show EinsatzRoh;
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
 import 'package:sbs_projer_app/data/models/reinigung.dart';
 import 'package:sbs_projer_app/data/mappers/reinigung_mapper.dart';
@@ -132,6 +134,57 @@ class ReinigungRepository {
             !r.datum.isBefore(von) &&
             r.datum.isBefore(bis))
           (datum: r.datum, betriebId: r.betriebId),
+    ];
+  }
+
+  /// Abgeschlossene Reinigungen eines Monats mit Uhrzeiten — Einsätze für
+  /// «Fahrten aus der Kette» (`fahrten_providers.dart`). Wie
+  /// [getBesucheImMonat] server-seitig eingegrenzt; ein Monat bleibt weit
+  /// unter dem PostgREST-Deckel. `.order('id')` zuletzt, damit die
+  /// Reihenfolge stabil ist (CLAUDE.md).
+  static Future<List<EinsatzRoh>> getEinsaetzeImMonat(
+    int jahr,
+    int monat,
+  ) async {
+    final von = DateTime(jahr, monat, 1);
+    final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('reinigungen')
+          .select('id, datum, betrieb_id, uhrzeit_start, uhrzeit_ende')
+          .eq('user_id', _userId)
+          .eq('status', 'abgeschlossen')
+          .gte('datum', _datumStr(von))
+          .lt('datum', _datumStr(bis))
+          .order('datum')
+          .order('id');
+      return [
+        for (final r in rows)
+          (
+            id: r['id'] as String,
+            typ: 'reinigung',
+            betriebId: r['betrieb_id'] as String?,
+            datum: DateTime.parse(r['datum'] as String),
+            von: r['uhrzeit_start'] as String?,
+            bis: r['uhrzeit_ende'] as String?,
+          ),
+      ];
+    }
+    final all = await IsarService.reinigungFindAll();
+    return [
+      for (final r in all)
+        if (r.status == 'abgeschlossen' &&
+            !r.datum.isBefore(von) &&
+            r.datum.isBefore(bis))
+          (
+            // Server-Id, weil `wegpunkte.referenz_id` sie trägt.
+            id: r.serverId ?? r.routeId,
+            typ: 'reinigung',
+            betriebId: r.betriebId.isEmpty ? null : r.betriebId,
+            datum: r.datum,
+            von: r.uhrzeitStart,
+            bis: r.uhrzeitEnde,
+          ),
     ];
   }
 

@@ -1145,6 +1145,39 @@ final anfahrtszeitenProvider = FutureProvider<Map<String, Map<String, int>>>((
   return map;
 });
 
+/// Geroutete Strecken ab den Startorten: Startort → betriebId → km
+/// (`anfahrtszeiten.distanz_km`). Grundlage der Anfahrt- und Heimweg-km in
+/// «Fahrten aus der Kette» (Richtung egal: Heimweg = Anfahrt rückwärts).
+///
+/// Seitenweise mit `.order('id')`: 802 Zeilen am 27.09.2026 — zwei Startorte
+/// je Betrieb reissen die 1000er-Grenze von PostgREST bald, und dann fehlten
+/// still Distanzen.
+final anfahrtsDistanzenProvider =
+    FutureProvider<Map<String, Map<String, double>>>((ref) async {
+      const seite = 1000;
+      final map = <String, Map<String, double>>{};
+      for (var ab = 0; ; ab += seite) {
+        final rows = await SupabaseService.client
+            .from('anfahrtszeiten')
+            .select('id, startort, betrieb_id, distanz_km')
+            .order('id')
+            .range(ab, ab + seite - 1);
+        for (final r in rows) {
+          final startort = r['startort'] as String?;
+          final betriebId = r['betrieb_id'] as String?;
+          final km = switch (r['distanz_km']) {
+            num n => n.toDouble(),
+            String s => double.tryParse(s),
+            _ => null,
+          };
+          if (startort == null || betriebId == null || km == null) continue;
+          (map[startort] ??= {})[betriebId] = km;
+        }
+        if (rows.length < seite) break;
+      }
+      return map;
+    });
+
 /// Welcher der erfassten Startorte passt zur heutigen Startposition?
 /// Ohne GPS (oder weiter als 5 km von beiden weg — dann ist es keiner der
 /// beiden) `null`, die Zeitachse fällt dann auf die Heuristik zurück.

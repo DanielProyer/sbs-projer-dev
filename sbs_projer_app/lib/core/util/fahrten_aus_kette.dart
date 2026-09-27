@@ -433,7 +433,251 @@ double luftlinieStreckeKm(double luftlinieKm) =>
 /// «12.3 km» — eine Nachkommastelle, Punkt (wie `distanzText`).
 String kmText(double km) => '${km.toStringAsFixed(1)} km';
 
+// ── Zusammenbau je Monat ────────────────────────────────────────────────
+//
+// Die Monatsabfragen (Tagesplan, Einsätze, Wegpunkte) und die beiden
+// Distanz-Nachschlagewerke kommen roh herein; hier entstehen daraus die
+// Tages-Fahrten. Rein und ohne Supabase, damit der Zusammenbau testbar ist
+// (`test/fahrten_providers_test.dart`) — die Provider in
+// `fahrten_providers.dart` beschaffen nur die Daten.
+
+/// Rückfall-Startort, wenn die GPS-Position fehlt oder zu keinem der
+/// Startorte passt (`startortSchluessel` liefert dann `null`).
+const kStartortRueckfall = 'domat_ems';
+
+/// Ein Einsatz aus den Monatsabfragen, vor dem Betriebs-Nachschlag.
+typedef EinsatzRoh = ({
+  String id,
+
+  /// 'reinigung' | 'stoerung' | 'montage'.
+  String typ,
+  String? betriebId,
+  DateTime datum,
+
+  /// 'HH:mm(:ss)' — Reinigung `uhrzeit_start/ende`, Störung/Montage
+  /// `arbeit_von/bis` (NICHT `uhrzeit_start`: bei der Störung ist das der
+  /// Störungseingang, nicht die Arbeit vor Ort).
+  String? von,
+  String? bis,
+});
+
+/// Ein Wegpunkt-Stempel (`wegpunkte`). [zeitpunkt] MUSS lokal sein
+/// (`toLocal()`), siehe [EinsatzHalt.stempel].
+typedef StempelRoh = ({
+  DateTime zeitpunkt,
+  String quelle,
+  String? betriebId,
+  String? referenzId,
+});
+
+/// Name und Koordinaten eines Betriebs (aus den Stammdaten).
+typedef BetriebOrt = ({String name, double? lat, double? lng});
+
+/// Arbeitstag-Rahmen eines Tages (`tagesplaene`). Positionen = GPS beim
+/// Arbeitsbeginn bzw. Feierabend (`start_lat/lng`, `end_lat/lng`).
+typedef TagesplanRoh = ({
+  String? beginn,
+  String? ende,
+  int? kmStart,
+  int? kmEnde,
+  ({double lat, double lng})? startPosition,
+  ({double lat, double lng})? endPosition,
+});
+
+/// Montage-Typen ohne Besuch vor Ort — reine Abrechnungsposten.
+const _montageTypenOhneBesuch = {'spesen', 'aufwandsentschaedigung'};
+
+/// War bei dieser Störung jemand vor Ort? Eine noch offene Störung ist nur
+/// gemeldet — sie in die Kette zu nehmen hiesse, eine Fahrt zu erfinden
+/// (oder sie als «Einsatz ohne Zeit» anzumahnen).
+bool stoerungWarVorOrt(String status) => status != 'offen';
+
+/// Wie [stoerungWarVorOrt] für Montagen: geplante zählen nicht, ebenso
+/// Spesen und Aufwandsentschädigungen (kein Ort, nur ein Betrag).
+bool montageWarVorOrt(String status, String? montageTyp) =>
+    status != 'geplant' && !_montageTypenOhneBesuch.contains(montageTyp);
+
+/// km-Nachschlag aus den gespeicherten Distanzen.
+///
+/// - Startort ↔ Betrieb: [anfahrten] (`anfahrtszeiten.distanz_km`, Schlüssel
+///   Startort → betriebId), Richtung egal — Heimweg = Anfahrt rückwärts.
+/// - Betrieb ↔ Betrieb: [routen] (`fahrzeiten.distanz_km`, Schlüssel
+///   `'von>nach'`), beide Richtungen wie `FahrzeitRepository.ausMap`.
+/// - Sonst `null` → [fahrtenAusHalten] rechnet mit der Luftlinie.
+KmNachschlag kmNachschlagAus({
+  required Map<String, Map<String, double>> anfahrten,
+  required Map<String, double> routen,
+}) => (Halt von, Halt nach) {
+  ({double km, String quelle})? anfahrt(Halt startort, Halt betrieb) {
+    final km = anfahrten[startort.id]?[betrieb.id];
+    return km == null ? null : (km: km, quelle: kKmQuelleAnfahrt);
+  }
+
+  if (von.typ == HaltTyp.startort && nach.typ == HaltTyp.betrieb) {
+    return anfahrt(von, nach);
+  }
+  if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.startort) {
+    return anfahrt(nach, von);
+  }
+  if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.betrieb) {
+    final km = routen['${von.id}>${nach.id}'] ?? routen['${nach.id}>${von.id}'];
+    return km == null ? null : (km: km, quelle: kKmQuelleRoute);
+  }
+  return null;
+};
+
+/// Baut die Tages-Fahrten eines Monats (Schlüssel: Datum ohne Uhrzeit).
+///
+/// Ein Tag erscheint, sobald sein Tagesplan etwas erfasst hat (Zeit oder
+/// km-Stand) oder ein Einsatz auf ihn fällt. Tagesplan-Zeilen ohne jede
+/// Erfassung sind bloss geplant und fallen weg.
+///
+/// Startort morgens/abends aus der GPS-Position via [startortFuer]
+/// (`startortSchluessel`), ohne Treffer [kStartortRueckfall].
+///
+/// Einsatz-Zeit: von/bis, sonst der früheste Stempel desselben Tages —
+/// zuerst über `referenz_id` = Einsatz-Id, sonst gleiche Einsatzart am
+/// selben Betrieb (Störungs-Stempel tragen in der Praxis keine Referenz:
+/// 0 von 33 seit August, Stand 27.09.2026).
+Map<DateTime, TagesFahrten> monatsFahrtenBauen({
+  required Map<DateTime, TagesplanRoh> tagesplaene,
+  required List<EinsatzRoh> einsaetze,
+  required List<StempelRoh> stempel,
+  required Map<String, BetriebOrt> betriebe,
+  required Map<String, Map<String, double>> anfahrten,
+  required Map<String, double> routen,
+  required Map<String, ({double lat, double lng})> startorte,
+  required String? Function(({double lat, double lng})? position)
+  startortFuer,
+}) {
+  final plaene = {
+    for (final e in tagesplaene.entries) _tag(e.key): e.value,
+  };
+  final einsaetzeJeTag = <DateTime, List<EinsatzRoh>>{};
+  for (final e in einsaetze) {
+    (einsaetzeJeTag[_tag(e.datum)] ??= []).add(e);
+  }
+  final stempelJeTag = <DateTime, List<StempelRoh>>{};
+  for (final s in stempel) {
+    (stempelJeTag[_tag(s.zeitpunkt)] ??= []).add(s);
+  }
+
+  final tage = <DateTime>{
+    for (final e in plaene.entries)
+      if (_hatRahmen(e.value)) e.key,
+    ...einsaetzeJeTag.keys,
+  };
+  final km = kmNachschlagAus(anfahrten: anfahrten, routen: routen);
+
+  final ergebnis = <DateTime, TagesFahrten>{};
+  for (final tag in tage) {
+    final plan = plaene[tag];
+    final stempelDesTages = stempelJeTag[tag] ?? const <StempelRoh>[];
+    final einsatzHalte = [
+      for (final e in einsaetzeJeTag[tag] ?? const <EinsatzRoh>[])
+        _einsatzHalt(e, betriebe, stempelDesTages),
+    ];
+    final halte = halteAusKette(
+      arbeitsbeginn: plan?.beginn,
+      arbeitsende: plan?.ende,
+      startortMorgen: startortFuer(plan?.startPosition) ?? kStartortRueckfall,
+      startortAbend: startortFuer(plan?.endPosition) ?? kStartortRueckfall,
+      einsaetze: einsatzHalte,
+      datum: tag,
+      startorte: startorte,
+    );
+    ergebnis[tag] = tagesFahrten(
+      halte: halte,
+      ohneZeit: einsaetzeOhneZeit(einsatzHalte, datum: tag),
+      km: km,
+      kmStart: plan?.kmStart,
+      kmEnde: plan?.kmEnde,
+      arbeitsbeginnErfasst: plan?.beginn != null,
+      feierabendErfasst: plan?.ende != null,
+    );
+  }
+  return ergebnis;
+}
+
+/// Betrieb→Betrieb-Fahrten, die nur als Luftlinie geschätzt sind, obwohl
+/// beide Betriebe Koordinaten haben — Kandidaten fürs Nachrouten über die
+/// Edge Function `fahrzeit-route`. Je Paar nur eine Richtung (der Nachschlag
+/// prüft beide), in der Reihenfolge der übergebenen Tage.
+List<({String von, String nach})> fehlendeRoutenPaare(
+  Iterable<TagesFahrten> tage,
+) {
+  final gesehen = <String>{};
+  final paare = <({String von, String nach})>[];
+  for (final t in tage) {
+    for (final f in t.fahrten) {
+      if (f.kmQuelle != kKmQuelleLuftlinie) continue;
+      if (f.von.typ != HaltTyp.betrieb || f.nach.typ != HaltTyp.betrieb) {
+        continue;
+      }
+      if (f.von.lat == null ||
+          f.von.lng == null ||
+          f.nach.lat == null ||
+          f.nach.lng == null) {
+        continue;
+      }
+      if (gesehen.add(routenPaarSchluessel(f.von.id, f.nach.id))) {
+        paare.add((von: f.von.id, nach: f.nach.id));
+      }
+    }
+  }
+  return paare;
+}
+
+/// Richtungsloser Schlüssel eines Betriebspaars (`a|b` mit a < b).
+String routenPaarSchluessel(String a, String b) =>
+    a.compareTo(b) <= 0 ? '$a|$b' : '$b|$a';
+
 // ── intern ──────────────────────────────────────────────────────────────
+
+DateTime _tag(DateTime d) => DateTime(d.year, d.month, d.day);
+
+bool _hatRahmen(TagesplanRoh p) =>
+    p.beginn != null || p.ende != null || p.kmStart != null || p.kmEnde != null;
+
+EinsatzHalt _einsatzHalt(
+  EinsatzRoh e,
+  Map<String, BetriebOrt> betriebe,
+  List<StempelRoh> stempelDesTages,
+) {
+  final bid = e.betriebId;
+  final betrieb = bid == null ? null : betriebe[bid];
+  return EinsatzHalt(
+    einsatzId: e.id,
+    typ: e.typ,
+    betriebId: bid,
+    betriebName: betrieb?.name,
+    lat: betrieb?.lat,
+    lng: betrieb?.lng,
+    von: e.von,
+    bis: e.bis,
+    stempel: _stempelFuer(e, stempelDesTages),
+  );
+}
+
+/// Frühester passender Stempel: über die Referenz, sonst gleiche
+/// Einsatzart am selben Betrieb.
+DateTime? _stempelFuer(EinsatzRoh e, List<StempelRoh> desTages) {
+  DateTime? fruehester(Iterable<StempelRoh> kandidaten) {
+    DateTime? best;
+    for (final s in kandidaten) {
+      if (best == null || s.zeitpunkt.isBefore(best)) best = s.zeitpunkt;
+    }
+    return best;
+  }
+
+  final perReferenz = fruehester(desTages.where((s) => s.referenzId == e.id));
+  if (perReferenz != null) return perReferenz;
+  final bid = e.betriebId;
+  if (bid == null) return null;
+  return fruehester(
+    desTages.where((s) => s.quelle == e.typ && s.betriebId == bid),
+  );
+}
 
 /// Zeit eines Einsatzes: von/bis; nur eine davon → Punkt-Halt dort; sonst
 /// der Stempel von [datum] als Punkt-Halt; sonst `null` («ohne Zeit»).

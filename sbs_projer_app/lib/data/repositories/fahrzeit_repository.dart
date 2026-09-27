@@ -5,31 +5,79 @@ import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 /// Ein Fahrzeit-Eintrag der Tabelle `fahrzeiten` (Kaskade: beobachtet > route
 /// > Heuristik, s. `lib/core/util/fahrzeit.dart`). Supabase-only (kein Isar) —
 /// die Heuristik deckt den Offline-Fall ab.
-typedef FahrzeitEintrag = ({int minuten, String quelle});
+///
+/// [distanzKm]/[distanzQuelle] (Migration 210, 27.09.2026): geroutete Strecke
+/// des Paars für «Fahrten aus der Kette»; `null`, solange die Edge Function
+/// `fahrzeit-route` sie noch nicht nachgetragen hat.
+typedef FahrzeitEintrag = ({
+  int minuten,
+  String quelle,
+  double? distanzKm,
+  String? distanzQuelle,
+});
 
 /// Kaskaden-Repository fuer gelernte/gecachte Fahrzeiten zwischen Betrieben
 /// (Spec 2026-07-29 Tourenplan-Zeitachse §3).
 class FahrzeitRepository {
   static String get _userId => SupabaseService.dataUserId;
 
-  /// Laedt ALLE Fahrzeiten des Users in einer Abfrage (kein N+1) — Aufruf
-  /// beim Screen-Start des Tourenplans. Key `'$von>$nach'` (Richtung wie
-  /// gespeichert; Gegenrichtung siehe [ausMap]).
+  /// Laedt ALLE Fahrzeiten des Users (kein N+1) — Aufruf beim Screen-Start
+  /// des Tourenplans und fuer «Fahrten aus der Kette». Key `'$von>$nach'`
+  /// (Richtung wie gespeichert; Gegenrichtung siehe [ausMap]).
+  ///
+  /// Seitenweise mit `.order('id')`: Die Tabelle hat laengst mehr als die
+  /// 1000 Zeilen, bei denen PostgREST eine einzelne Abfrage abschneidet
+  /// (3594 am 27.09.2026) — ohne Seiten fehlte still der Grossteil der Paare.
   static Future<Map<String, FahrzeitEintrag>> ladeAlle() async {
-    final rows = await SupabaseService.client
+    const seite = 1000;
+    Future<List<Map<String, dynamic>>> holeSeite(int nr) => SupabaseService
+        .client
         .from('fahrzeiten')
-        .select('von_betrieb_id, nach_betrieb_id, minuten, quelle');
+        .select(
+          'id, von_betrieb_id, nach_betrieb_id, minuten, quelle, '
+          'distanz_km, distanz_quelle',
+        )
+        .order('id')
+        .range(nr * seite, (nr + 1) * seite - 1)
+        .then((rows) => List<Map<String, dynamic>>.from(rows));
+
+    final rows = <Map<String, dynamic>>[];
+    final erste = await holeSeite(0);
+    rows.addAll(erste);
+    // Folgeseiten in Wellen zu vier parallel (Muster der Repositories).
+    var naechste = 1;
+    var letzteVoll = erste.length == seite;
+    while (letzteVoll) {
+      final wellen = await Future.wait([
+        for (var i = 0; i < 4; i++) holeSeite(naechste + i),
+      ]);
+      for (final w in wellen) {
+        rows.addAll(w);
+      }
+      letzteVoll = wellen.last.length == seite;
+      naechste += 4;
+    }
+
     final map = <String, FahrzeitEintrag>{};
     for (final r in rows) {
       final von = r['von_betrieb_id'] as String;
       final nach = r['nach_betrieb_id'] as String;
       map['$von>$nach'] = (
-        minuten: r['minuten'] as int,
+        minuten: (r['minuten'] as num).toInt(),
         quelle: r['quelle'] as String,
+        // numeric kommt je nach Wert als num oder String zurück.
+        distanzKm: _zahl(r['distanz_km']),
+        distanzQuelle: r['distanz_quelle'] as String?,
       );
     }
     return map;
   }
+
+  static double? _zahl(Object? v) => switch (v) {
+    num n => n.toDouble(),
+    String s => double.tryParse(s),
+    _ => null,
+  };
 
   /// Liest [vonId]->[nachId] aus der geladenen Map, prueft erst die
   /// gespeicherte Richtung, dann die Gegenrichtung (Fahrzeiten sind
@@ -76,9 +124,13 @@ class FahrzeitRepository {
       );
       final data = res.data;
       if (data is Map && data['ok'] == true) {
+        final distanzKm = _zahl(data['distanzKm']);
         return (
           minuten: (data['minuten'] as num).toInt(),
           quelle: data['quelle'] as String,
+          distanzKm: distanzKm,
+          // Die Edge Function routet nur über OSRM (Migration 210).
+          distanzQuelle: distanzKm == null ? null : 'osrm',
         );
       }
       return null;

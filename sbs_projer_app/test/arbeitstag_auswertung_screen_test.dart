@@ -24,6 +24,8 @@ final _august = <ArbeitstagRohdaten>[
     ende: '17:35',
     kmStart: 78885,
     kmEnde: 78969,
+    startPosition: null,
+    endPosition: null,
   ),
   (
     datum: DateTime(2026, 8, 4),
@@ -31,6 +33,8 @@ final _august = <ArbeitstagRohdaten>[
     ende: '16:24',
     kmStart: 78969,
     kmEnde: 79061,
+    startPosition: null,
+    endPosition: null,
   ),
   (
     datum: DateTime(2026, 8, 5),
@@ -38,6 +42,8 @@ final _august = <ArbeitstagRohdaten>[
     ende: '18:47',
     kmStart: 79061,
     kmEnde: 79239,
+    startPosition: null,
+    endPosition: null,
   ),
 ];
 

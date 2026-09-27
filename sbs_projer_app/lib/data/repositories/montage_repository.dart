@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show EinsatzRoh, montageWarVorOrt;
 import 'package:sbs_projer_app/data/local/montage_local_export.dart';
 import 'package:sbs_projer_app/data/models/montage.dart';
 import 'package:sbs_projer_app/data/mappers/montage_mapper.dart';
@@ -87,6 +89,67 @@ class MontageRepository {
     }
     return IsarService.montageFilterByBetrieb(betriebId);
   }
+
+  /// Montagen eines Monats, bei denen jemand vor Ort war — Einsätze für
+  /// «Fahrten aus der Kette». Status-/Typ-Filter in Dart
+  /// ([montageWarVorOrt]: keine geplanten, keine Spesen/Aufwandsposten)
+  /// statt `.neq()` in der Query (NULL-Falle). Ein Monat bleibt weit unter
+  /// dem PostgREST-Deckel.
+  static Future<List<EinsatzRoh>> getEinsaetzeImMonat(
+    int jahr,
+    int monat,
+  ) async {
+    final von = DateTime(jahr, monat, 1);
+    final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('montagen')
+          .select(
+            'id, betrieb_id, datum, arbeit_von, arbeit_bis, status, '
+            'montage_typ',
+          )
+          .eq('user_id', _userId)
+          .gte('datum', _datumStr(von))
+          .lt('datum', _datumStr(bis))
+          .order('datum')
+          .order('id');
+      return [
+        for (final r in rows)
+          if (montageWarVorOrt(
+            (r['status'] as String?) ?? '',
+            r['montage_typ'] as String?,
+          ))
+            (
+              id: r['id'] as String,
+              typ: 'montage',
+              betriebId: r['betrieb_id'] as String?,
+              datum: DateTime.parse(r['datum'] as String),
+              von: r['arbeit_von'] as String?,
+              bis: r['arbeit_bis'] as String?,
+            ),
+      ];
+    }
+    final all = await IsarService.montageFindAll();
+    return [
+      for (final m in all)
+        if (montageWarVorOrt(m.status, m.montageTyp) &&
+            !m.datum.isBefore(von) &&
+            m.datum.isBefore(bis))
+          (
+            // Server-Id, weil `wegpunkte.referenz_id` sie trägt.
+            id: m.serverId ?? m.routeId,
+            typ: 'montage',
+            betriebId: m.betriebId,
+            datum: m.datum,
+            von: m.arbeitVon,
+            bis: m.arbeitBis,
+          ),
+    ];
+  }
+
+  static String _datumStr(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   static Future<void> save(MontageLocal montage) async {
     montage.userId = SupabaseService.currentUser!.id;

@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show EinsatzRoh, stoerungWarVorOrt;
 import 'package:sbs_projer_app/data/local/stoerung_local_export.dart';
 import 'package:sbs_projer_app/data/models/stoerung.dart';
 import 'package:sbs_projer_app/data/mappers/stoerung_mapper.dart';
@@ -87,6 +89,61 @@ class StoerungRepository {
     }
     return IsarService.stoerungFilterByBetrieb(betriebId);
   }
+
+  /// Störungen eines Monats, bei denen jemand vor Ort war — Einsätze für
+  /// «Fahrten aus der Kette». Zeit aus `arbeit_von/bis` (NICHT
+  /// `uhrzeit_start`, das ist der Störungseingang). Der Status-Filter läuft
+  /// in Dart ([stoerungWarVorOrt]) statt als `.neq()` in der Query
+  /// (NULL-Falle). Ein Monat bleibt weit unter dem PostgREST-Deckel.
+  static Future<List<EinsatzRoh>> getEinsaetzeImMonat(
+    int jahr,
+    int monat,
+  ) async {
+    final von = DateTime(jahr, monat, 1);
+    final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
+    if (kIsWeb) {
+      final rows = await SupabaseService.client
+          .from('stoerungen')
+          .select('id, betrieb_id, datum, arbeit_von, arbeit_bis, status')
+          .eq('user_id', _userId)
+          .gte('datum', _datumStr(von))
+          .lt('datum', _datumStr(bis))
+          .order('datum')
+          .order('id');
+      return [
+        for (final r in rows)
+          if (stoerungWarVorOrt((r['status'] as String?) ?? ''))
+            (
+              id: r['id'] as String,
+              typ: 'stoerung',
+              betriebId: r['betrieb_id'] as String?,
+              datum: DateTime.parse(r['datum'] as String),
+              von: r['arbeit_von'] as String?,
+              bis: r['arbeit_bis'] as String?,
+            ),
+      ];
+    }
+    final all = await IsarService.stoerungFindAll();
+    return [
+      for (final s in all)
+        if (stoerungWarVorOrt(s.status) &&
+            !s.datum.isBefore(von) &&
+            s.datum.isBefore(bis))
+          (
+            // Server-Id, weil `wegpunkte.referenz_id` sie trägt.
+            id: s.serverId ?? s.routeId,
+            typ: 'stoerung',
+            betriebId: s.betriebId,
+            datum: s.datum,
+            von: s.arbeitVon,
+            bis: s.arbeitBis,
+          ),
+    ];
+  }
+
+  static String _datumStr(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 
   static Future<void> save(StoerungLocal stoerung) async {
     stoerung.userId = _userId;

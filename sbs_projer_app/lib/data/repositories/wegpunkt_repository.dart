@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show StempelRoh;
 import 'package:sbs_projer_app/services/gps/gps_service.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -49,6 +51,36 @@ class WegpunktRepository {
     } catch (e) {
       debugPrint('[Wegpunkt] Stempeln uebersprungen: $e');
     }
+  }
+
+  /// Einsatz-Stempel (Reinigung/Störung/Montage) eines Monats — Zeitquelle
+  /// für Einsätze ohne erfasste Arbeitszeit in «Fahrten aus der Kette».
+  ///
+  /// Monatsgrenzen in LOKALER Zeit (ein Stempel um 00:30 gehört zum neuen
+  /// Tag), Zeitpunkte als `toLocal()` zurück — die Kette rechnet mit
+  /// `hour * 60 + minute`. Rund 170 Stempel im stärksten Monat (Stand
+  /// 27.09.2026), also weit unter dem PostgREST-Deckel; `.order('id')`
+  /// zuletzt für eine stabile Reihenfolge (CLAUDE.md).
+  static Future<List<StempelRoh>> getStempelImMonat(int jahr, int monat) async {
+    final von = DateTime(jahr, monat, 1);
+    final bis = DateTime(jahr, monat + 1, 1); // Monat 13 → Januar Folgejahr
+    final rows = await SupabaseService.client
+        .from('wegpunkte')
+        .select('id, zeitpunkt, quelle, betrieb_id, referenz_id')
+        .inFilter('quelle', ['reinigung', 'stoerung', 'montage'])
+        .gte('zeitpunkt', von.toUtc().toIso8601String())
+        .lt('zeitpunkt', bis.toUtc().toIso8601String())
+        .order('zeitpunkt')
+        .order('id');
+    return [
+      for (final r in rows)
+        (
+          zeitpunkt: DateTime.parse(r['zeitpunkt'] as String).toLocal(),
+          quelle: r['quelle'] as String,
+          betriebId: r['betrieb_id'] as String?,
+          referenzId: r['referenz_id'] as String?,
+        ),
+    ];
   }
 
   /// Lag zwischen [von] und [bis] (lokale Zeit) eine Störung oder Montage?
