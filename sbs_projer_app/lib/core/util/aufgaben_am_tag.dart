@@ -5,19 +5,30 @@
 /// Quelle sind die rohen Zeilen der Tabelle `aufgaben` (Migration 150,
 /// `aufgabenZeilenProvider`). Nur `typ = 'eigene'` trägt Titel und
 /// `faellig_am`; Marker- und Snooze-Zeilen liegen in derselben Tabelle und
-/// fallen weg. Die Tabelle kennt keinen Betrieb — eine Aufgabe ist Freitext.
+/// fallen weg. Seit Migration 212 kann eine Aufgabe einen Betrieb tragen
+/// (`betrieb_id`) — der Tourenplan zeigt dann seinen Namen als zweite Zeile.
 library;
 
-/// Eine Aufgabe am Tag, nur zur Anzeige.
-typedef AufgabeAmTag = ({String id, String titel, bool erledigt});
+/// Eine Aufgabe am Tag, nur zur Anzeige. [betrieb] = Anzeigename des
+/// zugeordneten Betriebs, `null` ohne Betrieb.
+typedef AufgabeAmTag = ({
+  String id,
+  String titel,
+  bool erledigt,
+  String? betrieb,
+});
 
 /// Die eigenen Aufgaben, die am Kalendertag [tag] fällig sind — auch die
 /// erledigten (der Tourenplan zeigt den Haken). Offene zuerst, dann nach
 /// Titel. Zeilen ohne Id oder mit unlesbarem Datum fallen weg.
+///
+/// [betriebAnzeige] liefert den Namen zu einer Betriebs-Id; ein unbekannter
+/// Betrieb (noch nicht geladen) ergibt keine zweite Zeile.
 List<AufgabeAmTag> aufgabenAmTag(
   List<Map<String, dynamic>> zeilen,
-  DateTime tag,
-) {
+  DateTime tag, {
+  String? Function(String betriebId)? betriebAnzeige,
+}) {
   final liste = <AufgabeAmTag>[];
   for (final z in zeilen) {
     if (z['typ'] != 'eigene') continue;
@@ -32,10 +43,12 @@ List<AufgabeAmTag> aufgabenAmTag(
       continue;
     }
     final titel = (z['titel'] as String?)?.trim();
+    final betriebId = z['betrieb_id'];
     liste.add((
       id: id,
       titel: titel == null || titel.isEmpty ? '?' : titel,
       erledigt: z['erledigt_am'] != null,
+      betrieb: betriebId is String ? betriebAnzeige?.call(betriebId) : null,
     ));
   }
   liste.sort((a, b) {

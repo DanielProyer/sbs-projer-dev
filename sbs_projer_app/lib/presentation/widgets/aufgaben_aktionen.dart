@@ -309,6 +309,27 @@ Future<void> neueAufgabeDialog(
   }
 }
 
+/// Eine eigene Aufgabe abhaken — von der Betriebsseite aus, wo es keinen
+/// [AufgabenEintrag] gibt. Gleiches Neuladen wie [AufgabenAktionen].
+Future<void> eigeneAufgabeErledigen(
+  BuildContext context,
+  WidgetRef ref,
+  String id,
+) async {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  try {
+    await AufgabenRepository.eigeneErledigen(id);
+  } catch (e) {
+    messenger?.showSnackBar(
+      SnackBar(content: Text('Nicht erledigt: ${kurzeFehlermeldung(e)}')),
+    );
+  } finally {
+    ref.invalidate(aufgabenZeilenProvider);
+    ref.invalidate(draussenAufgabenProvider);
+    ref.invalidate(aufgabenListeProvider);
+  }
+}
+
 /// Dialog «Aufgabe bearbeiten» — Titel, Datum und Betrieb einer eigenen
 /// Aufgabe ändern (Migration 212: der Betrieb aus einem Diktat muss sich
 /// auch nach dem Speichern noch korrigieren lassen).

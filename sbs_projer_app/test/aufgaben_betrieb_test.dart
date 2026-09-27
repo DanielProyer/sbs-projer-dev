@@ -5,11 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/aufgabe.dart';
+import 'package:sbs_projer_app/core/util/aufgaben_am_tag.dart';
 import 'package:sbs_projer_app/core/util/aufgaben_betrieb.dart';
 import 'package:sbs_projer_app/data/models/eigene_aufgabe.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart';
 import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/aufgabe_zeile.dart';
+import 'package:sbs_projer_app/presentation/widgets/touren/aufgaben_tag_sektion.dart';
 
 /// Aufgaben mit Betriebsbezug (Migration 212, Entscheid Daniel 27.09.2026).
 
@@ -236,6 +238,65 @@ void main() {
       final r = await zeige(tester, mitBearbeiten: false);
       await tester.tap(find.text('Hahn mitnehmen'));
       expect(r.taps, ['dorthin']);
+    });
+  });
+
+  group('Tourenplan: Betrieb als zweite Zeile', () {
+    test('aufgabenAmTag nimmt den Betriebsnamen mit', () {
+      final liste = aufgabenAmTag(
+        [
+          _zeile('a', titel: 'Hahn mitnehmen', faellig: '2026-09-28'),
+          _zeile('b', titel: 'Bank', faellig: '2026-09-28', betrieb: null),
+          _zeile('c', titel: 'Fass', faellig: '2026-09-28', betrieb: 'b9'),
+        ],
+        DateTime(2026, 9, 28),
+        betriebAnzeige: (id) => id == 'b1' ? 'Rössli, Ilanz' : null,
+      );
+      final betrieb = {for (final a in liste) a.id: a.betrieb};
+      expect(betrieb, {'a': 'Rössli, Ilanz', 'b': null, 'c': null});
+    });
+
+    test('ohne Namensquelle: kein Betrieb', () {
+      final liste = aufgabenAmTag([
+        _zeile('a', faellig: '2026-09-28'),
+      ], DateTime(2026, 9, 28));
+      expect(liste.single.betrieb, isNull);
+    });
+
+    testWidgets('AufgabenTagSektion zeigt den Betrieb unter dem Titel (360 px)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AufgabenTagSektion(
+              aufgaben: const [
+                (
+                  id: 'a',
+                  titel: 'Hahn mitnehmen',
+                  erledigt: false,
+                  betrieb: 'Restaurant Rössli, Ilanz',
+                ),
+                (id: 'b', titel: 'Bank', erledigt: false, betrieb: null),
+              ],
+              onTap: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Aufgaben (2)'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hahn mitnehmen'), findsOneWidget);
+      expect(find.text('Restaurant Rössli, Ilanz'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Restaurant Rössli, Ilanz')).dy,
+        greaterThan(tester.getTopLeft(find.text('Hahn mitnehmen')).dy),
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 

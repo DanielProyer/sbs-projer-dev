@@ -50,6 +50,7 @@ import 'package:sbs_projer_app/presentation/widgets/touren/aufgaben_tag_sektion.
 import 'package:sbs_projer_app/presentation/providers/aufgaben_detektoren_provider.dart'
     show aufgabenZeilenProvider;
 import 'package:sbs_projer_app/core/util/aufgaben_am_tag.dart';
+import 'package:sbs_projer_app/core/util/betrieb_anzeige.dart';
 import 'package:sbs_projer_app/presentation/widgets/war_geschlossen_sheet.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeitplan_leiste.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/widgets/wochen_leiste.dart';
@@ -164,9 +165,15 @@ class _TourenplanungScreenState extends ConsumerState<TourenplanungScreen>
     final autoTermine = ref.watch(saisonTermineFuerTagProvider(_selectedDate));
     // Eigene Aufgaben, die am Tag fällig sind (auch erledigte, mit Haken).
     // Solange die Zeilen laden: keine Sektion.
+    // Mit Betrieb (Migration 212): sein Name als zweite Zeile.
+    final betriebFuerAufgabe = ref.watch(betriebLookupProvider);
     final aufgabenAmGewaehltenTag = aufgabenAmTag(
       ref.watch(aufgabenZeilenProvider).valueOrNull ?? const [],
       _selectedDate,
+      betriebAnzeige: (id) {
+        final b = betriebFuerAufgabe[id];
+        return b == null ? null : betriebMitOrt(b.name, b.ort);
+      },
     );
     // Fehlertext, solange die Ferien-Tabelle nicht geladen ist (sonst null).
     final ferienLadefehler = ref.watch(ferienLadefehlerProvider);

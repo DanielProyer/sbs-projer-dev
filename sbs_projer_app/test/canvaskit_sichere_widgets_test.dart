@@ -67,6 +67,8 @@ void main() {
       'lib/presentation/widgets/einsatz_zeile.dart',
       'lib/presentation/widgets/aufgabe_zeile.dart',
       'lib/presentation/widgets/aufgaben_sheet.dart',
+      'lib/presentation/widgets/aufgabe_dialog.dart',
+      'lib/presentation/widgets/betrieb/aufgaben_akte_karte.dart',
       'lib/presentation/widgets/haupt_navigation.dart',
       'lib/presentation/screens/buchhaltung/buchhaltung_dashboard_screen.dart',
       'lib/presentation/screens/buchhaltung/monatsabschluss_screen.dart',

@@ -109,18 +109,34 @@ class _AufgabeZeile extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                aufgabe.titel,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: erledigt
-                      ? AppColors.textSecondary
-                      : AppColors.textPrimary,
-                  decoration: erledigt ? TextDecoration.lineThrough : null,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    aufgabe.titel,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: erledigt
+                          ? AppColors.textSecondary
+                          : AppColors.textPrimary,
+                      decoration: erledigt ? TextDecoration.lineThrough : null,
+                    ),
+                  ),
+                  // Betrieb der Aufgabe (Migration 212) — zweite Zeile.
+                  if (aufgabe.betrieb != null)
+                    Text(
+                      aufgabe.betrieb!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
               ),
             ),
             const Icon(
