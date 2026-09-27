@@ -183,10 +183,17 @@ class TagesFahrten {
     required this.fahrtenNurLuftlinie,
     required this.kmZaehler,
     required this.befunde,
+    this.halte = const [],
   });
 
   final List<Fahrt> fahrten;
   final List<EinsatzHalt> ohneZeit;
+
+  /// Die Kette, aus der die [fahrten] entstanden ([halteAusKette]) — für den
+  /// Arbeitszeit-Vorschlag beim Abschliessen einer Störung/Montage
+  /// (`arbeitszeit_vorschlag_einsatz.dart`). Leer, wo ein Ergebnis ohne
+  /// Kette gebaut wird (Tests).
+  final List<Halt> halte;
 
   /// Summe aller Fahrten mit km, auf eine Nachkommastelle gerundet.
   final double kmFahrten;
@@ -527,6 +534,7 @@ TagesFahrten tagesFahrten({
     fahrtenNurLuftlinie: nurLuftlinie,
     kmZaehler: zaehler,
     befunde: befunde,
+    halte: halte,
   );
 }
 
