@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart'
+    show TagesFahrten;
 import 'package:sbs_projer_app/presentation/providers/arbeitstag_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/fahrten_providers.dart';
 
 // Monats-Provider und -Typen liegen seit 27.09.2026 in
 // `arbeitstag_providers.dart` (auch «Fahrten aus der Kette» braucht sie);
@@ -103,7 +107,11 @@ class _ArbeitstagAuswertungScreenState
       ..sort((a, b) => b.datum.compareTo(a.datum));
   }
 
-  Widget _inhalt({required Object? fehler, required bool ladend}) {
+  Widget _inhalt({
+    required Object? fehler,
+    required bool ladend,
+    required Map<DateTime, TagesFahrten>? fahrten,
+  }) {
     if (fehler != null) {
       return Center(
         child: Padding(
@@ -129,13 +137,13 @@ class _ArbeitstagAuswertungScreenState
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(arbeitstageProvider(_monat));
         ref.invalidate(besucheImMonatProvider(_monat));
+        fahrtenNeuLaden(ref, _monat); // inkl. arbeitstageProvider
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(10, 4, 10, 24),
         children: [
-          _Kennzahlen(k: k),
+          _Kennzahlen(k: k, fahrten: fahrten),
           const SizedBox(height: 12),
           const Padding(
             padding: EdgeInsets.only(left: 4, bottom: 4),
@@ -148,7 +156,7 @@ class _ArbeitstagAuswertungScreenState
               ),
             ),
           ),
-          for (final t in tage) _TagesZeile(t: t),
+          for (final t in tage) _TagesZeile(t: t, fahrten: fahrten?[t.datum]),
         ],
       ),
     );
@@ -163,6 +171,12 @@ class _ArbeitstagAuswertungScreenState
     final besucheAsync = ref.watch(besucheImMonatProvider(_monat));
     final fehler = tageAsync.error ?? besucheAsync.error;
     final ladend = tageAsync.isLoading || besucheAsync.isLoading;
+    // Fahrten sind Zusatz: Solange sie laden (oder scheitern), zeigt die
+    // Tageszeile einfach keine Fahrten-Angabe — nie eine erfundene «0 km».
+    // Der Fehler selbst erscheint im Detail-Screen samt «Erneut laden».
+    // Hier beobachtet (nicht erst in der Liste), damit die Abfragen parallel
+    // zu Tagesplan und Besuchen starten.
+    final fahrten = ref.watch(monatsFahrtenProvider(_monat)).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Auswertung Arbeitstage')),
@@ -173,7 +187,9 @@ class _ArbeitstagAuswertungScreenState
             onZurueck: () => _blaettern(-1),
             onVor: _kannVorwaerts ? () => _blaettern(1) : null,
           ),
-          Expanded(child: _inhalt(fehler: fehler, ladend: ladend)),
+          Expanded(
+            child: _inhalt(fehler: fehler, ladend: ladend, fahrten: fahrten),
+          ),
         ],
       ),
     );
@@ -219,10 +235,19 @@ class _MonatsWahl extends StatelessWidget {
 class _Kennzahlen extends StatelessWidget {
   final ArbeitstagKennzahlen k;
 
-  const _Kennzahlen({required this.k});
+  /// `null`, solange «Fahrten aus der Kette» lädt oder gescheitert ist.
+  final Map<DateTime, TagesFahrten>? fahrten;
+
+  const _Kennzahlen({required this.k, required this.fahrten});
 
   @override
   Widget build(BuildContext context) {
+    final f = fahrten;
+    final fahrtenKm = f?.values.fold<double>(0, (s, t) => s + t.kmFahrten);
+    final anzahlFahrten = f?.values.fold<int>(
+      0,
+      (s, t) => s + t.fahrten.length,
+    );
     // Fester Zwei-Spalten-Raster: auf dem Handy einhändig lesbar, ohne
     // horizontales Scrollen. Karten sind nicht tappbar (reine Anzeige).
     return GridView.count(
@@ -281,6 +306,16 @@ class _Kennzahlen extends StatelessWidget {
           label: 'Ø Min. je Besuch',
           wert: schnittText(k.minutenJeBesuch, nachkomma: 0),
           icon: Icons.timer_outlined,
+        ),
+        // Summe der Fahrten aus der Kette (geroutet/geschätzt) — neben
+        // «Total km» vom Zähler; die Differenz je Tag steht in der Liste.
+        _KennzahlKarte(
+          label: 'Fahrten-km (Kette)',
+          wert: fahrtenKm == null ? '–' : '${fahrtenKm.round()}',
+          zusatz: anzahlFahrten == null
+              ? 'wird berechnet'
+              : '$anzahlFahrten Fahrten an ${f!.length} Tagen',
+          icon: Icons.directions_car_outlined,
         ),
       ],
     );
@@ -357,67 +392,125 @@ class _KennzahlKarte extends StatelessWidget {
   }
 }
 
+/// 'YYYY-MM-DD' für den Pfad des Fahrten-Screens.
+String _datumPfad(DateTime d) =>
+    '${d.year}-${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
+/// «Fahrten 132 km · Δ +16 km» — Δ = Zähler − Fahrten, rot, wenn ausserhalb
+/// der Toleranz (`differenzIstAuffaellig`), sonst grau. Ohne Zählerstand nur
+/// die Fahrten-km.
+class _FahrtenAngabe extends StatelessWidget {
+  final TagesFahrten f;
+
+  const _FahrtenAngabe({required this.f});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = f.differenz;
+    const grau = TextStyle(fontSize: 11, color: AppColors.textSecondary);
+    return Text.rich(
+      TextSpan(
+        style: grau,
+        children: [
+          TextSpan(text: 'Fahrten ${f.kmFahrten.round()} km'),
+          if (d != null) ...[
+            const TextSpan(text: ' · '),
+            TextSpan(
+              text: 'Δ ${d < 0 ? '−' : '+'}${d.abs().round()} km',
+              style: f.differenzAuffaellig
+                  ? const TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    )
+                  : null,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _TagesZeile extends StatelessWidget {
   final Arbeitstagsdaten t;
 
-  const _TagesZeile({required this.t});
+  /// `null`, solange die Fahrten laden (dann keine Angabe statt «0 km»).
+  final TagesFahrten? fahrten;
+
+  const _TagesZeile({required this.t, required this.fahrten});
 
   @override
   Widget build(BuildContext context) {
     final km = tagesKm(kmStart: t.kmStart, kmEnde: t.kmEnde);
     final minuten = arbeitsMinuten(beginn: t.beginn, ende: t.ende);
+    final f = fahrten;
     // Halb erfasste Tage zeigen die vorhandene Hälfte mit '?' auf der anderen
     // Seite — so ist auf einen Blick klar, was nachzutragen wäre.
     final zeitraum = (t.beginn == null && t.ende == null)
         ? null
         : '${t.beginn ?? '?'}–${t.ende ?? '?'}';
 
+    // InkWell IN der Card (clip), damit die Welle auf der Karte liegt.
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 74,
-              child: Text(
-                '${_wochentagKurz[t.datum.weekday - 1]} '
-                '${t.datum.day.toString().padLeft(2, '0')}.'
-                '${t.datum.month.toString().padLeft(2, '0')}.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.push(
+          '/auswertungen/arbeitstage/${_datumPfad(t.datum)}/fahrten',
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 74,
+                child: Text(
+                  '${_wochentagKurz[t.datum.weekday - 1]} '
+                  '${t.datum.day.toString().padLeft(2, '0')}.'
+                  '${t.datum.month.toString().padLeft(2, '0')}.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    zeitraum ?? 'keine Zeiten',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: zeitraum == null
-                          ? AppColors.textSecondary
-                          : AppColors.textPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      zeitraum ?? 'keine Zeiten',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: zeitraum == null
+                            ? AppColors.textSecondary
+                            : AppColors.textPrimary,
+                      ),
                     ),
-                  ),
-                  Text(
-                    [
-                      if (minuten != null) dauerText(minuten),
-                      if (km != null) '$km km',
-                      '${t.besuche} ${t.besuche == 1 ? 'Besuch' : 'Besuche'}',
-                    ].join(' · '),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                    Text(
+                      [
+                        if (minuten != null) dauerText(minuten),
+                        if (km != null) '$km km',
+                        '${t.besuche} '
+                            '${t.besuche == 1 ? 'Besuch' : 'Besuche'}',
+                      ].join(' · '),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
+                    if (f != null) _FahrtenAngabe(f: f),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textSecondary,
+              ),
+            ],
+          ),
         ),
       ),
     );

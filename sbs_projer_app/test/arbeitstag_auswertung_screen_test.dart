@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
+import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart';
+import 'package:sbs_projer_app/presentation/providers/fahrten_providers.dart';
 import 'package:sbs_projer_app/presentation/screens/auswertungen/arbeitstag_auswertung_screen.dart';
 
 // Befund 06.08.2026 («Warum hat es keine Besuche?»): Die Besuchszahl kam aus
@@ -54,9 +59,35 @@ final _besucheAugust = <DateTime, int>{
   DateTime(2026, 8, 5): 7,
 };
 
+/// «Fahrten aus der Kette» je Tag (Zähler: 84 / 92 / 178 km).
+TagesFahrten _fahrtenTag(double km, int zaehler) => TagesFahrten(
+  fahrten: const [],
+  ohneZeit: const [],
+  kmFahrten: km,
+  fahrtenNurLuftlinie: 0,
+  kmZaehler: zaehler,
+  befunde: const [],
+);
+
+final _fahrtenAugust = <DateTime, TagesFahrten>{
+  DateTime(2026, 8, 3): _fahrtenTag(70.4, 84), // Δ +13.6 → auffällig
+  DateTime(2026, 8, 4): _fahrtenTag(90.0, 92), // Δ +2 → im Rahmen
+  DateTime(2026, 8, 5): _fahrtenTag(181.2, 178), // Δ −3.2 → im Rahmen
+};
+
+List<Override> _overrides({
+  required Future<Map<DateTime, int>> Function() besuche,
+  required Future<Map<DateTime, TagesFahrten>> Function() fahrten,
+}) => [
+  arbeitstageProvider.overrideWith((ref, m) async => _august),
+  besucheImMonatProvider.overrideWith((ref, m) async => besuche()),
+  monatsFahrtenProvider.overrideWith((ref, m) => fahrten()),
+];
+
 Future<void> _pumpe(
   WidgetTester tester, {
   required Future<Map<DateTime, int>> Function() besuche,
+  Future<Map<DateTime, TagesFahrten>> Function()? fahrten,
 }) async {
   // Hoher Ausschnitt, damit auch die Tagesliste unter den Kennzahlen baut.
   tester.view.physicalSize = const Size(1100, 2600);
@@ -65,10 +96,10 @@ Future<void> _pumpe(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        arbeitstageProvider.overrideWith((ref, m) async => _august),
-        besucheImMonatProvider.overrideWith((ref, m) async => besuche()),
-      ],
+      overrides: _overrides(
+        besuche: besuche,
+        fahrten: fahrten ?? () async => const {},
+      ),
       child: const MaterialApp(home: ArbeitstagAuswertungScreen()),
     ),
   );
@@ -113,6 +144,112 @@ void main() {
 
       expect(find.textContaining('nicht geladen'), findsOneWidget);
       expect(find.textContaining('0 Besuche'), findsNothing);
+    });
+  });
+
+  group('Arbeitstag-Auswertung — Fahrten aus der Kette', () {
+    testWidgets('je Tag Fahrten-km und Δ, rot nur ausserhalb der Toleranz', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => _fahrtenAugust,
+      );
+      await tester.pumpAndSettle();
+
+      final auffaellig = tester.widget<Text>(
+        find.textContaining('Fahrten 70 km · Δ +14 km'),
+      );
+      final imRahmen = tester.widget<Text>(
+        find.textContaining('Fahrten 90 km · Δ +2 km'),
+      );
+      expect(find.textContaining('Fahrten 181 km · Δ −3 km'), findsOneWidget);
+
+      TextStyle? deltaStil(Text t) =>
+          ((t.textSpan! as TextSpan).children!.last as TextSpan).style;
+      expect(deltaStil(auffaellig)?.color, AppColors.error);
+      expect(deltaStil(imRahmen), isNull); // erbt das Grau der Zeile
+
+      // Kennzahl: 70.4 + 90 + 181.2 = 341.6
+      expect(find.text('342'), findsOneWidget);
+      expect(find.text('0 Fahrten an 3 Tagen'), findsOneWidget);
+    });
+
+    testWidgets('Fahrten laden noch: keine Angabe statt «0 km»', (
+      tester,
+    ) async {
+      final nieFertig = Completer<Map<DateTime, TagesFahrten>>();
+      addTearDown(() => nieFertig.complete(const {}));
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () => nieFertig.future,
+      );
+      await tester.pumpAndSettle();
+
+      // Tage sind da, nur ohne Fahrten-Zeile.
+      expect(find.textContaining('9 Besuche'), findsOneWidget);
+      expect(find.textContaining('Fahrten 0 km'), findsNothing);
+      expect(find.textContaining('km · Δ'), findsNothing);
+      expect(find.text('wird berechnet'), findsOneWidget);
+    });
+
+    testWidgets('Fahrten scheitern: Seite bleibt ohne Fahrten-Angabe', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => throw 'keine Verbindung',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('9 Besuche'), findsOneWidget);
+      expect(find.textContaining('km · Δ'), findsNothing);
+    });
+
+    testWidgets('Tageszeile öffnet den Fahrten-Screen des Tages', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1100, 2600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const ArbeitstagAuswertungScreen(),
+          ),
+          GoRoute(
+            path: '/auswertungen/arbeitstage/:datum/fahrten',
+            builder: (context, state) =>
+                Text('Fahrten-Screen ${state.pathParameters['datum']}'),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: _overrides(
+            besuche: () async => _besucheAugust,
+            fahrten: () async => _fahrtenAugust,
+          ),
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.textContaining('9 Besuche'));
+      await tester.pumpAndSettle();
+      expect(find.text('Fahrten-Screen 2026-08-03'), findsOneWidget);
+
+      // Das Muster oben muss das der echten App sein. (Der Erreichbarkeits-
+      // Wächter nimmt Detail-Routen mit `/:` bewusst aus — dieser Test ist
+      // ihr Ersatz für den Fahrten-Screen.)
+      expect(
+        File('lib/core/config/router.dart').readAsStringSync(),
+        contains("path: '/auswertungen/arbeitstage/:datum/fahrten'"),
+      );
     });
   });
 }

@@ -54,6 +54,7 @@ import 'package:sbs_projer_app/presentation/screens/aufgaben/aufgaben_screen.dar
 import 'package:sbs_projer_app/presentation/screens/touren/tages_karte_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/touren/tourenplanung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/auswertungen/arbeitstag_auswertung_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/auswertungen/tages_fahrten_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/camt_bankauszug_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_liste_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/eingangsrechnungen/eingangsrechnung_upload_screen.dart';
@@ -203,6 +204,17 @@ final router = GoRouter(
     GoRoute(
       path: '/auswertungen/arbeitstage',
       builder: (context, state) => const ArbeitstagAuswertungScreen(),
+    ),
+
+    // Fahrten eines Arbeitstags («Fahrten aus der Kette»), `:datum` =
+    // YYYY-MM-DD. Erreichbar über die Tageszeile der Auswertung.
+    GoRoute(
+      path: '/auswertungen/arbeitstage/:datum/fahrten',
+      builder: (context, state) => TagesFahrtenScreen(
+        datum:
+            DateTime.tryParse(state.pathParameters['datum'] ?? '') ??
+            DateTime.now(),
+      ),
     ),
 
     // Nutzungsmessung: welcher Bereich wird tatsächlich geöffnet

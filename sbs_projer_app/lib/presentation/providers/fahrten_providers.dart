@@ -65,7 +65,8 @@ final monatsFahrtenProvider = FutureProvider.autoDispose
       ]);
       final tage = quellen[0] as List<ArbeitstagRohdaten>;
       final einsaetze =
-          quellen[1] as ({List<EinsatzRoh> einsaetze, List<StempelRoh> stempel});
+          quellen[1]
+              as ({List<EinsatzRoh> einsaetze, List<StempelRoh> stempel});
       final anfahrten = quellen[2] as Map<String, Map<String, double>>;
       final fahrzeiten = quellen[3] as Map<String, FahrzeitEintrag>;
       final betriebe = quellen[4] as List<BetriebLocal>;

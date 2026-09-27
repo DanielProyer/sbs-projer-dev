@@ -101,8 +101,7 @@ Map<DateTime, TagesFahrten> bauen({
 
 double luftlinie(String von, String nach) {
   final v = betriebe[von]!, n = betriebe[nach]!;
-  return (luftlinieStreckeKm(haversineKm(v.lat!, v.lng!, n.lat!, n.lng!)) *
-              10)
+  return (luftlinieStreckeKm(haversineKm(v.lat!, v.lng!, n.lat!, n.lng!)) * 10)
           .round() /
       10;
 }
@@ -111,9 +110,7 @@ void main() {
   group('monatsFahrtenBauen — Beispieltag', () {
     // 2 Reinigungen, 1 Störung nur mit Stempel, Feierabend erfasst.
     final ergebnis = bauen(
-      tagesplaene: {
-        tag: plan(start: startorte['domat_ems']),
-      },
+      tagesplaene: {tag: plan(start: startorte['domat_ems'])},
       einsaetze: [
         einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
         einsatz('r2', 'betrieb-b', von: '10:00:00', bis: '11:00:00'),
@@ -132,15 +129,12 @@ void main() {
 
     test('vier Fahrten in der richtigen Reihenfolge', () {
       expect(t.fahrten.length, 4);
-      expect(
-        t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList(),
-        [
-          'domat_ems>betrieb-a',
-          'betrieb-a>betrieb-b',
-          'betrieb-b>betrieb-c',
-          'betrieb-c>domat_ems',
-        ],
-      );
+      expect(t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList(), [
+        'domat_ems>betrieb-a',
+        'betrieb-a>betrieb-b',
+        'betrieb-b>betrieb-c',
+        'betrieb-c>domat_ems',
+      ]);
       expect(t.fahrten[1].von.name, 'Peppino');
       expect(t.fahrten[1].nach.name, 'Holländer');
     });
@@ -333,7 +327,10 @@ void main() {
       expect(t.fahrten.length, 2);
       expect(t.fahrten.first.nach.name, 'Störung');
       expect(t.fahrten.first.km, isNull);
-      expect(t.befunde, contains('2 Fahrten ohne Distanz (Koordinaten fehlen)'));
+      expect(
+        t.befunde,
+        contains('2 Fahrten ohne Distanz (Koordinaten fehlen)'),
+      );
     });
   });
 
@@ -405,92 +402,99 @@ void main() {
   });
 
   group('monatsFahrtenProvider (Verdrahtung)', () {
-    test('führt Tagesplan, Einsätze, Distanzen und Betriebe zusammen', () async {
-      final container = ProviderContainer(
-        overrides: [
-          arbeitstageProvider.overrideWith(
-            (ref, m) async => [
-              (
-                datum: DateTime(2026, 9, 25),
-                beginn: '07:30',
-                ende: '17:00',
-                kmStart: 50000,
-                kmEnde: 50040,
-                // Morgens in Chur gestartet, Feierabend ohne GPS.
-                startPosition: (lat: 46.8639692, lng: 9.5278708),
-                endPosition: null,
-              ),
-            ],
-          ),
-          fahrtenEinsaetzeProvider.overrideWith(
-            (ref, m) async => (
-              einsaetze: [
-                einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
-                einsatz('s1', 'betrieb-b', typ: 'stoerung'),
-              ],
-              stempel: [
-                stempel(DateTime(2026, 9, 25, 10, 30), betriebId: 'betrieb-b'),
+    test(
+      'führt Tagesplan, Einsätze, Distanzen und Betriebe zusammen',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            arbeitstageProvider.overrideWith(
+              (ref, m) async => [
+                (
+                  datum: DateTime(2026, 9, 25),
+                  beginn: '07:30',
+                  ende: '17:00',
+                  kmStart: 50000,
+                  kmEnde: 50040,
+                  // Morgens in Chur gestartet, Feierabend ohne GPS.
+                  startPosition: (lat: 46.8639692, lng: 9.5278708),
+                  endPosition: null,
+                ),
               ],
             ),
-          ),
-          anfahrtsDistanzenProvider.overrideWith(
-            (ref) async => {
-              'chur': {'betrieb-a': 5.0},
-              'domat_ems': {'betrieb-b': 9.0},
-            },
-          ),
-          fahrzeitenMapProvider.overrideWith(
-            (ref) async => <String, FahrzeitEintrag>{
-              'betrieb-a>betrieb-b': (
-                minuten: 25,
-                quelle: 'route',
-                distanzKm: 21.5,
-                distanzQuelle: 'osrm',
+            fahrtenEinsaetzeProvider.overrideWith(
+              (ref, m) async => (
+                einsaetze: [
+                  einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+                  einsatz('s1', 'betrieb-b', typ: 'stoerung'),
+                ],
+                stempel: [
+                  stempel(
+                    DateTime(2026, 9, 25, 10, 30),
+                    betriebId: 'betrieb-b',
+                  ),
+                ],
               ),
-            },
-          ),
-          betriebeStreamProvider.overrideWith(
-            (ref) => Stream.value([
-              BetriebLocal()
-                ..serverId = 'betrieb-a'
-                ..name = 'Peppino'
-                ..latitude = 46.85
-                ..longitude = 9.53,
-              BetriebLocal()
-                ..serverId = 'betrieb-b'
-                ..name = 'Holländer'
-                ..latitude = 46.80
-                ..longitude = 9.83,
-            ]),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      // Am Leben halten (autoDispose), solange der Test liest.
-      final abo = container.listen(
-        tagesFahrtenProvider(DateTime(2026, 9, 25, 14, 30)),
-        (_, _) {},
-      );
-      addTearDown(abo.close);
+            ),
+            anfahrtsDistanzenProvider.overrideWith(
+              (ref) async => {
+                'chur': {'betrieb-a': 5.0},
+                'domat_ems': {'betrieb-b': 9.0},
+              },
+            ),
+            fahrzeitenMapProvider.overrideWith(
+              (ref) async => <String, FahrzeitEintrag>{
+                'betrieb-a>betrieb-b': (
+                  minuten: 25,
+                  quelle: 'route',
+                  distanzKm: 21.5,
+                  distanzQuelle: 'osrm',
+                ),
+              },
+            ),
+            betriebeStreamProvider.overrideWith(
+              (ref) => Stream.value([
+                BetriebLocal()
+                  ..serverId = 'betrieb-a'
+                  ..name = 'Peppino'
+                  ..latitude = 46.85
+                  ..longitude = 9.53,
+                BetriebLocal()
+                  ..serverId = 'betrieb-b'
+                  ..name = 'Holländer'
+                  ..latitude = 46.80
+                  ..longitude = 9.83,
+              ]),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        // Am Leben halten (autoDispose), solange der Test liest.
+        final abo = container.listen(
+          tagesFahrtenProvider(DateTime(2026, 9, 25, 14, 30)),
+          (_, _) {},
+        );
+        addTearDown(abo.close);
 
-      final t = (await container.read(
-        tagesFahrtenProvider(DateTime(2026, 9, 25, 14, 30)).future,
-      ))!;
-      expect(
-        t.fahrten.map((f) => '${f.von.name}>${f.nach.name}').toList(),
-        ['Chur>Peppino', 'Peppino>Holländer', 'Holländer>Domat/Ems'],
-      );
-      expect(t.fahrten.map((f) => f.km).toList(), [5.0, 21.5, 9.0]);
-      expect(t.kmFahrten, 35.5);
-      expect(t.kmZaehler, 40);
-      expect(t.befunde, isEmpty); // 4.5 km Differenz liegt in der Toleranz
-      expect(
-        await container.read(
-          tagesFahrtenProvider(DateTime(2026, 9, 26)).future,
-        ),
-        isNull,
-      );
-    });
+        final t = (await container.read(
+          tagesFahrtenProvider(DateTime(2026, 9, 25, 14, 30)).future,
+        ))!;
+        expect(t.fahrten.map((f) => '${f.von.name}>${f.nach.name}').toList(), [
+          'Chur>Peppino',
+          'Peppino>Holländer',
+          'Holländer>Domat/Ems',
+        ]);
+        expect(t.fahrten.map((f) => f.km).toList(), [5.0, 21.5, 9.0]);
+        expect(t.kmFahrten, 35.5);
+        expect(t.kmZaehler, 40);
+        expect(t.befunde, isEmpty); // 4.5 km Differenz liegt in der Toleranz
+        expect(
+          await container.read(
+            tagesFahrtenProvider(DateTime(2026, 9, 26)).future,
+          ),
+          isNull,
+        );
+      },
+    );
   });
 
   group('Einsatz vor Ort?', () {
