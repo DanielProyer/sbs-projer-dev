@@ -134,6 +134,10 @@ class _MaterialienListScreenState
         // darf die Karte nie stören.
         return await MaterialArtikelRepository.getSignedUrlPreview(pfad);
       } catch (_) {
+        // Netzfehler nicht festhalten: Eintrag weg, der nächste Aufbau der
+        // Karte versucht es erneut. (Ein Artikel OHNE Foto bleibt als null
+        // gecacht — das ist ein Ergebnis, kein Fehler.)
+        _fotoUrls.remove(materialId);
         return null;
       }
     });
@@ -236,6 +240,11 @@ class _MaterialienListScreenState
             nurNiedrig: _nurNiedrig,
             niedrigAnzahl: niedrigAnzahl,
             onKategorie: (id) {
+              // Nichts geändert (z. B. aktives «Alle» nochmals getippt) →
+              // nicht auf Karte 1 springen. Gegen `_kategorie`, nicht
+              // `wirksam`: eine gemerkte, nicht mehr belegte Kategorie soll
+              // sich über «Alle» weiterhin löschen lassen.
+              if (id == _kategorie) return;
               _filterGeaendert(() => _kategorie = id);
               MaterialAnsichtSpeicher.speichereKategorie(id);
             },

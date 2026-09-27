@@ -252,6 +252,26 @@ void main() {
     expect(_kartenName(tester), 'Kompensator');
   });
 
+  testWidgets('aktives «Alle» nochmals tippen lässt die Karte stehen',
+      (tester) async {
+    await _zeige(tester);
+    await _tippe(tester, find.byTooltip('Karten'));
+    await _wische(tester);
+    expect(find.text('2 / 5'), findsOneWidget);
+    await _tippe(tester, find.text('Alle'));
+    expect(find.text('2 / 5'), findsOneWidget);
+    expect(_kartenName(tester), 'Zapfhahn Chrom');
+  });
+
+  testWidgets('gemerkte, nicht mehr belegte Kategorie: «Alle» löscht sie',
+      (tester) async {
+    // Der Vergleich gegen die gemerkte (nicht die wirksame) Kategorie
+    // lässt diesen Weg offen — sonst bliebe die Leiche in den Prefs.
+    await _zeige(tester, prefs: {'material_kategorie': 'k-leer'});
+    await _tippe(tester, find.text('Alle'));
+    expect(await _pref('material_kategorie'), isNull);
+  });
+
   testWidgets('Karten: nach «keine Treffer» wieder bei der ersten Karte',
       (tester) async {
     // Einstieg über Listenzeile 3: Der Controller startet dann bei Seite 2.
