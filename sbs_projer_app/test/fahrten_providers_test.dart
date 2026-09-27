@@ -805,6 +805,125 @@ void main() {
       // Koordinaten; Startort-Fahrten laufen über die Anfahrten.
       expect(paare, [(von: 'betrieb-a', nach: 'betrieb-b')]);
     });
+
+    test('nur Tage mit Zählerstand — nur dort zählen die km', () {
+      final zweiBetriebe = [
+        einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+        einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+      ];
+      final ohneZaehler = bauen(
+        tagesplaene: {tag: plan(kmEnde: null)},
+        einsaetze: zweiBetriebe,
+      );
+      expect(ohneZaehler[tag]!.kmZaehler, isNull);
+      expect(fehlendeRoutenPaare(ohneZaehler.values), isEmpty);
+
+      final mitZaehler = bauen(einsaetze: zweiBetriebe);
+      expect(fehlendeRoutenPaare(mitZaehler.values), [
+        (von: 'betrieb-a', nach: 'betrieb-b'),
+      ]);
+    });
+  });
+
+  // OSRM-Demo-Server: höchstens 1 Anfrage/s, keine Massenabfragen. Vorher
+  // holte jeder Erfolg die nächsten zehn, bis der ganze Monat durch war.
+  group('routenAuswahl', () {
+    List<RoutenPaar> paare(int n, [String p = 'a']) => [
+      for (var i = 0; i < n; i++) (von: '$p$i', nach: 'z$i'),
+    ];
+    Set<String> angefragt(int n) => {
+      for (var i = 0; i < n; i++) routenPaarSchluessel('alt$i', 'z$i'),
+    };
+
+    test('Standard: 10 je Lauf, 30 je Sitzung', () {
+      expect(kRoutenJeLauf, 10);
+      expect(kRoutenJeSitzung, 30);
+    });
+
+    test('Deckel je Lauf', () {
+      expect(
+        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}),
+        paare(10),
+      );
+      expect(
+        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}, jeLauf: 3),
+        paare(3),
+      );
+    });
+
+    test('Deckel je Sitzung zählt die schon angefragten mit', () {
+      expect(
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(25)),
+        paare(5),
+      );
+      expect(
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(30)),
+        isEmpty,
+      );
+      expect(
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(31)),
+        isEmpty,
+      );
+    });
+
+    test('keine Doppel: schon angefragt, Gegenrichtung, zweimal gelistet', () {
+      final auswahl = routenAuswahl(
+        kandidaten: const [
+          (von: 'a', nach: 'b'),
+          (von: 'b', nach: 'a'),
+          (von: 'e', nach: 'f'),
+          (von: 'c', nach: 'd'),
+          (von: 'c', nach: 'd'),
+        ],
+        schonAngefragt: {routenPaarSchluessel('f', 'e')},
+      );
+      expect(auswahl, const [(von: 'a', nach: 'b'), (von: 'c', nach: 'd')]);
+    });
+
+    test('Doppel zählen nicht gegen den Deckel je Lauf', () {
+      final auswahl = routenAuswahl(
+        kandidaten: const [
+          (von: 'a', nach: 'b'),
+          (von: 'a', nach: 'b'),
+          (von: 'c', nach: 'd'),
+        ],
+        schonAngefragt: {},
+        jeLauf: 2,
+      );
+      expect(auswahl, const [(von: 'a', nach: 'b'), (von: 'c', nach: 'd')]);
+    });
+
+    test('die Menge der schon angefragten bleibt unverändert', () {
+      final schon = angefragt(2);
+      routenAuswahl(kandidaten: paare(5), schonAngefragt: schon);
+      expect(schon, angefragt(2));
+    });
+  });
+
+  group('Anfahrten: eine Abfrage für Minuten und km', () {
+    test('beide bisherigen Provider lesen aus derselben Tabelle', () async {
+      final container = ProviderContainer(
+        overrides: [
+          anfahrtenProvider.overrideWith(
+            (ref) async => (
+              minuten: {
+                'chur': {'betrieb-a': 12},
+              },
+              distanzen: {
+                'chur': {'betrieb-a': 9.4},
+              },
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      expect(await container.read(anfahrtszeitenProvider.future), {
+        'chur': {'betrieb-a': 12},
+      });
+      expect(await container.read(anfahrtsDistanzenProvider.future), {
+        'chur': {'betrieb-a': 9.4},
+      });
+    });
   });
 
   group('monatsFahrtenProvider (Verdrahtung)', () {

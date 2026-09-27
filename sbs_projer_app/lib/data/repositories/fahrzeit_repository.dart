@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
+import 'package:sbs_projer_app/core/util/routen_warteschlange.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
 /// Ein Fahrzeit-Eintrag der Tabelle `fahrzeiten` (Kaskade: beobachtet > route
@@ -109,11 +110,24 @@ class FahrzeitRepository {
     }
   }
 
+  /// EINE Schlange für alle Aufrufer (Tourenplan und «Fahrten aus der
+  /// Kette»): Der OSRM-Demo-Server hinter `fahrzeit-route` erlaubt höchstens
+  /// eine Anfrage pro Sekunde — parallele Läufe erzeugten 3 Anfragen/s
+  /// (Logs 27.09.2026).
+  static final _routenSchlange = RoutenWarteschlange();
+
   /// Fordert eine geroutete Fahrzeit von der Edge-Function `fahrzeit-route`
   /// an (OSRM-Proxy mit Cache). Fire-and-forget aus Sicht der Aufrufer:
   /// Fehler/Timeouts liefern still `null` zurueck — die App zeigt derweil die
   /// Heuristik, ein Provider stoesst den Aufruf an und invalidiert bei Erfolg.
-  static Future<FahrzeitEintrag?> routeAnfordern(
+  ///
+  /// Läuft durch [_routenSchlange]: nacheinander, mit mindestens
+  /// `kRoutenAbstand` Pause. Wer mehrere Paare auf einmal aufruft (ohne
+  /// dazwischen zu warten), reiht sie als Block ein.
+  static Future<FahrzeitEintrag?> routeAnfordern(String vonId, String nachId) =>
+      _routenSchlange.einreihen(() => _routeJetztAnfordern(vonId, nachId));
+
+  static Future<FahrzeitEintrag?> _routeJetztAnfordern(
     String vonId,
     String nachId,
   ) async {

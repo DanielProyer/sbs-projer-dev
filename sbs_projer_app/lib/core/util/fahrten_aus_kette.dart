@@ -754,16 +754,58 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
   return ergebnis;
 }
 
+/// Ein Betriebspaar fürs Nachrouten (Richtung wie in der Fahrt).
+typedef RoutenPaar = ({String von, String nach});
+
+/// Deckel fürs Nachrouten über `fahrzeit-route`: je Lauf (ein Neuberechnen
+/// des Monats) und je Sitzung (bis die App neu geladen wird).
+///
+/// WARUM: Die Edge Function fragt den öffentlichen OSRM-Demo-Server — der
+/// erlaubt höchstens eine Anfrage pro Sekunde und ist nicht für
+/// Massenabfragen gedacht. Ungedeckelt holte jeder Erfolg die nächsten zehn
+/// Paare, bis der ganze Monat durch war; Zurückblättern löste 80–130
+/// Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s).
+const kRoutenJeLauf = 10;
+const kRoutenJeSitzung = 30;
+
+/// Welche [kandidaten] dieser Lauf anfragt: ohne die [schonAngefragt]
+/// (richtungslose Schlüssel, [routenPaarSchluessel]) und ohne Doppel,
+/// höchstens [jeLauf] und nie mehr, als der Sitzungsdeckel [jeSitzung]
+/// noch zulässt. Ist er erreicht, bleibt die Liste leer — dann startet
+/// kein Lauf mehr. [schonAngefragt] wird nicht verändert (das tut der
+/// Aufrufer, sobald er die Paare wirklich anfragt).
+List<RoutenPaar> routenAuswahl({
+  required List<RoutenPaar> kandidaten,
+  required Set<String> schonAngefragt,
+  int jeLauf = kRoutenJeLauf,
+  int jeSitzung = kRoutenJeSitzung,
+}) {
+  final deckel = math.min(jeLauf, jeSitzung - schonAngefragt.length);
+  final auswahl = <RoutenPaar>[];
+  if (deckel <= 0) return auswahl;
+  final gesehen = <String>{};
+  for (final p in kandidaten) {
+    if (auswahl.length >= deckel) break;
+    final schluessel = routenPaarSchluessel(p.von, p.nach);
+    if (schonAngefragt.contains(schluessel)) continue;
+    if (gesehen.add(schluessel)) auswahl.add(p);
+  }
+  return auswahl;
+}
+
 /// Betrieb→Betrieb-Fahrten, die nur als Luftlinie geschätzt sind, obwohl
 /// beide Betriebe Koordinaten haben — Kandidaten fürs Nachrouten über die
 /// Edge Function `fahrzeit-route`. Je Paar nur eine Richtung (der Nachschlag
 /// prüft beide), in der Reihenfolge der übergebenen Tage.
-List<({String von, String nach})> fehlendeRoutenPaare(
-  Iterable<TagesFahrten> tage,
-) {
+///
+/// Nur Tage mit Zählerstand ([TagesFahrten.kmZaehler]): Nur dort gibt es
+/// eine Kontrolle, bei der die genaueren km etwas ändern — alles andere
+/// wären Anfragen ohne Nutzen.
+List<RoutenPaar> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
   final gesehen = <String>{};
-  final paare = <({String von, String nach})>[];
+  final paare = <RoutenPaar>[];
   for (final t in tage) {
+    if (t.kmZaehler == null) continue;
     for (final f in t.fahrten) {
       if (f.kmQuelle != kKmQuelleLuftlinie) continue;
       if (f.von.typ != HaltTyp.betrieb || f.nach.typ != HaltTyp.betrieb) {

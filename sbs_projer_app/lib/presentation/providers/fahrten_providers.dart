@@ -122,7 +122,8 @@ final tagesFahrtenProvider = FutureProvider.autoDispose
 void fahrtenNeuLaden(WidgetRef ref, AuswertungsMonat m) {
   ref.invalidate(arbeitstageProvider(m));
   ref.invalidate(fahrtenEinsaetzeProvider(m));
-  ref.invalidate(anfahrtsDistanzenProvider);
+  // Die Abfrage selbst (die Distanzen sind nur eine Sicht darauf).
+  ref.invalidate(anfahrtenProvider);
   ref.invalidate(fahrzeitenMapProvider);
   if (ref.read(betriebeStreamProvider).hasError) {
     ref.invalidate(betriebeStreamProvider);
@@ -143,47 +144,58 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
 }
 
 // ── Fehlende Betrieb→Betrieb-Distanzen nachholen ──────────────────────────
-
-/// Höchstens so viele Paare je Ladevorgang an `fahrzeit-route`.
-///
-/// WARUM 10: Die Edge Function fragt den öffentlichen OSRM-Demo-Server —
-/// der ist für Einzelabfragen gedacht, nicht für Massenabfragen (ein Monat
-/// hat leicht 150 ungeroutete Paare). Die Anfragen laufen nacheinander; mit
-/// jedem Erfolg lädt der Monat neu und holt die nächsten zehn.
-const kRoutenJeLadevorgang = 10;
+//
+// WARUM gedeckelt und gedrosselt: Die Edge Function `fahrzeit-route` fragt
+// den öffentlichen OSRM-Demo-Server — höchstens eine Anfrage pro Sekunde,
+// keine Massenabfragen. Vorher lud jeder Erfolg den Monat neu und holte die
+// nächsten zehn Paare (bis der ganze Monat durch war), ein Monatswechsel
+// startete einen zweiten Lauf parallel, und Zurückblättern löste 80–130
+// Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s). Jetzt:
+// - höchstens `kRoutenJeLauf` Paare je Lauf und `kRoutenJeSitzung` je
+//   Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht, startet
+//   kein Lauf mehr; der Rest bleibt Luftlinie, bis die App neu lädt;
+// - nur Tage mit Zählerstand (`fehlendeRoutenPaare`) — nur dort zählen km;
+// - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause
+//   (`FahrzeitRepository.routeAnfordern`); ein neuer Lauf stellt sich an.
 
 /// Schon angefragte Paare dieser Sitzung (richtungslos) — jedes Paar geht
 /// höchstens einmal an die Edge Function, auch wenn der Monat neu rechnet
-/// oder das Routing scheitert.
+/// oder das Routing scheitert. Seine Grösse ist der Sitzungszähler.
 final _routeAngefragt = <String>{};
 
-/// Fire-and-forget: fragt bis zu [kRoutenJeLadevorgang] neue Paare nach und
-/// lädt bei mindestens einer gelieferten Distanz die Fahrzeiten neu. Über
-/// den Container statt `ref`, weil der (autoDispose-)Monats-Provider bis
-/// dahin schon verworfen sein kann; die Fahrzeiten sind app-weit (auch der
-/// Tourenplan profitiert).
+/// Fire-and-forget: fragt die von [routenAuswahl] freigegebenen Paare nach
+/// und lädt bei mindestens einer gelieferten Distanz die Fahrzeiten neu.
+/// Über den Container statt `ref`, weil der (autoDispose-)Monats-Provider
+/// bis dahin schon verworfen sein kann; die Fahrzeiten sind app-weit (auch
+/// der Tourenplan profitiert).
 void _routenNachholen(
   ProviderContainer container,
-  List<({String von, String nach})> paare,
+  List<RoutenPaar> kandidaten,
 ) {
-  final neu = <({String von, String nach})>[];
-  for (final p in paare) {
-    if (neu.length >= kRoutenJeLadevorgang) break;
-    if (_routeAngefragt.add(routenPaarSchluessel(p.von, p.nach))) neu.add(p);
+  final neu = routenAuswahl(
+    kandidaten: kandidaten,
+    schonAngefragt: _routeAngefragt,
+  );
+  if (neu.isEmpty) return; // nichts Neues — oder Sitzungsdeckel erreicht
+  for (final p in neu) {
+    _routeAngefragt.add(routenPaarSchluessel(p.von, p.nach));
   }
-  if (neu.isEmpty) return;
 
   unawaited(() async {
-    var erfolg = false;
-    for (final p in neu) {
-      try {
-        final res = await FahrzeitRepository.routeAnfordern(p.von, p.nach);
-        if (res?.distanzKm != null) erfolg = true;
-      } catch (e) {
-        // Still: ohne Route bleibt die Luftlinien-Schätzung stehen.
-        debugPrint('[Fahrten] Route ${p.von}>${p.nach} fehlgeschlagen: $e');
-      }
+    // Alle Paare des Laufs auf einmal einreihen (kein await dazwischen):
+    // So stellt sich ein späterer Lauf hinten an, statt sich einzuflechten.
+    final antworten = await Future.wait([
+      for (final p in neu) FahrzeitRepository.routeAnfordern(p.von, p.nach),
+    ]);
+    // routeAnfordern liefert bei Fehlern still null — die Luftlinien-
+    // Schätzung bleibt dann stehen.
+    if (!antworten.any((r) => r?.distanzKm != null)) return;
+    try {
+      container.invalidate(fahrzeitenMapProvider);
+    } catch (e) {
+      // StateError, wenn der Container inzwischen abgebaut ist (App neu
+      // geladen, Test zu Ende) — dann gibt es nichts mehr neu zu rechnen.
+      debugPrint('[Fahrten] Fahrzeiten nicht neu geladen: $e');
     }
-    if (erfolg) container.invalidate(fahrzeitenMapProvider);
   }());
 }

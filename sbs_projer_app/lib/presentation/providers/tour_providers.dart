@@ -1123,60 +1123,65 @@ const kStartorte = <String, ({double lat, double lng})>{
   'chur': (lat: 46.8639692, lng: 9.5278708), // Giacomettistrasse 89
 };
 
+/// Die Tabelle `anfahrtszeiten` je Startort → betriebId: Minuten (Zeitachse)
+/// und geroutete km (Fahrten aus der Kette).
+typedef AnfahrtenTabelle = ({
+  Map<String, Map<String, int>> minuten,
+  Map<String, Map<String, double>> distanzen,
+});
+
+/// `anfahrtszeiten` in EINER seitenweisen Abfrage — Quelle für
+/// [anfahrtszeitenProvider] und [anfahrtsDistanzenProvider] (vorher zwei
+/// Abfragen auf dieselbe Tabelle, die für die Minuten ohne Seiten).
+///
+/// Seitenweise mit `.order('id')`: 802 Zeilen am 27.09.2026 — zwei Startorte
+/// je Betrieb reissen die 1000er-Grenze von PostgREST bald, und dann fehlten
+/// still Anfahrten.
+final anfahrtenProvider = FutureProvider<AnfahrtenTabelle>((ref) async {
+  const seite = 1000;
+  final minuten = <String, Map<String, int>>{};
+  final distanzen = <String, Map<String, double>>{};
+  for (var ab = 0; ; ab += seite) {
+    final rows = await SupabaseService.client
+        .from('anfahrtszeiten')
+        .select('id, startort, betrieb_id, minuten, distanz_km')
+        .order('id')
+        .range(ab, ab + seite - 1);
+    for (final r in rows) {
+      final startort = r['startort'] as String?;
+      final betriebId = r['betrieb_id'] as String?;
+      if (startort == null || betriebId == null) continue;
+      final min = (r['minuten'] as num?)?.toInt();
+      if (min != null) (minuten[startort] ??= {})[betriebId] = min;
+      // numeric kommt je nach Wert als Zahl oder als String zurück.
+      final km = switch (r['distanz_km']) {
+        num n => n.toDouble(),
+        String s => double.tryParse(s),
+        _ => null,
+      };
+      if (km != null) (distanzen[startort] ??= {})[betriebId] = km;
+    }
+    if (rows.length < seite) break;
+  }
+  return (minuten: minuten, distanzen: distanzen);
+});
+
 /// Gerechnete Anfahrtszeiten je Startort: betriebId → Minuten.
 /// Quelle `anfahrtszeiten` (Google, sonst OSRM — die Spalte `minuten`
 /// entscheidet das in der DB). Ersetzt die Luftlinien-Heuristik für
 /// Anfahrt/Heimweg, die bei Fernstrecken massiv daneben lag (Fall Sonne
 /// Seehotel Eich: 346 statt 117 min, Daniel 31.07.2026).
-final anfahrtszeitenProvider = FutureProvider<Map<String, Map<String, int>>>((
-  ref,
-) async {
-  final rows = await SupabaseService.client
-      .from('anfahrtszeiten')
-      .select('startort, betrieb_id, minuten');
-  final map = <String, Map<String, int>>{};
-  for (final r in rows) {
-    final startort = r['startort'] as String;
-    final betriebId = r['betrieb_id'] as String?;
-    final minuten = (r['minuten'] as num?)?.toInt();
-    if (betriebId == null || minuten == null) continue;
-    (map[startort] ??= {})[betriebId] = minuten;
-  }
-  return map;
-});
+final anfahrtszeitenProvider = FutureProvider<Map<String, Map<String, int>>>(
+  (ref) async => (await ref.watch(anfahrtenProvider.future)).minuten,
+);
 
 /// Geroutete Strecken ab den Startorten: Startort → betriebId → km
 /// (`anfahrtszeiten.distanz_km`). Grundlage der Anfahrt- und Heimweg-km in
 /// «Fahrten aus der Kette» (Richtung egal: Heimweg = Anfahrt rückwärts).
-///
-/// Seitenweise mit `.order('id')`: 802 Zeilen am 27.09.2026 — zwei Startorte
-/// je Betrieb reissen die 1000er-Grenze von PostgREST bald, und dann fehlten
-/// still Distanzen.
 final anfahrtsDistanzenProvider =
-    FutureProvider<Map<String, Map<String, double>>>((ref) async {
-      const seite = 1000;
-      final map = <String, Map<String, double>>{};
-      for (var ab = 0; ; ab += seite) {
-        final rows = await SupabaseService.client
-            .from('anfahrtszeiten')
-            .select('id, startort, betrieb_id, distanz_km')
-            .order('id')
-            .range(ab, ab + seite - 1);
-        for (final r in rows) {
-          final startort = r['startort'] as String?;
-          final betriebId = r['betrieb_id'] as String?;
-          final km = switch (r['distanz_km']) {
-            num n => n.toDouble(),
-            String s => double.tryParse(s),
-            _ => null,
-          };
-          if (startort == null || betriebId == null || km == null) continue;
-          (map[startort] ??= {})[betriebId] = km;
-        }
-        if (rows.length < seite) break;
-      }
-      return map;
-    });
+    FutureProvider<Map<String, Map<String, double>>>(
+      (ref) async => (await ref.watch(anfahrtenProvider.future)).distanzen,
+    );
 
 /// Welcher der erfassten Startorte passt zur heutigen Startposition?
 /// Ohne GPS (oder weiter als 5 km von beiden weg — dann ist es keiner der
