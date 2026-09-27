@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 27.09.2026 — v0.147.0 Fahrten aus der Kette (Fahrtenerkennung Stufe 1): Fahrten je Tag mit km und Zähler-Kontrolle
 - 26.09.2026 — v0.146.0 Restposten-Runde: analyze 0, Datumsauswahl deutsch, CanvasKit-Ratsche 83, Tourenplan-Ladefenster, Altlasten
 - 26.09.2026 — v0.145.0 Touren auf einen anderen Tag verschieben (Stopp und ganzer Tag)
 - 26.09.2026 — v0.144.0 Analyse-Runde 5: Tagesbetrieb (Start-Weg, Entwurf, Heute-Karte, Betriebs-Akte, Zahlungsart)
@@ -32,6 +33,54 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 27.09.2026 — v0.147.0 Fahrten aus der Kette (Fahrtenerkennung Stufe 1)
+
+Plan `docs/superpowers/plans/2026-09-27-fahrten-aus-kette.md`, Grundlage
+`docs/analyse-2026-09-26-fahrtenerkennung.md`. Entscheide Daniel 27.09.:
+kein Fahrtenbuch als Steuerbeleg, keine gekaufte Bibliothek, Stufe 1 bauen.
+Migration 210 (`fahrzeiten.distanz_km`, `distanz_quelle`), Edge Function
+`fahrzeit-route` liefert und speichert jetzt auch die Strecke (OSRM), bei
+Cache-Zeilen ohne Distanz einmalig nachgeholt.
+
+- **Idee:** Für einen Servicetechniker sind alle Halte bekannt. Fahrten sind
+  die Lücken zwischen Arbeitsbeginn, Einsätzen und Feierabend — kein
+  GPS-Tracking, kein Akku, keine Berechtigung, läuft im Browser.
+- **Regeln** (`lib/core/util/fahrten_aus_kette.dart`, rein und getestet):
+  Halte aus Reinigungen (`uhrzeit_start/ende`), Störungen/Montagen
+  (`arbeit_von/bis`, sonst Wegpunkt-Stempel — aber nur, wenn der Stempel
+  ≤ 300 m vom Betrieb gemacht wurde; 17 von 28 Störungs-Stempeln stammen
+  vom Wohnort abends), Startort morgens/abends aus GPS (`startortSchluessel`),
+  «Arbeitsbeginn unterwegs» als eigener Halt, wenn die Startposition zu keinem
+  Startort passt; Halte am selben Betrieb ≤ 15 min verschmelzen; km je Fahrt
+  aus `anfahrtszeiten.distanz_km` (Startort), `fahrzeiten.distanz_km`
+  (Betrieb→Betrieb, beide Richtungen), sonst Luftlinie × kalibrierter
+  Umwegfaktor; Tages-Befund, wenn |Zähler − Fahrten| > max(5 km, 5 %), dazu
+  Einsätze ohne Zeit, fehlender Arbeitsbeginn/Feierabend, Einsatz ausserhalb
+  des Arbeitstags, Fahrten nur als Luftlinie.
+- **Anzeige:** Auswertung Arbeitstage → je Tag «Fahrten 100 km · Δ +8 km»
+  (rot bei Befund) und Kennzahl «Fahrten-km (Kette)»; Tipp → Detail
+  `/auswertungen/arbeitstage/<datum>/fahrten` mit Überblick, Befunden, einer
+  Karte je Fahrt (Zeiten, von → nach, km, Quelle) und «Einsätze ohne Zeit».
+- **Nachrouten:** Fehlende Betrieb→Betrieb-Distanzen holt die App beim
+  Betrachten über die Edge Function nach — höchstens 10 je Lauf, 30 je
+  Sitzung, seriell mit 1,1 s Abstand (OSRM-Demo erlaubt 1/s; ein erster
+  Testlauf hatte 3/s ausgelöst), nur für Tage mit Zählerstand. Die
+  Warteschlange gilt auch für den Tourenplan (der zeigt derweil die
+  Schätzung). Nebenbei behoben: `FahrzeitRepository.ladeAlle` und
+  `anfahrtszeiten` luden ohne Seiten (Deckel 1000, es sind 3614 bzw. 802).
+- Review (Opus): Stempel-Regel, Nachrouten-Deckel, Arbeitsbeginn unterwegs,
+  Befunde ausserhalb des Arbeitstags — alles vor dem Deploy eingebaut.
+- Browser geprüft (360 px): September-Auswertung (18 Tage, 140 Fahrten,
+  3382 km gegen Zähler 3247), Detail 23.09. (9 Fahrten, Δ +8 km), Detail
+  18.09. (Arbeitsbeginn unterwegs, 3 Einsätze ohne Zeit). Die Luftlinien-
+  Schätzungen ersetzen sich beim Betrachten durch geroutete Werte.
+- Nicht in dieser Stufe: Speichern/Bestätigen der Fahrten, Privatfahrten,
+  Startseite-Zeile nach Feierabend, Fahrzeit-Lernen mit km, GPS-Spur
+  (Stufe 2, nur Android; gemeinsames Paket `fahrten_kern` mit v2).
+- 2779 Tests grün, `flutter analyze` 0.
 
 ---
 

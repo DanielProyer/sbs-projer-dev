@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.146.0 live** (Restposten-Runde: analyze 0, deutsch, CanvasKit 83, Tourenplan-Altlasten; davor v0.145.0 Touren verschieben, v0.144.0 Runde 5) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **209e** · **2657 Tests grün**.
+**Stand:** **v0.147.0 live** (Fahrten aus der Kette — Fahrtenerkennung Stufe 1; davor v0.146.0 Restposten, v0.145.0 Touren verschieben) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **210** · **2779 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -200,6 +200,12 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.147.0** — Mehr → Auswertungen → Arbeitstage: Zeile «Fahrten … km ·
+  Δ …» je Tag, Kennzahl «Fahrten-km (Kette)»; Tag antippen → Fahrten-Detail
+  (Befunde, Fahrten mit km und Quelle, Einsätze ohne Zeit); Rückpfeil.
+  Tourenplan: Routen-Anfragen können bis ~45 s hinter der Warteschlange stehen
+  (zeigt derweil die Schätzung).
+
 - **v0.146.0** — Datumsauswahl irgendwo öffnen (deutsch, Montag zuerst);
   Störung bearbeiten → «Arbeit beginnen» (blau, TapKnopf) → «Beenden»;
   Bankabgleich → Abgleich-Vorschau → «Verbuchen»; Dokumente → PDF antippen
@@ -366,15 +372,15 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 🔨 Bauen, wenn wieder Zeit ist
 
-- **Fahrten aus der Kette (Stufe 1 Fahrtenerkennung, 2–3 Tage, Web-tauglich):**
-  Bewertung und Plan in `docs/analyse-2026-09-26-fahrtenerkennung.md`
-  (Entscheid Daniel 26.09.: keine gekaufte Bibliothek, selber bauen). Halte =
-  Einsätze + Startort, Fahrten = Lücken, km aus `anfahrtszeiten.distanz_km` +
-  OSRM Betrieb→Betrieb (`fahrzeiten` um `distanz_km` erweitern), Tages-km
-  gegen `km_stand − km_start` als Befund, Tabelle `fahrten` (herkunft
-  kette|gps|hand, privat, bestätigt_am). Stufe 2 (Android-Spur, gemeinsames
-  Paket `fahrten_kern` mit v2) erst danach. **Offener Entscheid Daniel:**
-  Fahrtenbuch als Steuerbeleg (ESTV, lückenlos, manipulationssicher) ja/nein?
+- ✅ **Fahrten aus der Kette (v0.147.0, 27.09.2026).** Entscheid Daniel: kein
+  Fahrtenbuch als Steuerbeleg (Pauschale bleibt). **Nach einer Woche prüfen:**
+  Schlägt der Befund «unerklärt» zu oft an (Toleranz max(5 km, 5 %) in
+  `kDifferenzToleranzKm`/`kDifferenzToleranzAnteil`)? Dann auf 10 km/5 %.
+  Störungen: ohne «Arbeit beginnen» am Betrieb bleiben sie «ohne Zeit» — der
+  Stempel vom Abschliessen zuhause zählt bewusst nicht. **Folgeideen:** Zeile
+  «Fahrten heute» auf der Startseite nach dem Feierabend; Fahrzeit-Lernen mit
+  km; Startort «Chur» automatisch, wenn Arbeitsbeginn dort; Stufe 2 (Android-
+  Spur, gemeinsames Paket `fahrten_kern` mit v2 — Heineken-Session baut A–D).
 
 - ✅ **Edge Function `send-rechnung-mail` abgesichert (v24, 25.09.2026):**
   JWT-Pflicht (Gateway `verify_jwt = true` + eigene Prüfung `/auth/v1/user`),
