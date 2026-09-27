@@ -10,6 +10,10 @@ final materialienStreamProvider = StreamProvider<List<Lager>>((ref) {
   return LagerRepository.watchAll();
 });
 
+// `valueOrNull` liefert beim Neuladen (invalidate) den letzten Stand weiter,
+// nicht `[]` — darauf verlässt sich die Kartenansicht des Material-Screens:
+// Nach jedem Bestand ± wird neu geladen, und ein kurzes itemCount 0 würfe
+// den PageView auf die erste Karte zurück (test/material_providers_test.dart).
 final materialienProvider = Provider<List<Lager>>((ref) {
   return ref.watch(materialienStreamProvider).valueOrNull ?? [];
 });
