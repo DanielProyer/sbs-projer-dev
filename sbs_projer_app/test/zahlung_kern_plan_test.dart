@@ -3,7 +3,7 @@ import 'package:sbs_projer_app/core/util/zahlung_kern_plan.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 Rechnung _r(String id, double brutto,
-        {double mwst = 0, double guthaben = 0, String status = 'gesendet', int stufe = 0}) =>
+        {double mwst = 0, double guthaben = 0, String status = 'offen', int stufe = 0}) =>
     Rechnung.fromJson({
       'id': id,
       'user_id': 'u',
@@ -33,8 +33,8 @@ void main() {
     expect(p.buchungen.single['beleg_typ'], 'zahlung');
     expect(p.updates['a']!['zahlung_betrag'], 108.10);
     expect(p.updates['a']!['zahlung_eingegangen_am'], '2026-09-26');
-    expect(p.vorher['a']!['zahlungsstatus'], 'gesendet');
-    expect(p.erwartet['a'], 'gesendet');
+    expect(p.vorher['a']!['zahlungsstatus'], 'offen');
+    expect(p.erwartet['a'], 'offen');
   });
 
   test('Kasse: Soll 1000, zahlungsweg kasse', () {
@@ -43,7 +43,8 @@ void main() {
     expect(p.buchungen.single['soll_konto'], 1000);
     expect(p.buchungen.single['zahlungsweg'], 'kasse');
     // Mahn-Stand zusätzlich in der Notiz (Journal; Rücknahme nutzt zahlungsgruppen.vorher).
-    expect(p.buchungen.single['notizen'], contains('"zahlungsstatus":"gesendet"'));
+    expect(p.buchungen.single['notizen'], contains('"zahlungsstatus":"offen"'));
+    expect(p.buchungen.single['notizen'], contains('"mahnung_stufe":0'));
   });
 
   test('Minderzahlung: 3805 netto + 2200 MWST im Satz der Rechnung, Bank gekuerzt', () {
@@ -135,7 +136,7 @@ void main() {
 
   test('Vorher-Stand traegt Mahnfelder und Guthaben', () {
     final p = zahlungKernPlan(
-        rechnungen: [_r('a', 100.00, status: 'mahnung_1', stufe: 2)],
+        rechnungen: [_r('a', 100.00, stufe: 2)],
         betrag: 100,
         datum: tag,
         weg: ZahlungWeg.kasse);
@@ -199,7 +200,9 @@ void main() {
   });
 
   group('Heineken (ungerundet, Befund B2)', () {
-    Rechnung hei(double brutto) => Rechnung.fromJson({
+    // Seit Migration 211: Status `offen`, die Freigabe steht in
+    // freigegeben_am.
+    Rechnung hei(double brutto, {bool freigegeben = true}) => Rechnung.fromJson({
           'id': 'h',
           'user_id': 'u',
           'rechnungsnummer': 'HEI-1',
@@ -210,7 +213,9 @@ void main() {
           'betrag_netto': 1000,
           'mwst_betrag': brutto - 1000,
           'betrag_brutto': brutto,
-          'zahlungsstatus': 'freigegeben',
+          'zahlungsstatus': 'offen',
+          'versendet_am': '2026-09-02',
+          'freigegeben_am': freigegeben ? '2026-09-05T08:00:00Z' : null,
         });
 
     test('exakt auf den Rappen, keine 5-Rappen-Rundung, keine Differenz', () {
@@ -225,9 +230,21 @@ void main() {
       expect(b['beschreibung'], 'Zahlungseingang Heineken 08/2026');
       expect(b['camt_tx_key'], 'tx1');
       expect(p.updates['h']!['zahlung_betrag'], 1081.02);
-      expect(p.erwartet['h'], 'freigegeben');
+      expect(p.erwartet['h'], 'offen');
       expect(p.camtTxKeys, ['tx1']);
       expect(p.differenz, 0);
+    });
+
+    test('nicht freigegeben (freigegeben_am leer): Fehler statt Plan', () {
+      expect(
+        () => zahlungKernPlan(
+            rechnungen: [hei(1081.02, freigegeben: false)],
+            betrag: 1081.02,
+            datum: tag,
+            weg: ZahlungWeg.bank),
+        throwsA(isA<ZahlungPlanFehler>().having(
+            (e) => e.text, 'text', contains('nicht freigegeben'))),
+      );
     });
 
     test('abweichender Betrag, Sammlung oder Kasse: Fehler statt Plan', () {

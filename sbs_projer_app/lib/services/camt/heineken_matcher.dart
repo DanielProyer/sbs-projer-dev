@@ -1,16 +1,21 @@
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
+import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 /// Darf eine Bankgutschrift diese Heineken-Monatsrechnung auf «bezahlt»
-/// setzen? Nur wenn sie **freigegeben** ist.
+/// setzen? Nur wenn sie offen UND **freigegeben** ist (`freigegeben_am`,
+/// seit Migration 211 statt des Status «freigegeben»).
 ///
-/// WARUM nicht schon ab `gesendet`: Erst die Freigabe bucht Debitor und
+/// WARUM nicht schon ab «gesendet»: Erst die Freigabe bucht Debitor und
 /// Ertrag (1100/3400). Setzt die Bank eine erst gesendete Rechnung direkt
 /// auf «bezahlt», wird die Freigabe übersprungen — die Ertragsbuchung
 /// entsteht dann nie, und 1100 läuft ins Minus (R3, App-Analyse 25.09.2026).
 /// Eine gesendete Rechnung bleibt deshalb in der Prüfliste, bis sie
-/// freigegeben ist.
+/// freigegeben ist. Dieselbe Sperre prüft `zahlung_erfassen` in der DB.
 bool heinekenZahlbar(Rechnung r) =>
-    r.rechnungstyp == 'heineken_monat' && r.zahlungsstatus == 'freigegeben';
+    r.rechnungstyp == 'heineken_monat' &&
+    r.zahlungsstatus == Zahlungsstatus.offen &&
+    r.freigegebenAm != null;
 
 /// Warum eine Bankzahlung die (frisch gelesene) Heineken-Rechnung [r]
 /// NICHT auf «bezahlt» setzen darf — `null` = darf.
@@ -18,11 +23,12 @@ String? heinekenSperrgrund(Rechnung? r) {
   if (r == null) return 'Heineken-Rechnung nicht mehr vorhanden — nicht gebucht.';
   if (heinekenZahlbar(r)) return null;
   final nr = r.rechnungsnummer ?? r.id;
-  if (r.zahlungsstatus == 'bezahlt') {
-    return 'Heineken-Rechnung $nr ist schon bezahlt — nicht gebucht.';
+  if (!istOffen(r)) {
+    return 'Heineken-Rechnung $nr ist schon ${anzeigeStatus(r).toLowerCase()} '
+        '— nicht gebucht.';
   }
   return 'Heineken-Rechnung $nr ist nicht freigegeben '
-      '(Status «${r.zahlungsstatus}») — erst freigeben, dann Zahlung buchen.';
+      '(Status «${anzeigeStatus(r)}») — erst freigeben, dann Zahlung buchen.';
 }
 
 class HeinekenMatcher {

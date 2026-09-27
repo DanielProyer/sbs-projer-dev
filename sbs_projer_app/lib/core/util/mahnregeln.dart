@@ -41,14 +41,11 @@ extension MahnStufeX on MahnStufe {
   /// liesse). Für `mahnschreiben.stufe` (eigene Spalte, CHECK BETWEEN 0 AND 2,
   /// deckungsgleich mit dem Enum) wird bewusst `index` verwendet, nicht `wert`
   /// — siehe `MahnlaufService`.
+  ///
+  /// Seit Migration 211 trägt `mahnung_stufe` die Mahnung ALLEIN — der
+  /// `zahlungsstatus` bleibt `offen` (früher `erinnert`/`mahnung_1`/
+  /// `mahnung_2`).
   int get wert => index + 1;
-
-  /// Wert von `rechnungen.zahlungsstatus` nach dieser Stufe.
-  String get status => switch (this) {
-        MahnStufe.erinnerung => 'erinnert',
-        MahnStufe.mahnung1 => 'mahnung_1',
-        MahnStufe.letzte => 'mahnung_2',
-      };
 
   String get titel => switch (this) {
         MahnStufe.erinnerung => 'Zahlungserinnerung',
@@ -101,30 +98,30 @@ MahnStufe? faelligeStufe(Rechnung r, {required DateTime stichtag}) {
   final grenze = _plus(stichtag, -kPufferVorStichtagTage);
   bool erreicht(DateTime ab) => !ab.isAfter(grenze);
 
-  switch (r.zahlungsstatus) {
-    case 'erinnert':
+  // I-4 (Review 23.09.2026): Nur ein bekannter Status löst eine Stufe aus.
+  // Ein unbekannter Wert (z. B. ein Altwert vor Migration 211) ist immer ein
+  // Zeichen, dass hier NICHT stur nach Fälligkeit gemahnt werden darf.
+  if (!kZahlbareStatus.contains(r.zahlungsstatus)) return null;
+
+  // Seit 211 steht die Mahnung allein in `mahnung_stufe` (1 = erinnert,
+  // 2 = 1. Mahnung, 3 = letzte) — der Status bleibt `offen`.
+  switch (mahnstufeVon(r)) {
+    case 0:
+      return erreicht(_plus(massgebendeFaelligkeit(r), kErinnerungNachTagen))
+          ? MahnStufe.erinnerung
+          : null;
+    case 1:
       final frist = r.mahnFristBis ??
           (r.erinnerungAm != null ? _plus(r.erinnerungAm!, kMahnFristTage) : null);
       if (frist == null) return null;
       return erreicht(_plus(frist, kNaechsteStufeNachFrist)) ? MahnStufe.mahnung1 : null;
-    case 'mahnung_1':
+    case 2:
       final frist = r.mahnFristBis ??
           (r.mahnung1Am != null ? _plus(r.mahnung1Am!, kMahnFristTage) : null);
       if (frist == null) return null;
       return erreicht(_plus(frist, kNaechsteStufeNachFrist)) ? MahnStufe.letzte : null;
-    case 'mahnung_2':
-      return null; // weiter mit Heineken (Teil 2)
-    case 'offen':
-    case 'gesendet':
-      return erreicht(_plus(massgebendeFaelligkeit(r), kErinnerungNachTagen))
-          ? MahnStufe.erinnerung
-          : null;
     default:
-      // I-4 (Review 23.09.2026): Nur bekannte Status lösen die erste Stufe
-      // aus. Ein unbekannter oder abweichender Status (z. B. «storniert»,
-      // «freigegeben») ist immer ein Zeichen, dass hier NICHT stur nach
-      // Fälligkeit gemahnt werden darf.
-      return null;
+      return null; // letzte Mahnung: weiter mit Heineken (Teil 2)
   }
 }
 
@@ -133,7 +130,11 @@ MahnStufe? faelligeStufe(Rechnung r, {required DateTime stichtag}) {
 /// (Mahnwesen Teil 2, Spec §2/§5). Gleicher Stichtag wie [faelligeStufe]:
 /// Ende des letzten Bankauszugs, nicht heute.
 bool eskalationFaellig(Rechnung r, {required DateTime stichtag}) {
-  if (!imMahnbereich(r) || r.zahlungsstatus != 'mahnung_2') return false;
+  if (!imMahnbereich(r) ||
+      !kZahlbareStatus.contains(r.zahlungsstatus) ||
+      mahnstufeVon(r) < MahnStufe.letzte.wert) {
+    return false;
+  }
   final frist = r.mahnFristBis ??
       (r.mahnung2Am != null ? _plus(r.mahnung2Am!, kMahnFristTage) : null);
   if (frist == null) return false;

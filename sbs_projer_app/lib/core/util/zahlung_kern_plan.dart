@@ -49,7 +49,9 @@ class ZahlungKernPlan {
   /// rechnung_id → Vorher-Stand (Status, 6 Mahnfelder, guthaben_verrechnet)
   final Map<String, Map<String, dynamic>> vorher;
 
-  /// rechnung_id → Status, den die App gesehen hat
+  /// rechnung_id → Status, den die App gesehen hat. Seit Migration 211 bei
+  /// jeder zahlbaren Rechnung `offen` — einen Mahnlauf zwischen Lesen und
+  /// Zahlen erkennt `zahlung_erfassen` deshalb an `vorher[id].mahnung_stufe`.
   final Map<String, String> erwartet;
   final List<String> camtTxKeys;
   final double differenz;
@@ -104,6 +106,14 @@ ZahlungKernPlan _heinekenPlan(List<Rechnung> rechnungen, double betrag,
     throw const ZahlungPlanFehler('Heineken zahlt nur per Bank');
   }
   final r = rechnungen.single;
+  // Seit Migration 211 steht die Freigabe in `freigegeben_am` (vorher Status
+  // «freigegeben»). Ohne Freigabe fehlt die Ertragsbuchung 1100/3400 — die
+  // Zahlung triebe 1100 ins Minus (R3). Die DB prüft dasselbe; hier
+  // scheitert es schon in der Planung, mit lesbarem Grund.
+  if (r.freigegebenAm == null) {
+    throw ZahlungPlanFehler('Heineken-Rechnung ${r.rechnungsnummer ?? r.id} '
+        'ist nicht freigegeben — erst freigeben, dann Zahlung buchen');
+  }
   final brutto = rundeAufRappen(r.betragBrutto);
   if ((rundeAufRappen(betrag) - brutto).abs() >= 0.005) {
     throw ZahlungPlanFehler('Heineken-Zahlung ${rundeAufRappen(betrag)} ≠ '

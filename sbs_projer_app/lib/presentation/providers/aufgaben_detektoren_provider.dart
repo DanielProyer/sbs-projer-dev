@@ -68,14 +68,18 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
     final vormonat = DateTime(heute.year, heute.month - 1, 1);
     final rows = await client
         .from('rechnungen')
-        .select('zahlungsstatus')
+        .select('zahlungsstatus, versendet_am')
         .eq('rechnungstyp', 'heineken_monat')
         .eq('heineken_monat', vormonat.toIso8601String().split('T').first)
         .limit(1);
+    // «offen» heisst hier «noch nicht versendet» — seit Migration 211 steht
+    // das in versendet_am, der Status bleibt bis zur Zahlung `offen`.
     final a = heinekenAufgabe(
       heute: heute,
       rechnungExistiert: rows.isNotEmpty,
-      rechnungOffen: rows.isNotEmpty && rows.first['zahlungsstatus'] == 'offen',
+      rechnungOffen: rows.isNotEmpty &&
+          rows.first['zahlungsstatus'] == 'offen' &&
+          rows.first['versendet_am'] == null,
     );
     if (a != null) detektoren.add(a);
   } catch (e) {
@@ -131,6 +135,8 @@ final aufgabenDetektorenProvider = FutureProvider<List<Aufgabe>>((ref) async {
         .from('rechnungen')
         .select('id, betrieb_id, created_at')
         .eq('zahlungsstatus', 'offen')
+        // Seit Migration 211: ohne Vermerk = versendet_am leer.
+        .isFilter('versendet_am', null)
         .neq('rechnungstyp', 'heineken_monat')
         .lt('created_at', grenze.toIso8601String())
         .gte('created_at', ab.toIso8601String())

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:sbs_projer_app/core/util/guthaben_verrechnung.dart';
 import 'package:sbs_projer_app/core/config/mail_config.dart';
 import 'package:sbs_projer_app/core/util/rechnung_mail_text.dart';
 import 'package:sbs_projer_app/core/util/rechnung_nachhol_plan.dart';
@@ -101,23 +100,19 @@ class ReinigungRechnungVersand {
   ) =>
       pdfFehlt ? e.mitPdfHinweis() : e;
 
-  /// Hält den erfolgten Versand fest: `versendet_am` immer, den Status nur
-  /// `offen` → `gesendet` (R4, Analyse 25.09.2026).
+  /// Hält den erfolgten Versand fest — NUR `versendet_am`, kein Status.
   ///
-  /// WARUM zwei Schritte: Früher setzte ein Update pauschal `gesendet` — ein
-  /// Neuversand hätte eine bezahlte, gemahnte oder mit Guthaben gedeckte
-  /// Rechnung zurückgedreht. Der Status-Schritt läuft deshalb mit
-  /// `.eq(zahlungsstatus, offen)` gegen den DB-Stand, nicht gegen den
-  /// (vielleicht veralteten) Stand im Speicher. Dieselbe Regel gilt
-  /// serverseitig in `send-rechnung-mail`.
-  ///
-  /// Auch die Heineken-Monatsrechnung vermerkt ihren Versand hier (B3): Ihr
-  /// `freigegeben`/`bezahlt` darf ein Versand ebenso wenig zurückdrehen.
+  /// WARUM (Migration 211, 27.09.2026): Bis dahin hob der Versand zusätzlich
+  /// `offen` → `gesendet` (R4: nur von `offen` aus, sonst hätte ein
+  /// Neuversand eine bezahlte oder gemahnte Rechnung zurückgedreht). Seit 211
+  /// IST die Zustellung `versendet_am`; der Status sagt nur noch, ob Geld
+  /// fliesst. Ein Versand kann ihn also gar nicht mehr zurückdrehen — auch
+  /// nicht bei der Heineken-Monatsrechnung (B3), deren Freigabe in
+  /// `freigegeben_am` steht.
   static Future<void> vermerkeVersand(Rechnung rechnung) async {
     await RechnungRepository.update(rechnung.id, {
       'versendet_am': versendetAmFeld(rechnung),
     });
-    await hebeStatusNachVersand(rechnung);
   }
 
   /// Wert für `versendet_am` nach einem Versand von [rechnung] (Stand VOR
@@ -134,22 +129,6 @@ class ReinigungRechnungVersand {
           .toIso8601String()
           .split('T')
           .first;
-
-  /// Nur der Status-Schritt von [vermerkeVersand]: `offen` → `gesendet`,
-  /// abgesichert gegen den DB-Stand. Für Aufrufer, die `versendet_am` selbst
-  /// schreiben (Neuversand im Rechnungsdetail).
-  static Future<void> hebeStatusNachVersand(Rechnung rechnung) async {
-    final ziel = statusNachVersand(
-      rechnung.zahlungsstatus,
-      vollMitGuthabenGedeckt: istVollMitGuthabenGedeckt(rechnung),
-    );
-    if (ziel == rechnung.zahlungsstatus) return;
-    await RechnungRepository.updateWennStatus(
-      rechnung.id,
-      {'zahlungsstatus': ziel},
-      erwarteterStatus: 'offen',
-    );
-  }
 
   /// Erstellt die Rechnung falls noch keine existiert und versendet sie.
   static Future<ReinigungVersandErgebnis> erstelleUndSende(
@@ -246,17 +225,17 @@ class ReinigungRechnungVersand {
             'protokollFotoPfad': r.protokollFotoPfad,
       });
 
-      // Status/versendet_am NUR bei scharfem Versand setzen (im Testmodus ging
-      // die Mail an den Testempfänger, nicht an den Kunden).
+      // versendet_am NUR bei scharfem Versand setzen (im Testmodus ging die
+      // Mail an den Testempfänger, nicht an den Kunden).
       //
       // Bleibt als Rückfall neben dem serverseitigen Vermerk: Beide Wege sind
-      // idempotent (der Server hebt `offen` → `gesendet`, hier passiert bei
-      // gleichem Ergebnis nichts Neues). Kommt die Antwort an, ist der Status
-      // ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
+      // idempotent (der Server setzt versendet_am, falls leer; hier passiert
+      // bei gleichem Ergebnis nichts Neues). Kommt die Antwort an, ist der
+      // Vermerk ohnehin schon gesetzt; kommt sie nicht an, hat der Server ihn.
       //
       // NUR ohne Hinweis: Mit Hinweis kam die Antwort nicht an. Ist der Stand
       // «unklar», wäre ein Client-Vermerk eine Behauptung ohne Beleg — die
-      // Rechnung stünde auf `gesendet` und würde nie nachgeholt. Ist sie
+      // Rechnung stünde als gesendet da und würde nie nachgeholt. Ist sie
       // «laut Server versendet», steht der Vermerk schon.
       if (versandHinweis == null && MailConfig.istScharf('reinigung')) {
         versandHinweis = await _vermerkeMitNachfrage(rechnung);

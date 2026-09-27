@@ -18,10 +18,12 @@ class MonatsKontext {
   final List<Einsatz> einsaetze;
 
   /// Reinigungen des Monats mit Zahlungsart «Rechnung per Mail», deren
-  /// Rechnung noch auf «offen» steht (Versandvermerk fehlt).
+  /// Rechnung noch unbezahlt ohne `versendet_am` ist (Versandvermerk fehlt).
   final int mailRechnungenOffen;
 
-  /// `zahlungsstatus` der Heineken-Monatsrechnung; `null` = keine Rechnung.
+  /// Stufe der Heineken-Monatsrechnung (`heinekenStufe`: offen, gesendet,
+  /// freigegeben, bezahlt — seit Migration 211 aus den Feldern, nicht mehr
+  /// der rohe `zahlungsstatus`); `null` = keine Rechnung.
   final String? heinekenStatus;
 
   /// Steht die Ertragsbuchung der Freigabe (1100/3400) zur Heineken-

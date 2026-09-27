@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:sbs_projer_app/data/local/reinigung_local_export.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 
@@ -38,10 +39,8 @@ KorrekturSperre korrekturSperre({
     return KorrekturSperre.jahresrechnung;
   }
   if (imMahnfall) return KorrekturSperre.mahnfall;
-  if (rechnung.mahnungStufe > 0 ||
-      Zahlungsstatus.gemahnt.contains(rechnung.zahlungsstatus)) {
-    return KorrekturSperre.gemahnt;
-  }
+  // Seit Migration 211 steht die Mahnung allein in `mahnung_stufe`.
+  if (mahnstufeVon(rechnung) > 0) return KorrekturSperre.gemahnt;
   if (rechnung.versendetAm != null || rechnung.uebergebenAm != null) {
     return KorrekturSperre.versendet;
   }

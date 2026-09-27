@@ -106,9 +106,10 @@ class RechnungRepository {
   }
 
   /// PostgREST-`or` für «offen»: jeder Status ausser
-  /// [Zahlungsstatus.erledigt], dazu NULL (die Spalte ist nullbar; `fromJson`
-  /// macht daraus 'offen'). Ein `not in (bezahlt, abgeschrieben)` liesse
-  /// NULL-Zeilen still wegfallen — die NULL-Falle wie bei `neq`.
+  /// [Zahlungsstatus.erledigt] (seit Migration 211 nur noch `offen`), dazu
+  /// NULL — die Spalte ist seit 211 NOT NULL, `is.null` bleibt als Sicherung
+  /// (`fromJson` macht aus NULL 'offen'; ein `not in (bezahlt, abgeschrieben)`
+  /// liesse NULL-Zeilen still wegfallen — die NULL-Falle wie bei `neq`).
   static String get _offenFilter {
     final offen = Zahlungsstatus.alle.difference(Zahlungsstatus.erledigt);
     return 'zahlungsstatus.is.null,zahlungsstatus.in.(${offen.join(',')})';
@@ -193,10 +194,17 @@ class RechnungRepository {
   /// Zahlungseingang vermerkt ist — ein Vermerk ohne nachgezogenen Status
   /// darf nie in eine Mahnung laufen. Beim Zurücknehmen nicht: Dort setzt
   /// das Update nur Mahnfelder zurück, der Zahlungsvermerk bleibt stehen.
+  ///
+  /// [erwarteteStufe]: zusätzlich nur, solange `mahnung_stufe` diese ist.
+  /// WARUM (Migration 211): Beim Mahnen bleibt der Status `offen` — ein
+  /// zweiter Mahnlauf auf einem anderen Gerät ist nur noch an der Stufe zu
+  /// erkennen. `mahnung_stufe` ist seit 211 NOT NULL, `.eq` verfehlt also
+  /// keine NULL-Zeile.
   static Future<bool> updateWennStatus(
     String id,
     Map<String, dynamic> fields, {
     required String erwarteterStatus,
+    int? erwarteteStufe,
     bool nurOhneZahlung = false,
   }) async {
     var q = SupabaseService.client
@@ -204,8 +212,37 @@ class RechnungRepository {
         .update(fields)
         .eq('id', id)
         .eq('zahlungsstatus', erwarteterStatus);
+    if (erwarteteStufe != null) q = q.eq('mahnung_stufe', erwarteteStufe);
     if (nurOhneZahlung) q = q.isFilter('zahlung_eingegangen_am', null);
     final rows = await q.select('id');
+    return rows.isNotEmpty;
+  }
+
+  /// Heineken «Auf gesendet zurücksetzen»: `freigegeben_am` leeren — nur
+  /// solange die Rechnung (DB-Stand) unbezahlt ist. `false` = keine Zeile
+  /// getroffen. Die Buchungsprüfung macht der Aufrufer
+  /// (`freigabeRuecknahmeSperre`).
+  static Future<bool> freigabeZuruecknehmen(String id) async {
+    final rows = await SupabaseService.client
+        .from('rechnungen')
+        .update({'freigegeben_am': null})
+        .eq('id', id)
+        .eq('zahlungsstatus', Zahlungsstatus.offen)
+        .select('id');
+    return rows.isNotEmpty;
+  }
+
+  /// Heineken «Auf nicht versendet zurücksetzen»: `versendet_am` leeren (die
+  /// Mail lässt sich dann neu schicken) — nur solange unbezahlt und nicht
+  /// freigegeben (DB-Stand). `false` = keine Zeile getroffen.
+  static Future<bool> versandZuruecknehmen(String id) async {
+    final rows = await SupabaseService.client
+        .from('rechnungen')
+        .update({'versendet_am': null})
+        .eq('id', id)
+        .eq('zahlungsstatus', Zahlungsstatus.offen)
+        .isFilter('freigegeben_am', null)
+        .select('id');
     return rows.isNotEmpty;
   }
 

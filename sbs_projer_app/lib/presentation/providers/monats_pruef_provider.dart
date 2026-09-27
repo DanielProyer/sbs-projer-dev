@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/einsatz.dart';
 import 'package:sbs_projer_app/core/util/einsatz_lage.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/camt_datei_repository.dart';
 import 'package:sbs_projer_app/data/repositories/lohn_repository.dart';
@@ -104,13 +105,26 @@ final monatsPruefungProvider = FutureProvider.autoDispose
       try {
         final rows = await client
             .from('rechnungen')
-            .select('id, rechnungsnummer, zahlungsstatus')
+            .select(
+              'id, rechnungsnummer, zahlungsstatus, versendet_am, freigegeben_am',
+            )
             .eq('user_id', uid)
             .eq('rechnungstyp', 'heineken_monat')
             .eq('heineken_monat', vonStr)
             .limit(1);
         if (rows.isNotEmpty) {
-          heinekenStatus = rows.first['zahlungsstatus'] as String?;
+          // Stufe aus den Feldern (Migration 211) — der Status allein sagt
+          // nur noch offen/bezahlt.
+          final z = rows.first;
+          heinekenStatus = heinekenStufe(
+            zahlungsstatus: (z['zahlungsstatus'] as String?) ?? 'offen',
+            versendetAm: z['versendet_am'] == null
+                ? null
+                : DateTime.parse(z['versendet_am'] as String),
+            freigegebenAm: z['freigegeben_am'] == null
+                ? null
+                : DateTime.parse(z['freigegeben_am'] as String),
+          );
           heinekenId = rows.first['id']?.toString();
           heinekenNr = rows.first['rechnungsnummer'] as String?;
           // Ab «freigegeben» muss die Ertragsbuchung stehen (R3) — der
@@ -129,7 +143,9 @@ final monatsPruefungProvider = FutureProvider.autoDispose
 
       // Mail-Rechnungen ohne Versandvermerk: Die Zahlungsart steht an der
       // Reinigung, nicht an der Rechnung — deshalb über die Reinigungen des
-      // Monats und deren Rechnungsstatus.
+      // Monats und deren Rechnungsstatus. Seit Migration 211 heisst «ohne
+      // Vermerk» unbezahlt UND `versendet_am` leer (vorher Status `offen`,
+      // der jetzt auch die versendeten umfasst).
       var mailRechnungenOffen = 0;
       try {
         final rows = await client
@@ -137,6 +153,7 @@ final monatsPruefungProvider = FutureProvider.autoDispose
             .select('id, betrieb_id, created_at')
             .eq('user_id', uid)
             .eq('zahlungsstatus', 'offen')
+            .isFilter('versendet_am', null)
             .neq('rechnungstyp', 'heineken_monat')
             .gte('created_at', vonStr)
             .lte('created_at', '${bisStr}T23:59:59');

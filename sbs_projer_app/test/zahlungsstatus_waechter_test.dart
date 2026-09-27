@@ -6,22 +6,27 @@ import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 /// Hält `Zahlungsstatus.alle` synchron mit dem DB-CHECK.
 ///
 /// WARUM: `rechnungen.zahlungsstatus` hat einen CHECK-Constraint. Frühere
-/// Werte (entwurf, versendet, gestellt, teilbezahlt, ueberfaellig,
-/// storniert) wurden in den Migrationen 081–083 entfernt — Code, der sie
-/// schreibt, wirft eine PostgrestException. Ohne Wächter merkt man das erst
-/// live, nicht beim `flutter analyze`.
+/// Werte wurden entfernt — Code, der sie schreibt, wirft eine
+/// PostgrestException. Ohne Wächter merkt man das erst live, nicht beim
+/// `flutter analyze`:
+/// - 081–083: entwurf, versendet, gestellt, teilbezahlt, ueberfaellig,
+///   storniert;
+/// - 211 (27.09.2026, Statusmodell-Zielbild): gesendet, freigegeben,
+///   erinnert, mahnung_1, mahnung_2 — seither nur noch
+///   'offen', 'bezahlt', 'abgeschrieben'. Zustellung, Mahnstufe und
+///   Heineken-Freigabe sind Felder (`versendet_am`/`uebergeben_am`,
+///   `mahnung_stufe`, `freigegeben_am`).
 ///
 /// Dieser Test liest alle SQL-Migrationen, findet den LETZTEN CHECK, der
-/// `zahlungsstatus` einschränkt (Stand 26.09.2026: 083_heineken_zahlungsstatus.sql
-/// — 'offen', 'gesendet', 'freigegeben', 'bezahlt', 'erinnert', 'mahnung_1',
-/// 'mahnung_2', 'abgeschrieben') und vergleicht ihn mit [Zahlungsstatus.alle].
-/// Kommt eine neue Migration mit einem neuen CHECK dazu, schlägt der Test an
-/// und zeigt genau, was fehlt.
+/// `zahlungsstatus` einschränkt (Stand 27.09.2026:
+/// 211_zahlungsstatus_zielbild.sql) und vergleicht ihn mit
+/// [Zahlungsstatus.alle]. Kommt eine neue Migration mit einem neuen CHECK
+/// dazu, schlägt der Test an und zeigt genau, was fehlt.
 ///
 /// GRENZE: Erkannt wird nur die Schreibweise `CHECK (zahlungsstatus IN (...))`.
 /// Eine künftige Migration in der Form `= ANY (ARRAY[...])` fände der Regex
 /// nicht — dann bliebe der Test grün, obwohl die Liste veraltet ist. Neue
-/// CHECKs deshalb in derselben Schreibweise wie 083 formulieren.
+/// CHECKs deshalb in derselben Schreibweise wie 083/211 formulieren.
 void main() {
   test('Zahlungsstatus.alle entspricht dem letzten DB-CHECK', () {
     final migrationsOrdner = Directory('../Datenbank/migrations');
@@ -39,9 +44,8 @@ void main() {
             .toList()
           ..sort((a, b) => a.path.compareTo(b.path));
 
-    // CHECK-Constraints, die zahlungsstatus einschränken, sehen in 081–083 so
-    // aus:
-    //   CHECK (zahlungsstatus IN ('offen', 'gesendet', ...));
+    // CHECK-Constraints, die zahlungsstatus einschränken, sehen so aus:
+    //   CHECK (zahlungsstatus IN ('offen', 'bezahlt', ...));
     // teils über mehrere Zeilen. Wir suchen "zahlungsstatus IN (...)" nur
     // innerhalb eines CHECK-Ausdrucks (nicht z. B. "WHERE ... IN (...)").
     final checkRegex = RegExp(
@@ -75,6 +79,11 @@ void main() {
       isNotNull,
       reason: 'Keine Migration mit CHECK auf zahlungsstatus gefunden.',
     );
+    expect(
+      letzteDatei!.replaceAll('\\', '/'),
+      endsWith('211_zahlungsstatus_zielbild.sql'),
+      reason: 'Der CHECK aus 211 muss der letzte sein.',
+    );
 
     expect(
       Zahlungsstatus.alle,
@@ -85,7 +94,12 @@ void main() {
     );
   });
 
-  test('kein Code schreibt einen frueheren Zahlungsstatus-Wert', () {
+  test('Zielbild: nur offen, bezahlt, abgeschrieben', () {
+    expect(Zahlungsstatus.alle, {'offen', 'bezahlt', 'abgeschrieben'});
+    expect(Zahlungsstatus.alle.intersection(Zahlungsstatus.altwerte), isEmpty);
+  });
+
+  test('kein Code schreibt, vergleicht oder filtert einen früheren Wert', () {
     final verstoesse = <String>[];
     final dateien = Directory('lib')
         .listSync(recursive: true)
@@ -94,12 +108,24 @@ void main() {
         .toList();
 
     for (final wert in Zahlungsstatus.altwerte) {
-      final muster1 = RegExp("'zahlungsstatus'\\s*:\\s*'$wert'");
-      final muster2 = RegExp("zahlungsstatus\\s*==\\s*'$wert'");
+      final muster = [
+        // 'zahlungsstatus': 'gesendet'
+        RegExp("'zahlungsstatus'\\s*:\\s*'$wert'"),
+        // zahlungsstatus == 'gesendet', r['zahlungsstatus'] != 'erinnert'
+        RegExp("zahlungsstatus'?\\]?\\s*[!=]=\\s*'$wert'"),
+        // .eq('zahlungsstatus', 'mahnung_1')
+        RegExp("\\.(eq|neq)\\(\\s*'zahlungsstatus'\\s*,\\s*'$wert'"),
+        // 'zahlungsstatus.eq.gesendet' in .or(...)
+        RegExp('zahlungsstatus\\.(eq|neq)\\.$wert\\b'),
+      ];
       for (final f in dateien) {
-        final text = f.readAsStringSync();
-        if (muster1.hasMatch(text) || muster2.hasMatch(text)) {
-          verstoesse.add('${f.path}: $wert');
+        final zeilen = f.readAsLinesSync();
+        for (var i = 0; i < zeilen.length; i++) {
+          final k = zeilen[i].indexOf('//');
+          final code = k == -1 ? zeilen[i] : zeilen[i].substring(0, k);
+          if (muster.any((m) => m.hasMatch(code))) {
+            verstoesse.add('${f.path}:${i + 1}: $wert');
+          }
         }
       }
     }
@@ -109,7 +135,7 @@ void main() {
       isEmpty,
       reason:
           'Code schreibt/vergleicht einen Zahlungsstatus-Wert, den der '
-          'DB-CHECK seit 081–083 nicht mehr erlaubt: $verstoesse',
+          'DB-CHECK nicht mehr erlaubt (081–083, 211): $verstoesse',
     );
   });
 }

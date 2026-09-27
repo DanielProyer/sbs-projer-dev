@@ -5,6 +5,8 @@ import 'package:sbs_projer_app/core/app_version.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/offene_pro_betrieb.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart'
+    show anzeigeStatus;
 import 'package:sbs_projer_app/core/util/rechnung_zustellung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:printing/printing.dart';
@@ -505,7 +507,9 @@ class _OffenProBetriebScreenState extends ConsumerState<OffenProBetriebScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  r.zahlungsstatus,
+                  // Dieselbe Übersetzung wie Liste und Detail — der rohe
+                  // Status sagt seit Migration 211 nur noch offen/bezahlt.
+                  anzeigeStatus(r),
                   style: TextStyle(
                     fontSize: 10,
                     color: AppColors.textSecondary,

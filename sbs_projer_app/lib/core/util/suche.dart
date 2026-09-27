@@ -8,6 +8,7 @@
 library;
 
 import 'package:sbs_projer_app/core/util/betrieb_status.dart';
+import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 
 const kSuchMindestLaenge = 2;
 const kSuchDeckel = 5;
@@ -108,6 +109,9 @@ typedef SuchRechnung = ({
   String? betriebName,
   DateTime datum,
   double brutto,
+
+  /// Anzeige-Schlüssel (`anzeigeSchluessel`), nicht der rohe DB-Status —
+  /// seit Migration 211 sagt der nur noch offen/bezahlt/abgeschrieben.
   String zahlungsstatus,
 });
 
@@ -239,21 +243,11 @@ String formatiereBrutto(double brutto) {
 }
 
 /// Lesbarer Rechnungsstatus für die Trefferzeile — roher Wert («mahnung_1»)
-/// ist für den Nutzer nicht selbsterklärend. Unbekannte/künftige Werte
-/// kommen unverändert durch, statt eine Zeile zu leeren.
-const _zahlungsstatusLabels = <String, String>{
-  'offen': 'offen',
-  'gesendet': 'gesendet',
-  'freigegeben': 'freigegeben',
-  'bezahlt': 'bezahlt',
-  'erinnert': 'erinnert',
-  'mahnung_1': '1. Mahnung',
-  'mahnung_2': '2. Mahnung',
-  'abgeschrieben': 'abgeschrieben',
-};
-
-String zahlungsstatusLesbar(String status) =>
-    _zahlungsstatusLabels[status] ?? status;
+/// ist für den Nutzer nicht selbsterklärend. Dieselben Wörter wie Liste und
+/// Detail ([anzeigeTextFuer]; bis Migration 211 eine eigene Tabelle, die
+/// «2. Mahnung» sagte, wo die Liste «Letzte Mahnung» zeigte). Unbekannte
+/// Werte kommen unverändert durch, statt eine Zeile zu leeren.
+String zahlungsstatusLesbar(String schluessel) => anzeigeTextFuer(schluessel);
 
 enum SuchGruppe { betriebe, personen, rechnungen, bereiche }
 

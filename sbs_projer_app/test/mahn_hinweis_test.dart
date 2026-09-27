@@ -4,6 +4,10 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 
 String? _t(DateTime? d) => d?.toIso8601String().split('T').first;
 
+/// Die Fälle unten sprechen in den alten Stufen-Wörtern; seit Migration 211
+/// steht die Mahnung in `mahnung_stufe`, der Status bleibt `offen`.
+const _stufeAus = {'erinnert': 1, 'mahnung_1': 2, 'mahnung_2': 3};
+
 Rechnung _r({
   String id = 'r1',
   required DateTime datum,
@@ -22,10 +26,10 @@ Rechnung _r({
       'betrag_netto': brutto / 1.081,
       'mwst_betrag': brutto - brutto / 1.081,
       'betrag_brutto': brutto,
-      'zahlungsstatus': status,
+      'zahlungsstatus': _stufeAus.containsKey(status) ? 'offen' : status,
       'versandart': 'rechnung_mail',
       'mahnung_1_am': _t(mahnung1),
-      'mahnung_stufe': 0,
+      'mahnung_stufe': _stufeAus[status] ?? 0,
     });
 
 void main() {

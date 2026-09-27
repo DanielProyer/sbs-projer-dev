@@ -105,3 +105,36 @@ Deno.test("jede Function hat einen [functions.<name>]-Eintrag in config.toml", (
   const verwaist = [...eintraege].filter((n) => !functionNamen().includes(n));
   assertEquals(verwaist, [], `config.toml nennt Functions ohne Ordner: ${verwaist.join(", ")}`);
 });
+
+// 4. Seit Migration 211 (27.09.2026) kennt `rechnungen.zahlungsstatus` nur
+//    noch offen/bezahlt/abgeschrieben. Zustellung = versendet_am, Mahnstufe =
+//    mahnung_stufe, Heineken-Freigabe = freigegeben_am. Bis dahin hob
+//    send-rechnung-mail den Status von "offen" auf "gesendet" — nach 211
+//    scheitert das am CHECK, und der Versandvermerk meldete Fehler, obwohl die
+//    Mail raus ist. Keine Function darf einen Altwert schreiben oder filtern.
+Deno.test("keine Function kennt die alten Zahlungsstatus-Werte", () => {
+  const re =
+    /zahlungsstatus["']?\s*[:=]\s*(?:eq\.|neq\.)?["']?(gesendet|freigegeben|erinnert|mahnung_1|mahnung_2)\b/;
+  const treffer: string[] = [];
+  const pruefe = (datei: string) => {
+    const zeilen = Deno.readTextFileSync(datei).split("\n");
+    zeilen.forEach((z, i) => {
+      const k = z.indexOf("//");
+      const code = k === -1 ? z : z.slice(0, k);
+      if (re.test(code)) treffer.push(`${datei.slice(REPO_ROOT.length + 1)}:${i + 1}`);
+    });
+  };
+  const walk = (dir: string) => {
+    for (const e of Deno.readDirSync(dir)) {
+      const pfad = join(dir, e.name);
+      if (e.isDirectory) walk(pfad);
+      else if (e.name.endsWith(".ts") && !e.name.endsWith("_test.ts")) pruefe(pfad);
+    }
+  };
+  walk(FUNCTIONS_DIR);
+  assertEquals(
+    treffer,
+    [],
+    `Alter Zahlungsstatus in einer Function (seit 211 nur offen/bezahlt/abgeschrieben): ${treffer.join(", ")}`,
+  );
+});

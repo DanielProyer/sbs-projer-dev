@@ -139,7 +139,7 @@ class _HeinekenRechnungenListScreenState
                                     leading: CircleAvatar(
                                       backgroundColor: farbe.withAlpha(30),
                                       child: Icon(
-                                        _statusIcon(schluessel),
+                                        rechnungStatusSymbol(schluessel),
                                         color: farbe,
                                       ),
                                     ),
@@ -202,22 +202,6 @@ class _HeinekenRechnungenListScreenState
         ),
       ),
     );
-  }
-
-  /// Symbol zum Anzeige-Schlüssel ([anzeigeSchluessel]) — dieselben wie das
-  /// Status-Banner im Detail.
-  IconData _statusIcon(String schluessel) {
-    switch (schluessel) {
-      case 'offen': return Icons.hourglass_empty;
-      case 'gesendet': return Icons.send;
-      case 'freigegeben': return Icons.task_alt;
-      case 'bezahlt': return Icons.check_circle;
-      case 'erinnert': return Icons.notifications;
-      case 'mahnung_1': return Icons.warning;
-      case 'mahnung_2': return Icons.gavel;
-      case 'abgeschrieben': return Icons.block;
-      default: return Icons.receipt;
-    }
   }
 
   String _chf(double value) {
