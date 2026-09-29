@@ -137,6 +137,35 @@ void main() {
     expect(find.text('Steuerrückstellung 2025'), findsOneWidget);
   });
 
+  testWidgets('W2: Verlustjahr — Vorschlag 0, Abbau der ganzen Rückstellung '
+      'buchbar', (tester) async {
+    final e = await _oeffne(
+      tester,
+      lage: (
+        gewinnVorRueckstellung: -5000.0,
+        aufrechnungenAuto: 0.0,
+        gebucht: 4000.0,
+      ),
+    );
+    expect(_wert(tester, 'rueckstellung_vorschlag'), '0.00');
+    expect(_feld(tester, 'rueckstellung_ziel'), '0.00');
+    expect(_wert(tester, 'rueckstellung_differenz'), "4'000.00 · 2208 an 8900");
+    await tester.tap(find.byKey(const Key('rueckstellung_buchen')));
+    await tester.pumpAndSettle();
+    expect(e.fertig, isTrue);
+    expect(e.wert!.ziel, 0);
+  });
+
+  testWidgets('B7: Dialog sagt, dass die Buchung das Jahr abschliesst', (
+    tester,
+  ) async {
+    await _oeffne(tester);
+    expect(
+      find.textContaining('gilt 2025 danach als abgeschlossen'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Abbrechen gibt null zurück', (tester) async {
     final e = await _oeffne(tester);
     await tester.tap(find.text('Abbrechen'));

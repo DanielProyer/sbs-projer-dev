@@ -167,8 +167,11 @@ class _RueckstellungDialogState extends State<RueckstellungDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
+                // Derselbe Satz wie in der Delkredere-Rückfrage: Beide
+                // tragen beleg_typ «abschluss» (Review B7).
                 'Buchung per 31.12.${widget.jahr} gegen 8900 (Direkte '
-                'Steuern).',
+                'Steuern). Als Abschlussbuchung gilt ${widget.jahr} danach '
+                'als abgeschlossen.',
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,

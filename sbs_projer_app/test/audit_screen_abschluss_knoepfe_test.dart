@@ -8,8 +8,9 @@ import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart
 
 /// Abschlussprüfung: Knöpfe der Abschlussschritte D (Rückstellung) und E
 /// (Delkredere) — Entscheid Daniel 29.09.2026 «die Schritte in die App».
-/// Abgeschlossenes Jahr: beide per 31.12.; laufendes Jahr: Delkredere wie
-/// bisher heute, keine Rückstellung (der Gewinn steht noch nicht fest).
+/// Abschlussjahr (Vorjahr): beide per 31.12.; laufendes Jahr: Delkredere wie
+/// bisher heute, keine Rückstellung (der Gewinn steht noch nicht fest);
+/// ältere, eingereichte Jahre: keine Knöpfe (Review W1).
 
 Pruefbefund _befund(String id, PruefStatus s) => Pruefbefund(
   regelId: id,
@@ -49,20 +50,23 @@ void main() {
 
   final vorjahr = DateTime.now().year - 1;
 
-  testWidgets('abgeschlossenes Jahr: Delkredere per 31.12. und Rückstellung '
-      'buchen', (tester) async {
-    await _pumpe(
-      tester,
-      jahr: vorjahr,
-      befunde: [
-        _befund('delkredere', PruefStatus.gelb),
-        _befund('rueckstellung', PruefStatus.rot),
-      ],
-    );
-    expect(find.text('Delkredere per 31.12.$vorjahr buchen'), findsOneWidget);
-    expect(find.text('Rückstellung buchen'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'W1: Abschlussjahr (Vorjahr) → Delkredere per 31.12. und Rückstellung '
+    'buchen',
+    (tester) async {
+      await _pumpe(
+        tester,
+        jahr: vorjahr,
+        befunde: [
+          _befund('delkredere', PruefStatus.gelb),
+          _befund('rueckstellung', PruefStatus.rot),
+        ],
+      );
+      expect(find.text('Delkredere per 31.12.$vorjahr buchen'), findsOneWidget);
+      expect(find.text('Rückstellung buchen'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Rückstellung auch bei grüner Zeile (Nachführen), sobald '
       'grüne gezeigt werden', (tester) async {
@@ -77,6 +81,25 @@ void main() {
     expect(find.text('Rückstellung buchen'), findsOneWidget);
     // Delkredere im Lot → kein Knopf.
     expect(find.textContaining('Delkredere'), findsNothing);
+  });
+
+  testWidgets('W1: eingereichtes Jahr 2023 → keine Knöpfe, auch bei roten '
+      'Zeilen', (tester) async {
+    // Nur das Abschlussjahr (Vorjahr) bekommt die Buchungsschritte — ein
+    // Jahr, dessen Steuererklärung längst eingereicht ist, nicht.
+    await _pumpe(
+      tester,
+      jahr: 2023,
+      befunde: [
+        _befund('delkredere', PruefStatus.rot),
+        _befund('rueckstellung', PruefStatus.rot),
+      ],
+    );
+    // Die Zeilen stehen da (rot) …
+    expect(find.text('Hinweis delkredere'), findsOneWidget);
+    expect(find.text('Hinweis rueckstellung'), findsOneWidget);
+    // … aber ohne Buchungsknopf.
+    expect(find.textContaining('buchen'), findsNothing);
   });
 
   testWidgets('laufendes Jahr: Delkredere wie bisher, keine Rückstellung', (

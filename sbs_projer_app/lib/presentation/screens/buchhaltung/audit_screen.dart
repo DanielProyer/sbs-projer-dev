@@ -181,10 +181,14 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
   bool _delkredereLaeuft = false;
   bool _rueckstellungLaeuft = false;
 
-  /// Abgeschlossenes Jahr: Die Abschlussbuchungen (Delkredere, Rückstellung)
-  /// gehen per 31.12. dieses Jahres. Im laufenden Jahr gibt es kein 31.12.
-  /// mit fertigen Zahlen.
-  bool get _jahrAbgeschlossen => _jahr < DateTime.now().year;
+  /// Das Jahr, dessen Abschluss gerade ansteht (Vorjahr): Nur dort gehen die
+  /// Abschlussbuchungen (Delkredere, Rückstellung) per 31.12. Im laufenden
+  /// Jahr gibt es noch kein 31.12. mit fertigen Zahlen; ältere Jahre
+  /// (2019–2024) sind eingereicht und veranlagt — dort zeigte der Knopf
+  /// bei roten Zeilen zum Buchen in eine abgeschlossene Periode (Review W1).
+  bool get _abschlussJahr => _jahr == DateTime.now().year - 1;
+
+  bool get _laufendesJahr => _jahr == DateTime.now().year;
 
   void _meldung(String text) {
     if (!mounted) return;
@@ -212,11 +216,12 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
   }
 
   /// Delkredere (1109) auf 5 % der Debitoren (1100) — mit Rückfrage, weil es
-  /// eine Aufwandbuchung auf 3805 erzeugt. Abgeschlossenes Jahr: per 31.12.
+  /// eine Aufwandbuchung auf 3805 erzeugt. Abschlussjahr: per 31.12.
   /// ([_delkredereStichtagBuchen]); laufendes Jahr: heute gegen den heutigen
   /// Saldo (wie bisher).
   Future<void> _delkredereBuchen() async {
-    if (_jahrAbgeschlossen) return _delkredereStichtagBuchen(_jahr);
+    if (_abschlussJahr) return _delkredereStichtagBuchen(_jahr);
+    if (!_laufendesJahr) return;
     setState(() => _delkredereLaeuft = true);
     try {
       ref.invalidate(debitorenUebersichtProvider);
@@ -399,13 +404,16 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                   ),
                 // Früher im Debitoren-Header der Rechnungsliste, ohne
                 // Rückfrage (Analyse 25.09.2026 Befund E). Seit 29.09.2026
-                // auch für abgeschlossene Jahre: dort per 31.12. gegen die
-                // Debitoren per 31.12. (Jahresabschluss Schritt E).
-                if (b.regelId == 'delkredere' && b.status != PruefStatus.gruen)
+                // auch im Abschlussjahr: dort per 31.12. gegen die Debitoren
+                // per 31.12. (Jahresabschluss Schritt E). Ältere Jahre ohne
+                // Knopf (W1).
+                if (b.regelId == 'delkredere' &&
+                    b.status != PruefStatus.gruen &&
+                    (_abschlussJahr || _laufendesJahr))
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: TapKnopf(
-                      text: _jahrAbgeschlossen
+                      text: _abschlussJahr
                           ? 'Delkredere per 31.12.$_jahr buchen'
                           : 'Delkredere auf 5 % buchen',
                       icon: Icons.percent,
@@ -416,9 +424,10 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                   ),
                 // Schritt D: auch bei grüner Zeile, weil eine gebuchte
                 // Rückstellung nachgeführt werden kann (2025: 4'000 → 2'800
-                // nach Abschreibung Jahrgang 2020). Nur abgeschlossene
-                // Jahre — vorher steht der Gewinn nicht fest.
-                if (b.regelId == 'rueckstellung' && _jahrAbgeschlossen)
+                // nach Abschreibung Jahrgang 2020). Nur im Abschlussjahr —
+                // vorher steht der Gewinn nicht fest, ältere Jahre sind
+                // veranlagt (W1).
+                if (b.regelId == 'rueckstellung' && _abschlussJahr)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: TapKnopf(
