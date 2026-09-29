@@ -36,6 +36,7 @@ AbschlussKontext k({
   List<UnverbuchteReinigung> unverbuchteReinigungen = const [],
   int buchungenFalschesJahr = 0,
   double? rueckstellungGebucht,
+  double bussenAuf8900 = 0,
 }) => AbschlussKontext(
   jahr: jahr,
   heute: heute ?? DateTime(2026, 9, 2),
@@ -50,6 +51,7 @@ AbschlussKontext k({
   unverbuchteReinigungen: unverbuchteReinigungen,
   buchungenFalschesJahr: buchungenFalschesJahr,
   rueckstellungGebucht: rueckstellungGebucht,
+  bussenAuf8900: bussenAuf8900,
 );
 
 Pruefbefund f(List<Pruefbefund> l, String id) =>
@@ -343,22 +345,22 @@ void main() {
   );
   group('Steuerrückstellung mit Abschlussbuchung des Jahres (seit 29.09.2026)',
       () {
-    // Ertrag 2025 20'000, Rückstellung 4'000 per 31.12. → Gewinn vor
+    // Ertrag 2025 20'000, Rückstellung 3'100 per 31.12. → Gewinn vor
     // Rückstellung 20'000 → Vorschlag 0.182 · 20'000 / 1.182 = 3'079.5
     // → 3'100.
     final ertrag = b(1100, 3400, 20000, d);
-    final rueck = b(8900, 2208, 4000, DateTime(2025, 12, 31));
+    final rueck = b(8900, 2208, 3100, DateTime(2025, 12, 31));
 
-    test('gebucht → grün, Ist = Rückstellung, Vorschlag im Hinweis, keine '
-        'Route (Knopf in der Zeile)', () {
+    test('gebucht wie Vorschlag → grün, Ist = Rückstellung, Vorschlag im '
+        'Hinweis, keine Route (Knopf in der Zeile)', () {
       final x = f(
         AbschlussPruefService.pruefe(
-          k(buchungen: [ertrag, rueck], rueckstellungGebucht: 4000),
+          k(buchungen: [ertrag, rueck], rueckstellungGebucht: 3100),
         ),
         'rueckstellung',
       );
       expect(x.status, PruefStatus.gruen);
-      expect(x.ist, "4'000.00");
+      expect(x.ist, "3'100.00");
       expect(x.hinweis, contains("Vorschlag ≈ 3'100.00 (18.2 %"));
       expect(x.aktionRoute, isNull);
     });
@@ -372,7 +374,89 @@ void main() {
       );
       expect(x.status, PruefStatus.rot);
       expect(x.hinweis, contains("Vorschlag ≈ 3'100.00"));
-      expect(x.hinweis, contains('Rückstellung buchen'));
+      expect(x.hinweis, contains('8900 an 2208 per 31.12.2025'));
+    });
+
+    test('B4: gebucht weicht ≥ 500 vom Vorschlag ab → gelb mit Soll = '
+        'Vorschlag (2025: 4\'000 gebucht, Vorschlag 2\'800)', () {
+      // Gewinn vor Rückstellung 18'355.70 → 0.182 · 18'355.70 / 1.182
+      // = 2'826.4 → 2'800. Grün bliebe die geplante Nachführung hinter
+      // «grüne zeigen» versteckt.
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(
+            buchungen: [
+              b(1100, 3400, 18355.70, d),
+              b(8900, 2208, 4000, DateTime(2025, 12, 31)),
+            ],
+            rueckstellungGebucht: 4000,
+          ),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gelb);
+      expect(x.ist, "4'000.00");
+      expect(x.soll, "2'800.00");
+      expect(x.hinweis, contains("1'200.00"));
+    });
+
+    test('B4: Abweichung unter 500 → grün', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(
+            buchungen: [
+              b(1100, 3400, 18355.70, d),
+              b(8900, 2208, 3000, DateTime(2025, 12, 31)),
+            ],
+            rueckstellungGebucht: 3000,
+          ),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gruen);
+    });
+
+    test('W2: Verlustjahr ohne Rückstellung → grün, keine nötig', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(buchungen: [b(6000, 1020, 5000, d)], rueckstellungGebucht: 0),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gruen);
+      expect(x.hinweis, contains('Kein steuerbarer Gewinn'));
+    });
+
+    test('W2: Verlustjahr mit Rückstellung → gelb «auflösen», Soll 0', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(
+            buchungen: [
+              b(6000, 1020, 5000, d),
+              b(8900, 2208, 4000, DateTime(2025, 12, 31)),
+            ],
+            rueckstellungGebucht: 4000,
+          ),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gelb);
+      expect(x.soll, '0.00');
+      expect(x.hinweis, contains('auflösen'));
+    });
+
+    test('B6: Steuerbussen auf 8900 zählen als Aufrechnung', () {
+      // Busse 2'000 auf 8900 senkt den Gewinn auf 18'000; aufgerechnet ist
+      // die Basis wieder 20'000 → 3'100 (ohne Aufrechnung 2'800).
+      final bu = [ertrag, b(8900, 1020, 2000, d)];
+      String hinweis(double bussen) => f(
+        AbschlussPruefService.pruefe(
+          k(buchungen: bu, rueckstellungGebucht: 0, bussenAuf8900: bussen),
+        ),
+        'rueckstellung',
+      ).hinweis;
+      expect(hinweis(0), contains("Vorschlag ≈ 2'800.00"));
+      expect(hinweis(2000), contains("Vorschlag ≈ 3'100.00"));
     });
 
     test('laufendes Jahr → gelb, Vorschlag nach heutigem Stand', () {
@@ -398,12 +482,12 @@ void main() {
       final zahlung = b(2208, 1020, 5153.50, DateTime(2025, 12, 31));
       final x = f(
         AbschlussPruefService.pruefe(
-          k(buchungen: [ertrag, rueck, zahlung], rueckstellungGebucht: 4000),
+          k(buchungen: [ertrag, rueck, zahlung], rueckstellungGebucht: 3100),
         ),
         'rueckstellung',
       );
       expect(x.status, PruefStatus.gruen);
-      expect(x.ist, "4'000.00");
+      expect(x.ist, "3'100.00");
     });
   });
   test(

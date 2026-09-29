@@ -109,6 +109,11 @@ class AbschlussKontext {
   /// `null` = nicht geladen → die Regel fällt auf den 2208-Saldo zurück.
   final double? rueckstellungGebucht;
 
+  /// Steuerbussen auf 8900 im Jahr (`bussenAuf8900`, `steuerart` «busse») —
+  /// nicht abzugsfähig, im 8900-Saldo aber nicht von den Steuern zu trennen.
+  /// Vorab gerechnet wie [rueckstellungGebucht].
+  final double bussenAuf8900;
+
   AbschlussKontext({
     required this.jahr,
     required this.heute,
@@ -128,6 +133,7 @@ class AbschlussKontext {
     this.kundenguthabenJeBetrieb,
     this.offeneRechnungenVoll = const [],
     this.rueckstellungGebucht,
+    this.bussenAuf8900 = 0,
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;

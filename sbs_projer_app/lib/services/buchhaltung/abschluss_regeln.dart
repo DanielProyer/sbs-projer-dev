@@ -22,6 +22,14 @@ const _kasseMax = 10000.0;
 /// darunter lohnt keine Korrekturbuchung.
 const _delkredereToleranz = 50.0;
 
+/// Abweichung der gebuchten Steuerrückstellung vom Vorschlag, ab der die
+/// Regel gelb meldet. WARUM so grob: Der Vorschlag ist auf 100 gerundet und
+/// ein Schätzwert; erst ab 500 lohnt eine Nachführung. Grün wäre die Zeile
+/// eingeklappt — 2025 (4'000 gebucht, Vorschlag 2'800 nach Abschreibung
+/// Jahrgang 2020) stünde die geplante Nachführung sonst hinter «grüne
+/// zeigen».
+const _rueckstellungAbweichung = 500.0;
+
 /// Verjährungsfrist für Forderungen aus Dienstleistung (Art. 128 OR).
 const _verjaehrungJahre = 5;
 
@@ -647,9 +655,10 @@ class RueckstellungRegel extends AbschlussRegel {
   @override
   String get titel => 'Steuerrückstellung 2208';
   // Keine Route: Gebucht wird über den Knopf «Rückstellung buchen» in der
-  // Zeile selbst (Abschlussprüfung, abgeschlossene Jahre). Bis 29.09.2026
-  // zeigte die Regel auf /buchhaltung/steuern — dort liess sich nichts
-  // buchen.
+  // Zeile selbst (Abschlussprüfung, Abschlussjahr). Bis 29.09.2026 zeigte
+  // die Regel auf /buchhaltung/steuern — dort liess sich nichts buchen.
+  // Die Hinweise nennen deshalb die Buchung, nicht den Knopf: In älteren
+  // Jahren gibt es ihn nicht.
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
     final gebucht = k.rueckstellungGebucht;
@@ -671,15 +680,50 @@ class RueckstellungRegel extends AbschlussRegel {
       saldiBis: k.saldiPer(DateTime(k.jahr, 12, 31)),
       saldiVor: k.saldiPer(DateTime(k.jahr - 1, 12, 31)),
       gebucht: gebucht,
+      bussen8900: k.bussenAuf8900,
     );
     final vorschlag = rueckstellungVorschlag(
       gewinnVorRueckstellung: lage.gewinnVorRueckstellung,
       aufrechnungen: lage.aufrechnungenAuto,
     );
+    final stichtag = '31.12.${k.jahr}';
+    final standHeute = k.jahrAbgeschlossen ? '' : ' (Stand heute)';
+    // Verlustjahr: nichts zu versteuern. Eine gebuchte Rückstellung gehört
+    // dann aufgelöst, nicht grün durchgewinkt.
+    if (vorschlag < _toleranz) {
+      if (gebucht.abs() <= _toleranz) {
+        return befund(
+          PruefStatus.gruen,
+          ist: chf(gebucht),
+          hinweis:
+              'Kein steuerbarer Gewinn$standHeute — keine Rückstellung nötig.',
+        );
+      }
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(gebucht),
+        soll: chf(0),
+        hinweis:
+            'Kein steuerbarer Gewinn$standHeute — Rückstellung auflösen '
+            '(2208 an 8900 per $stichtag).',
+      );
+    }
     final satz = (kSteuersatzEffektiv * 100).toStringAsFixed(1);
     final vorschlagText =
         'Vorschlag ≈ ${chf(vorschlag)} ($satz % auf steuerbaren Gewinn)';
     if (gebucht > _toleranz) {
+      final abweichung = gebucht - vorschlag;
+      if (abweichung.abs() >= _rueckstellungAbweichung) {
+        return befund(
+          PruefStatus.gelb,
+          ist: chf(gebucht),
+          soll: chf(vorschlag),
+          hinweis:
+              '$vorschlagText$standHeute — gebucht ${chf(abweichung.abs())} '
+              '${abweichung > 0 ? 'zu viel' : 'zu wenig'}; nachführen '
+              '(8900 ↔ 2208 per $stichtag).',
+        );
+      }
       return befund(
         PruefStatus.gruen,
         ist: chf(gebucht),
@@ -692,15 +736,14 @@ class RueckstellungRegel extends AbschlussRegel {
         ist: chf(gebucht),
         hinweis:
             'Jahr läuft noch — nach heutigem Stand $vorschlagText. Gebucht '
-            'wird im Abschluss per 31.12.${k.jahr}.',
+            'wird im Abschluss per $stichtag.',
       );
     }
     return befund(
       PruefStatus.rot,
       ist: chf(gebucht),
-      hinweis:
-          '$vorschlagText — «Rückstellung buchen» (8900 an 2208 per '
-          '31.12.${k.jahr}).',
+      soll: chf(vorschlag),
+      hinweis: '$vorschlagText — buchen: 8900 an 2208 per $stichtag.',
     );
   }
 }

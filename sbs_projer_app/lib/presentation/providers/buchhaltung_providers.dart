@@ -14,7 +14,7 @@ import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
 import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart'
-    show rueckstellungGebucht;
+    show bussenAuf8900, rueckstellungGebucht;
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart'
@@ -290,6 +290,7 @@ final abschlussPruefungProvider =
     offeneRechnungenVoll: offene,
     // Aus dem schon geladenen Journal — kostet keine Abfrage.
     rueckstellungGebucht: rueckstellungGebucht(buchungen, jahr),
+    bussenAuf8900: bussenAuf8900(buchungen, jahr),
   ));
 });
 
