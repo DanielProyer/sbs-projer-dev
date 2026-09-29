@@ -23,8 +23,16 @@ create table if not exists routen_punkte (
   unique (user_id, von_key, nach_key)
 );
 alter table routen_punkte enable row level security;
-create policy "routen_punkte_eigene" on routen_punkte
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
-create index if not exists idx_routen_punkte_user on routen_punkte (user_id);
+-- Nur LESEN für den eingeloggten User. WARUM keine Schreib-Policy: Die
+-- Zeilen schreibt ausschliesslich die Edge Function mit der Service-Role
+-- (umgeht RLS). Eine for-all-Policy liesse die App — und jeden mit dem
+-- öffentlichen Anon-Key plus Login — beliebige km unter beliebigen
+-- Schlüsseln ablegen, und die Fahrten-Auswertung übernähme sie ungeprüft
+-- als «geroutete Strecke».
+create policy "routen_punkte_lesen" on routen_punkte
+  for select using (user_id = auth.uid());
+-- Kein eigener Index auf user_id: Der Unique-Index (user_id, von_key,
+-- nach_key) beginnt mit user_id und deckt die Abfragen der App (alle Zeilen
+-- des Users) und den Cache-Lookup der Function ab.
 comment on table routen_punkte is
   'Geroutete Strecken (OSRM) mit mindestens einem Ende, das kein Betrieb ist; Schlüssel b:<uuid> / p:<lat>,<lng> (4 Nachkommastellen)';
