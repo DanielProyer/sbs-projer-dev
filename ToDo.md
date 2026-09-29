@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.152.0 live** (Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3152 Tests grün**.
+**Stand:** **v0.153.0 live** (fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **213** · **3182 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -214,6 +214,7 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.153.0** — Fahrten: ein Tag mit Arbeitsbeginn unterwegs (GPS) bekommt nach ~1 min alle Strecken und die Zähler-Kontrolle; keine Befunde «GPS-Position»/«Anfahrtszeiten fehlen» mehr.
 - **v0.152.0** — Fahrten (Auswertung → Arbeitstage → Tag → Fahrten): keine «≈ Luftlinie» mehr; Fahrten ohne Route zeigen «– km / Strecke fehlt»; nach ~30 s sind Betrieb→Betrieb-Strecken nachgeroutet; «Fahrten heute» mit «(N ohne Strecke)».
 - **v0.151.2** — Diktat: neuen Betrieb anlegen → steht sofort in der Betriebsliste; Störung diktieren → sofort auf Heute/Einsätze/Betriebsseite, ohne Refresh.
 - ~~**v0.151.1** — Material-Karte: Foto ganz sichtbar~~ ✓ Daniel 29.09.2026 («Fotos passen so»).

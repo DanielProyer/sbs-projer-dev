@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.153.0 fahrzeit-route routet Koordinaten: GPS-, Startort- und Anfahrts-Fahrten bekommen OSRM-Strecken (Migration 213 `routen_punkte`)
 - 29.09.2026 — v0.152.0 Fahrten: Route oder nichts — keine Luftlinie mehr, Zähler-Kontrolle nur mit vollständigen Strecken, Nachrouten 25/100
 - 29.09.2026 — v0.151.2 Diktat: neuer Betrieb und neue Störung/Montage sofort sichtbar (Provider neu laden), Betriebsakte hängt an den Listen, Wächter «speichern lädt neu»
 - 29.09.2026 — v0.151.1 Material-Karte: Foto ganz sichtbar (contain statt cover)
@@ -41,6 +42,29 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.153.0 fahrzeit-route routet Koordinaten
+
+Entscheid Daniel (Folge von v0.152.0): «fahrzeit-route soll auch Koordinaten
+routen können.» Bis dahin blieben Fahrten von/zu einer GPS-Position,
+zwischen den Startorten und Startort→Betrieb ohne Google-Anfahrt für immer
+ohne km.
+- **Edge Function `fahrzeit-route`:** Body neu `{von, nach}` mit je
+  `betriebId` ODER `lat/lng` (alt `{vonBetriebId, nachBetriebId}` bleibt).
+  Betrieb→Betrieb läuft unverändert über `fahrzeiten`; jedes andere Paar über
+  die neue Cache-Tabelle **`routen_punkte`** (Migration 213, Schlüssel
+  `b:<id>` / `p:<lat>,<lng>` mit vier Nachkommastellen ≈ 11 m, gleiche
+  Rundung in App und Function, `keys.ts` + `keys_test.ts`).
+- **App:** `routen_punkt_key.dart`, `FahrzeitRepository.routeAnfordernEnden`
+  und `ladePunktRouten`, `punktRoutenProvider`; `kmNachschlagAus` fällt nach
+  Anfahrt (Google) und Betrieb-Route auf die Punkt-Route zurück;
+  `fehlendeRoutenPaare` liefert jetzt Aufträge für ALLE Fahrten mit
+  Koordinaten (Betrieb, Startort, GPS). Befunde nur noch «Koordinaten fehlen»
+  und «noch ohne geroutete Strecke».
+- Rollout: Migration 213 → Function deployt → App.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 
