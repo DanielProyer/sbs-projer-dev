@@ -47,16 +47,49 @@ Jahrgänge alles — siehe Abschnitt 6.
 
 ## 2. Buchungslogik
 
+**Seit Migration 215 (29.09.2026) bucht der App-Schritt nach dem 2019-Muster.**
+Entscheid Daniel 29.09.2026: «Schritte in die App, damit ich das in späteren
+Jahren direkt machen kann.»
+
 **Je Rechnung, Datum 31.12. des Abschlussjahres:**
 
 ```
-3805 Debitorenverluste   an 1100 Debitoren    netto      (Aufwand)
-2200 Geschuldete MWST    an 1100 Debitoren    MWST       (Rückholung)
+3805 Debitorenverluste   an 1100 Debitoren          BRUTTO   (Verlust im Abschlussjahr)
 ```
 
-Beide `beleg_typ = 'abschreibung'`, `beleg_id` = Rechnung, Text
-«Debitorenverlust <Nr> <Betrieb> (Abschreibung Jahrgang JJJJ, verjährt Art. 128 OR)».
-Rechnung → `zahlungsstatus = 'abgeschrieben'`.
+**Je MWST-Satz eine Sammelbuchung, datiert auf den Entscheidtag** (Tag der
+Buchung, Schweizer Datum):
+
+```
+2200 Geschuldete MWST    an 3805 Debitorenverluste   MWST     (Rückholung, Ziff. 235)
+```
+
+- Rechnungsbuchung: `beleg_typ = 'abschreibung'`, `beleg_id` = Rechnung, Text
+  «Debitorenverlust <Nr> <Betrieb> (Abschreibung Jahrgang JJJJ, verjährt Art. 128 OR)».
+  Rechnung → `zahlungsstatus = 'abgeschrieben'`.
+- Sammelbuchung: `beleg_typ = 'abschreibung'`, **ohne** `beleg_id`,
+  Belegnummer `JA<Geschäftsjahr>_A_MWST_<Satz>` (z. B. `JA2026_A_MWST_7_7`); hat
+  das Geschäftsjahr schon einen gebuchten Lauf, mit `_L<n>` (Abschluss 2025,
+  Jahrgang 2020: `JA2025_A_MWST_7_7_L2`). Die Ids stehen in
+  `abschreibung_laeufe.buchung_mwst_ids`.
+- Lauf: `buchungsdatum` = 31.12. des Geschäftsjahrs, `mwst_jahr/mwst_quartal`
+  = Quartal des Entscheidtags. `view_entgeltsminderung` zeigt Ziff. 235 dort,
+  je Satz aus den Positionen gerechnet.
+- Rücknahme (`abschreibung_lauf_zuruecknehmen`) löscht die Buchungen je
+  Rechnung **und** die Sammelbuchungen; sie verweigert, sobald eine davon
+  storniert ist.
+
+**WARUM:** Der Abschluss findet im Folgejahr statt, Q4 des Geschäftsjahrs ist
+dann in aller Regel eingereicht. Eine Rückholung per 31.12. erzwänge eine
+Korrekturabrechnung. Die Entgeltsminderung gehört in die Periode des
+Entscheids (Art. 41 Abs. 2 MWSTG). Über beide Jahre ist das Ergebnis gleich:
+das Abschlussjahr trägt den Verlust brutto, das Jahr des Entscheids die
+Rückholung als Minderung auf 3805.
+
+**Bis Migration 214** buchte der App-Schritt je Rechnung `3805 an 1100 netto`
+und `2200 an 1100 MWST`, beide per 31.12., mit Ziff. 235 in Q4 des
+Abschlussjahres. Nach diesem Muster wurde nie per App gebucht (Stand
+29.09.2026: einziger Lauf ist der 2019er per SQL).
 
 **Der MWST-Betrag kommt aus `rechnungen.mwst_betrag`** — der Steuer, die auf
 diese Rechnung tatsächlich abgeliefert wurde — nicht aus dem Satz des
@@ -67,10 +100,11 @@ zurück.
 **Delkredere nachführen** (Konto 1109, Ziel 5 % des Debitorenbestands nach der
 Abschreibung), Differenz gegen 3805. Per 31.12.2025 stand es auf 5'629.38.
 
-**Anders als 2019:** Dort wurde brutto auf 3805 gebucht und die MWST erst im
+**Wie 2019:** Dort wurde brutto auf 3805 gebucht und die MWST erst im
 Folgejahr zurückgeholt (`2200 an 3805`), weil Q4/2025 schon eingereicht war.
-Ergebnis über zwei Jahre gleich, aber 2025 trug 159.90 zu viel Aufwand. Ab
-2020 vermeiden wir das: siehe Zeitplan in Abschnitt 4.
+Der ursprüngliche Plan, das ab 2020 zu vermeiden (Abschnitt 4: Abschreibung
+im Januar vor der Q4-Abrechnung), ging mit dem Abschluss im Herbst nicht auf —
+seit 215 ist das 2019-Muster die Regel.
 
 ---
 
@@ -102,12 +136,18 @@ Quartal eine negative bzw. reduzierende Eingabe annimmt; sonst ESTV-Hotline.**
 
 **c) Formularmechanik:** Ziff. 235 (Entgeltsminderungen) = Netto-Summe der
 abgeschriebenen Rechnungen des Jahrgangs, in Zeile 302 zum Satz 7.7 %. Die
-Buchung `2200 an 1100` im Journal und die Deklaration müssen zusammen in
-dieselbe Periode.
+Rückholung im Journal (seit 215 die Sammelbuchung `2200 an 3805` am
+Entscheidtag) und die Deklaration müssen zusammen in dieselbe Periode.
 
 ---
 
 ## 4. Ablauf für den Abschluss 2026 (Jahrgang 2020)
+
+> **Überholt (29.09.2026):** Jahrgang 2020 läuft im Abschluss 2025 mit
+> (`jahresabschluss-2025.md` §9), 2021 im Abschluss 2026. Gebucht wird seit
+> Migration 215 brutto per 31.12. mit Rückholung am Entscheidtag — Ziff. 235
+> im Quartal der Buchung, nicht in Q4 des Abschlussjahres (Abschnitt 2).
+> Anzahl und Beträge der Tabelle unten gelten weiter.
 
 | Wann | Was |
 |---|---|
@@ -154,11 +194,14 @@ jetzt die MWST der Rechnung. Der Schritt selbst:
   nie gestellt, Summen netto und MWST je Satz mit Formularzeile (302/303),
   Ausschlüsse mit Grund (Zahlung vermerkt, Summe unstimmig), Liste aufklappbar.
 - **Buchen:** ein Klick, eine Datenbank-Transaktion (`abschreibung_jahrgang_buchen`):
-  je Rechnung `3805 an 1100` netto + `2200 an 1100` MWST aus `mwst_betrag`,
-  Status `abgeschrieben`, Position in `abschreibung_positionen` mit Status
-  vorher und beiden Buchungs-IDs, Lauf in `abschreibung_laeufe` mit Summen und
-  MWST-Quartal. Die Funktion prüft jede Rechnung selbst nochmals; ein zweiter
-  Lauf fürs selbe Jahr wird abgewiesen.
+  seit Migration 215 je Rechnung `3805 an 1100` brutto per 31.12. und je
+  MWST-Satz eine Sammelbuchung `2200 an 3805` am Entscheidtag (Abschnitt 2;
+  bis 214 je Rechnung netto + `2200 an 1100`), Status `abgeschrieben`,
+  Position in `abschreibung_positionen` mit Status vorher und Buchungs-ID,
+  Lauf in `abschreibung_laeufe` mit Summen, MWST-Quartal und den Ids der
+  Sammelbuchungen. Die Funktion sperrt und prüft jede Rechnung selbst
+  nochmals. Seit 214/215 darf ein Geschäftsjahr mehrere Läufe haben (der
+  Screen zeigt alle); doppelt abschreiben verhindert die Prüfung je Rechnung.
 - **Rückweg:** «Lauf zurücknehmen» im selben Screen (`abschreibung_lauf_zuruecknehmen`):
   Buchungen weg, Status vorher — verweigert, sobald eine der Buchungen
   storniert wurde.
@@ -227,7 +270,8 @@ und 2025 nachversenden (~216 Rg, ~23'800 CHF), zusätzlich 2023 (~71 Rg,
 ## 7. Rollback
 
 **Ab 2026 (App-Lauf):** im Screen «Jahrgang abschreiben» → «Lauf zurücknehmen».
-Das löscht beide Buchungen je Rechnung und setzt den Status aus
+Das löscht die Buchungen je Rechnung (seit 215 auch die Sammelbuchungen der
+MWST-Rückholung) und setzt den Status aus
 `abschreibung_positionen.status_vorher` zurück; der Lauf bleibt als
 `zurueckgenommen` stehen. Per SQL dasselbe: `SELECT abschreibung_lauf_zuruecknehmen('<lauf-id>')`
 als angemeldeter Nutzer. Delkredere-Buchung separat stornieren.

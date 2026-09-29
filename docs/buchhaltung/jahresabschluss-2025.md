@@ -127,7 +127,21 @@ Mehr → Abschlüsse und Steuern → Abschlussprüfung → Jahr 2025 → rote Ze
 (`geschaeftsjahr` 2025, `jahrgaenge` {2020}), je Rechnung `3805 an 1100 netto`
 und `2200 an 1100 mwst`, beide per 31.12.2025, Lauf `mwst_jahr/quartal` 2025/4.
 
+**Mit Migration 215** (vor dem 01.10.2026 anwenden) bucht der App-Schritt
+direkt das 2019-Muster: je Rechnung `3805 an 1100 brutto` per 31.12.2025,
+EINE Sammelbuchung `JA2025_A_MWST_7_7_L2` (`2200 an 3805`, 516.43) datiert auf
+den Buchungstag, Lauf `mwst_jahr/quartal` = Quartal des Buchungstags (am
+01.10.2026: 2026/4). Der Screen zeigt seit 215 alle Läufe des Jahres und den
+Knopf auch neben dem 2019er-Lauf — vorher blendete er ihn aus. 215 entfernt
+ausserdem den eindeutigen Index `abschreibung_laeufe_ein_gebuchter` (194):
+den hatte 214 übersehen, L2 wäre sonst an «duplicate key» gescheitert.
+
 ### 9b. Umbau auf das 2019-Muster (Claude, SQL, direkt nach 9a)
+
+> **Mit Migration 215 (angewendet vor dem 01.10.2026) macht der App-Schritt
+> genau das — die SQL unten braucht es nur noch, wenn der Lauf VOR 215
+> gebucht wurde.** Nach 215 heisst die Rückholung `JA2025_A_MWST_7_7_L2`
+> statt `JA2025_A2_MWST`; Kontrollzahlen per 31.12.2025 unten gelten gleich.
 
 WARUM: Q4/2025 ist eingereicht und viermal berichtigt; die Entgeltsminderung
 gehört in die Periode des Entscheids (Art. 41 Abs. 2 MWSTG), also Q4/2026.
@@ -221,4 +235,6 @@ steuerbarer Gewinn, Kapital, Status «eingereicht», Dokumente hochladen.
 **Rollback 9a–9d:** Lauf L2 über die App zurücknehmen (löscht die 152
 Zeilen und setzt die 76 Rechnungen zurück — auch nach dem Umbau, weil die
 Positionen die Buchungs-Ids tragen); JA2025_A2_MWST, JA2025_E2, JA2025_D2
-löschen (`belegnummer in (…)`).
+löschen (`belegnummer in (…)`). **Mit 215 gebucht:** die Rücknahme löscht die
+76 Brutto-Zeilen UND die Sammelbuchung `JA2025_A_MWST_7_7_L2` selbst; von Hand
+bleiben nur JA2025_E2 und JA2025_D2.
