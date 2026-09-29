@@ -8,6 +8,9 @@ import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
 import 'package:sbs_projer_app/data/repositories/abschreibung_lauf_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart'
+    show rechnungenStreamProvider;
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/jahrgang_abschreibung.dart';
@@ -20,7 +23,10 @@ import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
 ///
 /// Erreichbar aus der Abschlussprüfung (Regel «Offene Rechnungen älter als
 /// 5 Jahre»). Gebucht wird in der Datenbank in einer Transaktion
-/// (`abschreibung_jahrgang_buchen`, Migration 194).
+/// (`abschreibung_jahrgang_buchen`, Migration 194; seit 215 nach dem
+/// 2019-Muster: brutto per 31.12., MWST-Rückholung am Entscheidtag in das
+/// laufende Quartal). Seit 214 darf ein Geschäftsjahr mehrere Läufe haben
+/// (Abschluss 2025: 2019 per SQL, 2020 per App) — der Screen zeigt alle.
 class JahrgangAbschreibenScreen extends ConsumerStatefulWidget {
   final int? jahr;
   const JahrgangAbschreibenScreen({super.key, this.jahr});
@@ -81,21 +87,20 @@ class _JahrgangAbschreibenScreenState
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => _fehler(e),
                 data: (v) {
-                  final lauf = alle
-                      .where((l) => l.geschaeftsjahr == _jahr && l.gebucht)
-                      .firstOrNull;
+                  final laeufe = [
+                    for (final l in alle)
+                      if (l.geschaeftsjahr == _jahr && l.gebucht) l,
+                  ];
                   return JahrgangAbschreibenInhalt(
                     vorschau: v,
-                    lauf: lauf,
+                    laeufe: laeufe,
                     heute: DateTime.now(),
                     laeuft: _laeuft,
                     listeOffen: _listeOffen,
                     onListeToggle: () =>
                         setState(() => _listeOffen = !_listeOffen),
                     onBuchen: () => _buchen(v),
-                    onZuruecknehmen: lauf == null
-                        ? null
-                        : () => _zuruecknehmen(lauf),
+                    onZuruecknehmen: _zuruecknehmen,
                   );
                 },
               ),
@@ -114,6 +119,10 @@ class _JahrgangAbschreibenScreenState
   );
 
   Future<void> _buchen(AbschreibVorschau v) async {
+    // Entscheidtag = heute: die SQL-Funktion datiert die Rückholung darauf
+    // und legt Ziff. 235 ins laufende Quartal (Migration 215).
+    final heute = DateTime.now();
+    final quartal = rueckholungsQuartal(heute);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -124,15 +133,26 @@ class _JahrgangAbschreibenScreenState
           children: [
             Text('${v.total.anzahl} Rechnungen, brutto ${chf(v.total.brutto)}'),
             const SizedBox(height: 8),
-            Text('Datiert 31.12.${v.geschaeftsjahr}, je Rechnung:'),
-            Text('• 3805 an 1100  netto  ${chf(v.total.netto)}'),
+            Text('Je Rechnung, datiert 31.12.${v.geschaeftsjahr}:'),
             for (final s in v.saetze)
-              Text('• 2200 an 1100  MWST ${s.satz} %  ${chf(s.summe.mwst)}'),
+              Text('• 3805 an 1100  brutto ${s.satz} %  ${chf(s.summe.brutto)}'),
+            if (v.total.mwst > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Je Satz eine Sammelbuchung am Entscheidtag '
+                '(${_datum(heute)}):',
+              ),
+              for (final s in v.saetze)
+                if (s.summe.mwst > 0)
+                  Text(
+                    '• 2200 an 3805  MWST ${s.satz} %  ${chf(s.summe.mwst)}',
+                  ),
+            ],
             const SizedBox(height: 8),
             Text(
-              'Die Rechnungen gehen auf «abgeschrieben». Die Rückholung '
-              'gehört in die MWST-Abrechnung Q4/${v.geschaeftsjahr} '
-              'unter Ziff. 235. Der Lauf lässt sich zurücknehmen, solange '
+              'Die Rechnungen gehen auf «abgeschrieben». MWST-Rückholung '
+              '${chf(v.total.mwst)} → Ziff. 235 im laufenden Quartal '
+              '($quartal). Der Lauf lässt sich zurücknehmen, solange '
               'keine der Buchungen storniert wurde.',
               style: const TextStyle(
                 fontSize: 12,
@@ -168,7 +188,8 @@ class _JahrgangAbschreibenScreenState
           content: Text(
             'Gebucht: ${v.total.anzahl} Rechnungen, '
             'brutto ${chf(v.total.brutto)}, MWST-Rückholung '
-            '${chf(v.total.mwst)} → Ziff. 235 Q4/${v.geschaeftsjahr}',
+            '${chf(v.total.mwst)} → Ziff. 235 im laufenden Quartal '
+            '($quartal)',
           ),
         ),
       );
@@ -185,15 +206,21 @@ class _JahrgangAbschreibenScreenState
   }
 
   Future<void> _zuruecknehmen(AbschreibungLauf lauf) async {
+    final k = lauf.buchungMwstIds.length;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Lauf ${lauf.geschaeftsjahr} zurücknehmen?'),
+        title: Text(
+          'Lauf ${lauf.geschaeftsjahr} (Jahrgänge '
+          '${lauf.jahrgaenge.join(', ')}) zurücknehmen?',
+        ),
         content: Text(
-          'Löscht ${lauf.anzahl * 2} Buchungen per '
-          '${_datum(lauf.buchungsdatum)} und setzt ${lauf.anzahl} Rechnungen '
-          'auf den Status vorher. Eine schon eingereichte MWST-Abrechnung '
-          'muss dann korrigiert werden.',
+          'Löscht ${lauf.buchungenPer31Dez} Buchungen per '
+          '${_datum(lauf.buchungsdatum)}'
+          '${k == 0 ? '' : ' und $k Sammelbuchung${k == 1 ? '' : 'en'} der '
+                    'MWST-Rückholung (Q${lauf.mwstQuartal}/${lauf.mwstJahr})'}'
+          ' und setzt ${lauf.anzahl} Rechnungen auf den Status vorher. Eine '
+          'schon eingereichte MWST-Abrechnung muss dann korrigiert werden.',
         ),
         actions: [
           TextButton(
@@ -234,14 +261,26 @@ class _JahrgangAbschreibenScreenState
     ref.invalidate(jahrgangAbschreibVorschauProvider(_jahr));
     ref.invalidate(abschlussPruefungProvider(_jahr));
     ref.invalidate(debitorenUebersichtProvider);
-    ref.invalidate(mwstQuartalDetailProvider(_jahr));
+    // Seit 215 liegt die Rückholung im laufenden Jahr, der Verlust im
+    // Geschäftsjahr — beide MWST-Jahre neu lesen.
+    ref.invalidate(mwstQuartalDetailProvider);
+    ref.invalidate(entgeltsminderungProvider);
+    // Die Abschlussprüfung rechnet ihre Saldi aus `buchungenStreamProvider`
+    // (nicht selbst geladen). Ohne Neuladen zeigt sie nach dem Lauf das
+    // Journal VOR der Abschreibung — die Regel «Offene Rechnungen älter als
+    // 5 Jahre» wird grün, 1100/3805 stehen aber noch auf dem alten Stand.
+    ref.invalidate(buchungenStreamProvider);
+    // Der Lauf setzt die Rechnungen auf «abgeschrieben»; der Rechnungsstrom
+    // ist auf Web einmalig — ohne Neuladen zeigte die Rechnungsliste die
+    // Rechnungen weiter als offen (Regel «speichern lädt neu»).
+    ref.invalidate(rechnungenStreamProvider);
   }
 }
 
 String _datum(DateTime d) => DateFormat('dd.MM.yyyy').format(d);
 
-/// Die SQL-Funktion meldet auf Deutsch, was nicht geht («Für 2026 gibt es
-/// schon einen gebuchten Lauf»). Diese Meldung soll ganz ankommen — nicht
+/// Die SQL-Funktion meldet auf Deutsch, was nicht geht («Schon in einem
+/// gebuchten Lauf: 011_2020_…»). Diese Meldung soll ganz ankommen — nicht
 /// hinter «PostgrestException(message: …» auf 80 Zeichen gekappt.
 String _meldung(Object e) =>
     e is PostgrestException ? e.message : kurzeFehlermeldung(e);
@@ -250,18 +289,20 @@ String _meldung(Object e) =>
 /// grosser Schrift aufbauen kann.
 class JahrgangAbschreibenInhalt extends StatelessWidget {
   final AbschreibVorschau vorschau;
-  final AbschreibungLauf? lauf;
+
+  /// Alle gebuchten Läufe des Geschäftsjahrs (seit 214 mehrere möglich).
+  final List<AbschreibungLauf> laeufe;
   final DateTime heute;
   final bool laeuft;
   final bool listeOffen;
   final VoidCallback onListeToggle;
   final VoidCallback? onBuchen;
-  final VoidCallback? onZuruecknehmen;
+  final void Function(AbschreibungLauf lauf)? onZuruecknehmen;
 
   const JahrgangAbschreibenInhalt({
     super.key,
     required this.vorschau,
-    required this.lauf,
+    required this.laeufe,
     required this.heute,
     required this.laeuft,
     required this.listeOffen,
@@ -276,18 +317,22 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = vorschau;
-    final l = lauf;
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
-        if (l != null) ...[_laufKarte(context, l), const SizedBox(height: 12)],
+        for (final l in laeufe) ...[
+          _laufKarte(context, l),
+          const SizedBox(height: 12),
+        ],
         _vorschauKarte(context, v),
         if (v.auswahl.ausgeschlossen.isNotEmpty) ...[
           const SizedBox(height: 12),
           _ausgeschlossenKarte(v),
         ],
         if (!v.auswahl.leer) ...[const SizedBox(height: 12), _liste(v)],
-        if (l == null && !v.auswahl.leer) ...[
+        // Seit 214 auch neben einem gebuchten Lauf: was noch offen ist, kann
+        // ein weiterer Lauf abschreiben (die Funktion weist Doppelte ab).
+        if (!v.auswahl.leer) ...[
           const SizedBox(height: 16),
           if (jahrLaeuftNoch) _hinweisJahrLaeuft(),
           const SizedBox(height: 8),
@@ -302,9 +347,10 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Bucht ${v.total.anzahl} × (3805 an 1100 netto + 2200 an 1100 '
-            'MWST) per 31.12.$jahr in einem Zug, setzt die Rechnungen auf '
-            '«abgeschrieben» und merkt Ziff. 235 für Q4/$jahr vor.',
+            'Bucht ${v.total.anzahl} × 3805 an 1100 brutto per 31.12.$jahr '
+            'und je MWST-Satz eine Rückholung 2200 an 3805 am Entscheidtag — '
+            'in einem Zug. Die Rechnungen gehen auf «abgeschrieben», '
+            'Ziff. 235 im laufenden Quartal (${rueckholungsQuartal(heute)}).',
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -380,14 +426,29 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
           chf(l.brutto),
           bold: true,
         ),
-        _zeile(
-          'Debitorenverlust (3805), per ${_datum(l.buchungsdatum)}',
-          chf(l.netto),
-        ),
-        _zeile(
-          'MWST-Rückholung ${l.satz} % → Ziff. 235 in Q${l.mwstQuartal}/${l.mwstJahr}',
-          chf(l.mwst),
-        ),
+        if (l.rueckholungJeRechnung) ...[
+          // Lauf vor Migration 215: netto und MWST je Rechnung per 31.12.
+          _zeile(
+            'Debitorenverlust (3805), per ${_datum(l.buchungsdatum)}',
+            chf(l.netto),
+          ),
+          _zeile(
+            'MWST-Rückholung ${l.satzText} → Ziff. 235 in Q${l.mwstQuartal}/${l.mwstJahr}',
+            chf(l.mwst),
+          ),
+        ] else ...[
+          _zeile(
+            'Debitorenverlust brutto (3805), per ${_datum(l.buchungsdatum)}',
+            chf(l.brutto),
+          ),
+          _zeile(
+            // Mischt der Lauf Sätze, zeigt die Karte keinen Mischsatz —
+            // die Aufteilung steht in der MWST-Abrechnung (je Satz).
+            'MWST-Rückholung ${l.satzText} (2200 an 3805) → Ziff. 235 in '
+            'Q${l.mwstQuartal}/${l.mwstJahr}',
+            chf(l.mwst),
+          ),
+        ],
         if (l.notizen != null && l.notizen!.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
@@ -407,7 +468,9 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
               gefahr: true,
               icon: Icons.undo,
               laeuft: laeuft,
-              onTap: onZuruecknehmen,
+              onTap: onZuruecknehmen == null
+                  ? null
+                  : () => onZuruecknehmen!(l),
             ),
           )
         else
@@ -445,7 +508,7 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    lauf == null
+                    laeufe.isEmpty
                         ? 'Keine offene Kundenrechnung bis Jahrgang $grenze.'
                         : 'Alles gebucht — keine offene Rechnung mehr bis '
                               'Jahrgang $grenze.',
@@ -455,14 +518,34 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
             )
           else ...[
             _zeile('Rechnungen', '${v.total.anzahl}'),
-            _zeile('Netto → 3805 Debitorenverluste', chf(v.total.netto)),
-            for (final s in v.saetze)
+            // Seit Migration 215 (2019-Muster): brutto per 31.12., die MWST
+            // kommt am Entscheidtag als Sammelbuchung je Satz zurück.
+            for (final s in v.saetze) ...[
               _zeile(
-                'MWST ${s.satz} % → 2200'
-                '${s.formularZeile.isEmpty ? '' : ' (${s.formularZeile})'}',
-                chf(s.summe.mwst),
+                '3805 an 1100 brutto'
+                '${v.saetze.length > 1 ? ' (${s.satz} %)' : ''}'
+                ', per 31.12.$jahr',
+                chf(s.summe.brutto),
               ),
+              if (s.summe.mwst > 0)
+                _zeile(
+                  '2200 an 3805 MWST ${s.satz} %'
+                  '${s.formularZeile.isEmpty ? '' : ' (${s.formularZeile})'}'
+                  ' am Entscheidtag',
+                  chf(s.summe.mwst),
+                ),
+            ],
             _zeile('Brutto ab 1100 Debitoren', chf(v.total.brutto), bold: true),
+            const SizedBox(height: 4),
+            Text(
+              'MWST-Rückholung → Ziff. 235 im laufenden Quartal '
+              '(${rueckholungsQuartal(heute)}); Verlust netto '
+              '${chf(v.total.netto)}.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
             for (final j in v.jahrgaenge) ...[
               const Divider(height: 16),
               _zeile(
@@ -523,9 +606,9 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
     rand: AppColors.warning,
     child: Text(
       'Das Jahr $jahr läuft noch. Bis 31.12. kann eine Zahlung eintreffen; '
-      'vorgesehen ist dieser Schritt im Januar ${jahr + 1}, vor der '
-      'MWST-Abrechnung Q4/$jahr. Buchen geht trotzdem — und lässt sich '
-      'per «Lauf zurücknehmen» umkehren.',
+      'vorgesehen ist dieser Schritt beim Abschluss $jahr ab Januar '
+      '${jahr + 1}. Buchen geht trotzdem — und lässt sich per «Lauf '
+      'zurücknehmen» umkehren.',
       style: const TextStyle(fontSize: 12),
     ),
   );

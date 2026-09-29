@@ -86,6 +86,12 @@ class BuchungNachholService {
 
   /// Frühester Tag, der automatisch gebucht werden darf: der 1. Januar des
   /// ersten Geschäftsjahres ohne Abschlussbuchung. Alles davor ist bilanziert.
+  ///
+  /// Abgeschlossen ist das Vorjahr erst mit einer Abschlussbuchung GENAU per
+  /// 31.12. — gleiche Regel wie SQL `geschaeftsjahr_abgeschlossen` (Migration
+  /// 216). WARUM nicht «bis 31.12.»: Das erfüllt jede ältere
+  /// Abschlussbuchung; ab 01.01.2027 gälte 2026 schon durch JA2025_D
+  /// (31.12.2025) und JA2025_C2/D_U1/D_U2 (2026) als abgeschlossen.
   static Future<DateTime> nachbuchGrenze() async {
     final jetzt = DateTime.now();
     final vorjahr = jetzt.year - 1;
@@ -94,7 +100,7 @@ class BuchungNachholService {
         .select('id')
         .eq('user_id', SupabaseService.currentUser!.id)
         .eq('beleg_typ', 'abschluss')
-        .lte('datum', '$vorjahr-12-31')
+        .eq('datum', '$vorjahr-12-31')
         .limit(1);
     // Vorjahr abgeschlossen -> erst ab 01.01. des laufenden Jahres buchen.
     final ab = abschluss.isEmpty

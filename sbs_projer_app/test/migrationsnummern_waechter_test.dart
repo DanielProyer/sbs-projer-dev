@@ -16,6 +16,11 @@ void main() {
   // Bekannte Lücken in der Nummerierung — bewusst übersprungen.
   const bekannteLuecken = {8, 9};
 
+  // Nummern, die in einem parallel entwickelten Branch liegen und erst mit
+  // dessen Merge hierher kommen (29.09.2026: 215 war so ein Fall, seit dem
+  // Merge leer — nur befüllen, solange ein Branch wirklich offen ist).
+  const imParallelBranch = <int>{};
+
   final migrationsOrdner = Directory('../Datenbank/migrations');
 
   test('Migrationsnummern: keine unbekannten Doppel, keine unbekannten Lücken', () {
@@ -79,7 +84,9 @@ void main() {
     final hoechsteNummer = vorkommen.keys.reduce((a, b) => a > b ? a : b);
     final fehlend = <int>[];
     for (var n = 1; n <= hoechsteNummer; n++) {
-      if (!vorkommen.containsKey(n) && !bekannteLuecken.contains(n)) {
+      if (!vorkommen.containsKey(n) &&
+          !bekannteLuecken.contains(n) &&
+          !imParallelBranch.contains(n)) {
         fehlend.add(n);
       }
     }

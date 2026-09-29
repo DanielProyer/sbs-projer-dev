@@ -244,6 +244,19 @@ void main() {
     });
   });
 
+  group('MWST-Periode der Rückholung (seit Migration 215)', () {
+    // WARUM: Der Abschluss läuft im Folgejahr, Q4 des Geschäftsjahrs ist dann
+    // meist eingereicht. Die Rückholung gehört ins Quartal des Entscheids
+    // (Art. 41 Abs. 2 MWSTG) — so rechnet auch die SQL-Funktion.
+    test('Quartal des Entscheidtags, nicht Q4 des Geschäftsjahrs', () {
+      expect(rueckholungsQuartal(DateTime(2026, 10, 1)), 'Q4/2026');
+      expect(rueckholungsQuartal(DateTime(2026, 9, 30)), 'Q3/2026');
+      expect(rueckholungsQuartal(DateTime(2027, 1, 12)), 'Q1/2027');
+      expect(rueckholungsQuartal(DateTime(2027, 4, 1)), 'Q2/2027');
+      expect(rueckholungsQuartal(DateTime(2027, 12, 31)), 'Q4/2027');
+    });
+  });
+
   test('Buchungstext entspricht dem der SQL-Funktion (Migration 194)', () {
     expect(
       debitorenverlustText(

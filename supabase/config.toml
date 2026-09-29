@@ -403,6 +403,11 @@ verify_jwt = true
 [functions.parse-beleg]
 verify_jwt = true
 
+# Dokumente-Upload: ordnet PDF/Bild ein und schlägt Titel/Dateiname vor
+# (29.09.2026). Speichert nichts; prüft den Aufrufer selbst (auth.getUser).
+[functions.parse-dokument]
+verify_jwt = true
+
 [functions.typenschild-lesen]
 verify_jwt = true
 
