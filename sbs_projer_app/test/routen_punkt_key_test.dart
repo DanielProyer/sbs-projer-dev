@@ -18,10 +18,17 @@ void main() {
       expect(punktKey(46.86396925, 9.5278708), 'p:46.8640,9.5279');
     });
 
-    // JS toFixed und Dart toStringAsFixed behalten beide das Minus
-    // (geprüft 29.09.2026) — deshalb keine eigene Normalisierung.
+    // Kleine negative Werte: JS toFixed und Dart toStringAsFixed behalten
+    // beide das Minus (geprüft 29.09.2026) — gleich, also unkritisch.
     test('kleine Werte um null', () {
       expect(punktKey(-0.00004, 0.00005), 'p:-0.0000,0.0001');
+    });
+
+    // Exakt −0.0: JS toFixed schreibt «0.0000», Dart (VM und Web) ein
+    // Minus davor — beide Seiten normalisieren −0.0 auf 0.0.
+    test('−0.0 wird zu 0.0 (ohne Minus)', () {
+      expect(punktKey(-0.0, 9.5), 'p:0.0000,9.5000');
+      expect(punktKey(46.8, -0.0), 'p:46.8000,0.0000');
     });
   });
 

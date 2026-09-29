@@ -21,6 +21,13 @@ Deno.test("punktKey: kleine Werte um null", () => {
   assertEquals(punktKey(-0.00004, 0.00005), "p:-0.0000,0.0001");
 });
 
+// Exakt -0: JS toFixed schreibt "0.0000", Dart im Web "-0.0000" -- deshalb
+// normalisieren BEIDE Seiten -0 auf 0.
+Deno.test("punktKey: -0 wird zu 0 (ohne Minus)", () => {
+  assertEquals(punktKey(-0, 9.5), "p:0.0000,9.5000");
+  assertEquals(punktKey(46.8, -0), "p:46.8000,0.0000");
+});
+
 Deno.test("betriebKey: Praefix b:", () => {
   assertEquals(
     betriebKey("0b7c1e2a-1111-2222-3333-444455556666"),
