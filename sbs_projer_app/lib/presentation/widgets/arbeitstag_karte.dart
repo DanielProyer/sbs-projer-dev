@@ -538,7 +538,9 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
                       ),
                   ],
                 ),
-                maxLines: 1,
+                // Zwei Zeilen: Mit «(N ohne Strecke)» wird die Zeile auf
+                // 360 px zu lang — einzeilig verschwand der Zähler hinter «…».
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ),

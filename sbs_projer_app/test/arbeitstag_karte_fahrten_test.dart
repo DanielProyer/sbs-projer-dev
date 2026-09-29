@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -27,8 +29,22 @@ GespeicherterTagesplan _plan({String? ende}) => (
   pauseStart: null,
 );
 
-TagesFahrten _fahrten({double km = 142.6, int ohneKm = 0}) => TagesFahrten(
-  fahrten: const [],
+const _halt = Halt(
+  typ: HaltTyp.betrieb,
+  id: 'b',
+  name: 'Betrieb',
+  quelle: 'reinigung',
+);
+
+/// [anzahl] Platzhalter-Fahrten, davon [ohneKm] ohne Strecke.
+TagesFahrten _fahrten({
+  double km = 142.6,
+  int anzahl = 0,
+  int ohneKm = 0,
+}) => TagesFahrten(
+  fahrten: [
+    for (var i = 0; i < anzahl; i++) const Fahrt(von: _halt, nach: _halt),
+  ],
   ohneZeit: const [],
   kmFahrten: km,
   fahrtenOhneKm: ohneKm,
@@ -90,6 +106,15 @@ String _heutePfad() {
 }
 
 void main() {
+  // Echte Schriftmasse statt der Test-Schrift (jedes Zeichen 1 em breit):
+  // Nur so sagt der 360-px-Test etwas über das Handy — mit der Test-Schrift
+  // läuft schon die Knopfzeile der Karte über. Muster: einsatz_zeile_test.
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final daten = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    await (FontLoader('Roboto')..addFont(Future.value(daten))).load();
+  });
+
   testWidgets('vor dem Feierabend keine Zeile — Provider bleibt ungestartet', (
     tester,
   ) async {
@@ -129,15 +154,39 @@ void main() {
   });
 
   testWidgets('Strecken fehlen: kein Δ, auch kein rotes', (tester) async {
+    // Eine Fahrt, und die hat keine Strecke → 0 km.
     await _pumpe(
       tester,
       ende: '17:30',
-      fahrten: () async => _fahrten(km: 120, ohneKm: 1),
+      fahrten: () async => _fahrten(km: 0, anzahl: 1, ohneKm: 1),
     );
     expect(
       tester.widget<Text>(_zeile).textSpan!.toPlainText(),
-      'Fahrten heute: 0 · 120 km (1 ohne Strecke) · Zähler 148 km',
+      'Fahrten heute: 1 · 0 km (1 ohne Strecke) · Zähler 148 km',
     );
+  });
+
+  // Pixel 9 hochkant: Die lange Zeile darf den Zähler nicht hinter «…»
+  // verstecken (Review 29.09.: maxLines 2 statt 1).
+  testWidgets('360 px: ganze Zeile inkl. Zähler sichtbar, kein Überlauf', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await _pumpe(
+      tester,
+      ende: '17:30',
+      fahrten: () async => _fahrten(km: 118.4, anzahl: 12, ohneKm: 2),
+    );
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.widget<Text>(_zeile).textSpan!.toPlainText(),
+      'Fahrten heute: 12 · 118 km (2 ohne Strecke) · Zähler 148 km',
+    );
+    // Nichts abgeschnitten: Der Zähler-Teil steht wirklich da.
+    final absatz = tester.renderObject<RenderParagraph>(_zeile);
+    expect(absatz.didExceedMaxLines, isFalse);
   });
 
   testWidgets('während des Ladens keine Zeile', (tester) async {

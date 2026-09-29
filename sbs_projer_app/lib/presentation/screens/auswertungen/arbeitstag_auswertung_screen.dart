@@ -269,6 +269,9 @@ class _Kennzahlen extends StatelessWidget {
       0,
       (s, t) => s + t.fahrten.length,
     );
+    // Fahrten ohne Strecke fehlen in der Summe — die Kennzahl sagt es.
+    final ohneStrecke =
+        f?.values.fold<int>(0, (s, t) => s + t.fahrtenOhneKm) ?? 0;
     // Fester Zwei-Spalten-Raster: auf dem Handy einhändig lesbar, ohne
     // horizontales Scrollen. Karten sind nicht tappbar (reine Anzeige).
     return GridView.count(
@@ -330,12 +333,16 @@ class _Kennzahlen extends StatelessWidget {
         ),
         // Summe der Fahrten aus der Kette (nur geroutete Strecken und
         // erfasste Anfahrten, keine Schätzung) — neben «Total km» vom
-        // Zähler; die Differenz je Tag steht in der Liste.
+        // Zähler; die Differenz je Tag steht in der Liste. Fehlen Strecken,
+        // nennt der Zusatz die Lücke statt der Tage: Die Summe ist dann nur
+        // der bekannte Teil.
         _KennzahlKarte(
           label: 'Fahrten-km (Kette)',
           wert: fahrtenKm == null ? '–' : '${fahrtenKm.round()}',
           zusatz: anzahlFahrten != null
-              ? '$anzahlFahrten Fahrten an ${f!.length} Tagen'
+              ? (ohneStrecke > 0
+                    ? '$anzahlFahrten Fahrten, $ohneStrecke ohne Strecke'
+                    : '$anzahlFahrten Fahrten an ${f!.length} Tagen')
               : (fahrtenGescheitert ? null : 'wird berechnet'),
           icon: Icons.directions_car_outlined,
         ),
