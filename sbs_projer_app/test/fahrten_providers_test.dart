@@ -184,7 +184,7 @@ void main() {
       expect(t.differenz, isNull);
       expect(t.befunde, [
         'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
-        '1 Fahrt noch ohne Strecke — Route wird geholt',
+        '1 Fahrt noch ohne geroutete Strecke',
       ]);
       expect(t.ohneZeit, isEmpty);
     });
@@ -547,16 +547,21 @@ void main() {
       expect(erste.von.lat, zuerich.lat);
       expect(erste.von.abfahrtMin, 7 * 60 + 30);
       expect(erste.nach.id, 'betrieb-a');
-      // Ab einer GPS-Position gibt es keine erfasste Anfahrt → keine km.
+      // Ab einer GPS-Position gibt es weder Anfahrtszeit noch Route → keine
+      // km, und der Befund sagt das (nicht «Anfahrtszeiten fehlen»).
       expect(erste.km, isNull);
       expect(erste.kmQuelle, isNull);
+      expect(erste.gpsFahrt, isTrue);
       expect(t.befunde, contains('Arbeitsbeginn nicht am Startort'));
       expect(
         t.befunde,
         contains(
-          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+          '1 Fahrt von/zu einer GPS-Position ohne Strecke '
+          '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
         ),
       );
+      expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
+      expect(t.differenz, isNull); // Zähler da, aber eine Strecke fehlt
       // Der Heimweg a → Domat/Ems hat seine Anfahrt (rückwärts).
       expect(t.fahrten.last.km, 12.0);
     });
@@ -688,12 +693,8 @@ void main() {
       expect(f.nach.id, 'chur');
       expect(f.km, isNull);
       expect(f.kmQuelle, isNull);
-      expect(
-        t.befunde,
-        contains(
-          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
-        ),
-      );
+      expect(t.befunde, contains('1 Fahrt zwischen Startorten ohne Strecke'));
+      expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
     });
   });
 
@@ -833,6 +834,31 @@ void main() {
       expect(paare, [(von: 'betrieb-a', nach: 'betrieb-b')]);
     });
 
+    // GPS-Halte sind nie Kandidaten (`fahrzeit-route` kennt nur Betriebe),
+    // ein Leerfahrt-Halt schon — er ist ein Betrieb mit Koordinaten.
+    test('keine GPS-Fahrt, aber die Fahrt zur Leerfahrt', () {
+      final ergebnis = bauen(
+        tagesplaene: {tag: plan(start: zuerich)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 15),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+          ),
+        ],
+      );
+      final t = ergebnis[tag]!;
+      expect(t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList(), [
+        '$kGpsStartId>betrieb-a',
+        'betrieb-a>betrieb-c',
+        'betrieb-c>domat_ems',
+      ]);
+      expect(fehlendeRoutenPaare(ergebnis.values), [
+        (von: 'betrieb-a', nach: 'betrieb-c'),
+      ]);
+    });
+
     // Seit 29.09.2026 zeigt eine Fahrt ohne Route gar keine km — routen
     // lohnt sich also überall. Die Tage mit Zählerstand kommen zuerst: Dort
     // wartet eine Kontrolle auf die Strecke.
@@ -899,7 +925,7 @@ void main() {
 
   // OSRM-Demo-Server: höchstens 1 Anfrage/s, keine Massenabfragen. Vorher
   // holte jeder Erfolg die nächsten zehn, bis der ganze Monat durch war.
-  // Seit 29.09.2026 25 je Lauf (≈ 28 s bei 1,1 s Abstand) und 100 je
+  // Seit 29.09.2026 25 je Lauf (≥ 28 s bei ≥ 1,1 s Abstand) und 100 je
   // Sitzung: Ohne Route zeigt eine Fahrt keine km mehr.
   group('routenAuswahl', () {
     List<RoutenPaar> paare(int n, [String p = 'a']) => [

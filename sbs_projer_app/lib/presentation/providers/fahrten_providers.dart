@@ -152,16 +152,16 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
 // nächsten zehn Paare (bis der ganze Monat durch war), ein Monatswechsel
 // startete einen zweiten Lauf parallel, und Zurückblättern löste 80–130
 // Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s). Jetzt:
-// - höchstens `kRoutenJeLauf` (25) Paare je Lauf und `kRoutenJeSitzung`
-//   (100) je Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht,
-//   startet kein Lauf mehr; der Rest bleibt «ohne Strecke», bis die App neu
-//   lädt;
-// - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause
-//   (`FahrzeitRepository.routeAnfordern`); ein neuer Lauf stellt sich an —
-//   25 Paare ≈ 28 s, der Server sieht nie mehr als eine Anfrage pro Sekunde;
+// - höchstens `kRoutenJeLauf` Paare je Lauf und `kRoutenJeSitzung` je
+//   Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht, startet
+//   kein Lauf mehr; der Rest bleibt «ohne Strecke», bis die App neu lädt;
+// - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause ab
+//   dem Ende der vorigen Antwort (`FahrzeitRepository.routeAnfordern`); ein
+//   neuer Lauf stellt sich an — ein voller Lauf dauert ≥ `kRoutenJeLauf` ×
+//   1,1 s, der Server sieht nie mehr als eine Anfrage pro Sekunde;
 // - Tage mit Zählerstand zuerst (`fehlendeRoutenPaare`), dann die übrigen.
 //
-// WARUM 25/100 statt 10/30 und auch Tage ohne Zähler (29.09.2026): Seit es
+// WARUM höhere Deckel und auch Tage ohne Zähler (29.09.2026): Seit es
 // keine Luftlinien-km mehr gibt (Entscheid Daniel — im Bündnerland sagt die
 // Luftlinie nichts), zeigt eine Fahrt ohne Route gar keine km. Jede Antwort
 // landet dauerhaft in `fahrzeiten.distanz_km`, der Rückstand schrumpft also

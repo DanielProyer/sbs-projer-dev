@@ -188,11 +188,19 @@ class Fahrt {
       nach.lat == null ||
       nach.lng == null;
 
-  /// Anfahrt oder Heimweg: Ein Ende ist kein Betrieb (Startort oder
-  /// Arbeitsbeginn/Feierabend unterwegs). km gibt es dann nur aus
-  /// `anfahrtszeiten` — das Nachrouten holt nur Betrieb→Betrieb.
+  /// Mindestens ein Ende ist kein Betrieb (Startort oder Arbeitsbeginn/
+  /// Feierabend unterwegs). Solche Fahrten routet das Nachrouten nie — es
+  /// holt nur Betrieb→Betrieb; km gibt es höchstens aus `anfahrtszeiten`.
   bool get startortFahrt =>
       von.typ != HaltTyp.betrieb || nach.typ != HaltTyp.betrieb;
+
+  /// Von/zu einer GPS-Position (Arbeitsbeginn/Feierabend unterwegs,
+  /// [kGpsStartId]/[kGpsEndeId]). WARUM eigens: Für eine GPS-Position gibt
+  /// es weder einen Eintrag in `anfahrtszeiten` (Schlüssel: Startort →
+  /// Betrieb) noch eine Route — `fahrzeit-route` kennt nur Betriebe. Solche
+  /// Fahrten bleiben also ohne km; «Anfahrtszeiten fehlen» wäre ein
+  /// Auftrag, den niemand erfüllen kann.
+  bool get gpsFahrt => von.id == kGpsStartId || nach.id == kGpsEndeId;
 }
 
 /// Ergebnis eines Tages.
@@ -436,10 +444,12 @@ List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
 ///
 /// Die Zähler-Kontrolle (Zähler − Fahrten) gibt es nur, wenn JEDE Fahrt eine
 /// Strecke hat ([TagesFahrten.kmVollstaendig]); sonst ein Hinweis, dass sie
-/// wartet. Fahrten ohne km werden nach Ursache getrennt gemeldet: Koordinaten
-/// fehlen / Betrieb→Betrieb noch nicht geroutet (das Nachrouten holt sie,
-/// siehe [fehlendeRoutenPaare]) / Anfahrt oder Heimweg ohne Eintrag in
-/// `anfahrtszeiten`.
+/// wartet. Fahrten ohne km werden nach Ursache getrennt gemeldet, weil jede
+/// etwas anderes verlangt: Koordinaten fehlen / Betrieb→Betrieb noch nicht
+/// geroutet (Kandidat fürs Nachrouten, [fehlendeRoutenPaare]) / Anfahrt oder
+/// Heimweg ohne Eintrag in `anfahrtszeiten` / von/zu einer GPS-Position
+/// ([Fahrt.gpsFahrt]) / zwischen zwei Startorten — die letzten beiden
+/// lassen sich weder erfassen noch routen.
 TagesFahrten tagesFahrten({
   required List<Halt> halte,
   required List<EinsatzHalt> ohneZeit,
@@ -457,12 +467,25 @@ TagesFahrten tagesFahrten({
     for (final f in fahrten)
       if (f.km == null) f,
   ];
-  // Drei Ursachen, drei Befunde — jede verlangt etwas anderes.
-  final ohneKoordinaten = ohneKm.where((f) => f.ohneKoordinaten).length;
-  final ohneAnfahrt = ohneKm
-      .where((f) => !f.ohneKoordinaten && f.startortFahrt)
-      .length;
-  final ohneRoute = ohneKm.length - ohneKoordinaten - ohneAnfahrt;
+  // Je Ursache ein Befund — jede verlangt etwas anderes. Reihenfolge der
+  // Prüfung: Koordinaten → GPS-Position → zwischen Startorten → Anfahrt/
+  // Heimweg (genau EIN Ende ist ein Betrieb) → Rest = Betrieb→Betrieb.
+  var ohneKoordinaten = 0, ohneGps = 0, ohneStartorte = 0, ohneAnfahrt = 0;
+  var ohneRoute = 0;
+  for (final f in ohneKm) {
+    final betriebe = [f.von, f.nach].where((h) => h.typ == HaltTyp.betrieb);
+    if (f.ohneKoordinaten) {
+      ohneKoordinaten++;
+    } else if (f.gpsFahrt) {
+      ohneGps++;
+    } else if (betriebe.isEmpty) {
+      ohneStartorte++;
+    } else if (betriebe.length == 1) {
+      ohneAnfahrt++;
+    } else {
+      ohneRoute++;
+    }
+  }
   final zaehler = tagesKm(kmStart: kmStart, kmEnde: kmEnde);
 
   final befunde = <String>[];
@@ -558,10 +581,11 @@ TagesFahrten tagesFahrten({
     );
   }
   if (ohneRoute > 0) {
+    // Neutral: Ob die Route noch kommt, weiss die Regel nicht — das Paar
+    // kann in dieser Sitzung schon gescheitert oder der Deckel voll sein.
     final n = ohneRoute;
     befunde.add(
-      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} noch ohne Strecke — '
-      'Route wird geholt',
+      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} noch ohne geroutete Strecke',
     );
   }
   if (ohneAnfahrt > 0) {
@@ -569,6 +593,19 @@ TagesFahrten tagesFahrten({
     befunde.add(
       '$n ${n == 1 ? 'Anfahrt/Heimweg' : 'Anfahrten/Heimwege'} ohne '
       'erfasste Strecke (Anfahrtszeiten fehlen)',
+    );
+  }
+  if (ohneGps > 0) {
+    final n = ohneGps;
+    befunde.add(
+      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} von/zu einer GPS-Position ohne '
+      'Strecke (Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
+    );
+  }
+  if (ohneStartorte > 0) {
+    final n = ohneStartorte;
+    befunde.add(
+      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} zwischen Startorten ohne Strecke',
     );
   }
 
@@ -816,9 +853,9 @@ typedef RoutenPaar = ({String von, String nach});
 ///
 /// WARUM 25/100 (29.09.2026, vorher 10/30): Seit es keine Luftlinien-km
 /// mehr gibt, zeigt eine Fahrt ohne Route gar keine km — der Rückstand muss
-/// schneller weg. Die Warteschlange hält ≥ 1,1 s Abstand, 25 Paare dauern
-/// also ≈ 28 s je Lauf; der Server sieht nie mehr als eine Anfrage pro
-/// Sekunde. Jede Antwort landet dauerhaft in `fahrzeiten.distanz_km`, der
+/// schneller weg. Die Warteschlange hält ≥ 1,1 s Abstand, gemessen ab dem
+/// Ende der vorigen Antwort — 25 Paare dauern also ≥ 28 s je Lauf; der
+/// Server sieht nie mehr als eine Anfrage pro Sekunde. Jede Antwort landet dauerhaft in `fahrzeiten.distanz_km`, der
 /// Rückstand schrumpft also von Sitzung zu Sitzung von selbst. Was über dem
 /// Sitzungsdeckel liegt, bleibt «ohne Strecke», bis die App neu lädt.
 const kRoutenJeLauf = 25;
@@ -851,8 +888,9 @@ List<RoutenPaar> routenAuswahl({
 
 /// Betrieb→Betrieb-Fahrten ohne km, obwohl beide Betriebe Koordinaten haben
 /// — Kandidaten fürs Nachrouten über die Edge Function `fahrzeit-route`. Je
-/// Paar nur eine Richtung (der Nachschlag prüft beide). Anfahrten/Heimwege
-/// sind nie Kandidaten (deren km kommen aus `anfahrtszeiten`).
+/// Paar nur eine Richtung (der Nachschlag prüft beide). Fahrten mit einem
+/// Ende, das kein Betrieb ist (Anfahrt, Heimweg, GPS-Position, Startort ↔
+/// Startort), sind nie Kandidaten — `fahrzeit-route` kennt nur Betriebe.
 ///
 /// Reihenfolge: zuerst die Tage mit Zählerstand ([TagesFahrten.kmZaehler]),
 /// dann die übrigen — je in der übergebenen Folge. Dort wartet eine
