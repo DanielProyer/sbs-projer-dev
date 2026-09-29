@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.153.1 Vorbereitung Jahresabschluss 2025: Bilanz/ER unter «Abschlüsse und Steuern», Migration 214 (zweiter Abschreibungslauf je Jahr), Donnerstag-Liste, Beilage-Skript
 - 29.09.2026 — v0.153.0 fahrzeit-route routet Koordinaten: GPS-, Startort- und Anfahrts-Fahrten bekommen OSRM-Strecken (Migration 213 `routen_punkte`)
 - 29.09.2026 — v0.152.0 Fahrten: Route oder nichts — keine Luftlinie mehr, Zähler-Kontrolle nur mit vollständigen Strecken, Nachrouten 25/100
 - 29.09.2026 — v0.151.2 Diktat: neuer Betrieb und neue Störung/Montage sofort sichtbar (Provider neu laden), Betriebsakte hängt an den Listen, Wächter «speichern lädt neu»
@@ -42,6 +43,33 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.153.1 Vorbereitung Jahresabschluss und Steuererklärung 2025
+
+Auftrag Daniel: Am Donnerstag 01.10.2026 Jahresabschluss 2025 und
+Steuererklärung 2025; Jahrgänge 2019 und 2020 per 31.12.2025 abschreiben;
+Bilanz und Erfolgsrechnung gehören zu den Abschlüssen, nicht in die Bücher.
+- **Navigation:** «Bilanz und Erfolgsrechnung» steht jetzt unter Mehr →
+  Abschlüsse und Steuern (erste Zeile), nicht mehr unter Buchhaltung;
+  Untertitel angepasst.
+- **Migration 214:** `abschreibung_jahrgang_buchen` erlaubt einen zweiten
+  Lauf im selben Geschäftsjahr (blockiert nur noch Rechnungen, die schon in
+  einem gebuchten Lauf stehen). Der 2019er-Lauf hätte den 2020er-Lauf für
+  2025 sonst verhindert. Angewendet 29.09.; Wächter-Test.
+- **Abarbeitbare Liste** in `ToDo.md` («🗓️ Donnerstag 01.10.2026»): vorher
+  Fristerstreckung (Frist war 30.09.) und GKB-Ausweis; dann Jahrgang 2020
+  (App-Schritt), Umbau auf das 2019-Muster (MWST-Rückholung Q4/2026), Delkredere
+  5 % nachziehen, Steuerrückstellung (Entscheid), Abschlussprüfung, PDF, Anhang
+  + Steuerbeilage, Steuererklärung (Bussen 320 aufrechnen), Einreichen,
+  Nachher-Punkte. SQL in `docs/buchhaltung/jahresabschluss-2025.md` §9.
+- **Skript** `Datenbank/wartung/jahresrechnung_beilage.py` (reportlab):
+  Anhang OR 959c und Steuerbeilage aus Kennzahlen — für Fassung 2 und die
+  Abschlüsse 2026 ff.
+- Politik in `docs/buchhaltung/abschreibungen-jahrgaenge.md` geändert: 2019
+  UND 2020 im Abschluss 2025, 2021 im Abschluss 2026.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 

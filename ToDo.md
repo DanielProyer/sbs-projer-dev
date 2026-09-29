@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.153.0 live** (fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **213** · **3182 Tests grün**.
+**Stand:** **v0.153.1 live** (Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **214** · **3185 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -16,8 +16,9 @@ PDF · v0.130.0 Wächter vor der Heineken-Freigabe.
 Zahlungseingang über den Bankabgleich.
 
 **Wenn du weitermachst, das Naheliegende zuerst:**
-1. **Steuererklärung 2025** — Frist **30.09.**, es fehlt nur der GKB Zins- und
-   Kapitalausweis.
+1. **Jahresabschluss 2025 + Steuererklärung 2025 am Donnerstag 01.10.** —
+   Liste unten («🗓️ Donnerstag»). Vorher: Fristerstreckung beantragen (Frist
+   war der 30.09.) und den GKB Zins-/Kapitalausweis holen.
 2. **AXA-Zahlung** — überfällig, 8'935.80.
 3. **Die fünf Telefonate** zur Lohnsumme.
 4. **19 Winterfenster** stehen noch auf Saison 2025/26 — ab Dezember fallen
@@ -34,6 +35,77 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 > Alles darunter ist Archiv. Diese Liste wurde am 19.09.2026 aus 3196 Zeilen
 > zusammengezogen; jeder Punkt wurde vor der Aufnahme geprüft, die Zahlen sind
 > vom selben Tag. Erledigtes steht im Archiv, nichts wurde gelöscht.
+
+### 🗓️ Donnerstag 01.10.2026 — Jahresabschluss 2025 und Steuererklärung 2025
+
+Vorbereitet 29.09.2026 (v0.153.1, Migration 214). **Entscheid Daniel:** die
+offenen Rechnungen der Jahrgänge **2019 und 2020** werden **per 31.12.2025**
+abgeschrieben. 2019 ist seit 02.09. gebucht (29 Rg, 2'235.90); 2020 kommt am
+Donnerstag dazu (76 Rg, 7'216.30). Jahrgang 2021 folgt im Abschluss 2026.
+SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
+
+**Vorher (Mittwoch 30.09.) — Daniel:**
+- [ ] **Fristerstreckung** für die Steuererklärung 2025 bei der Steuerverwaltung
+      Graubünden beantragen (online möglich) — die Frist ist der 30.09., wir
+      reichen erst am 01.10. oder danach ein.
+- [ ] **GKB Zins-/Kapitalausweis per 31.12.2025** holen (E-Banking →
+      Dokumente). Das einzige Steuerdokument, das im Dossier noch fehlt;
+      Lohnausweis 2025 und Jahresrechnung (Fassung 1) liegen in der App.
+
+**Donnerstag, in dieser Reihenfolge:**
+1. [ ] **Jahrgang 2020 abschreiben** — App: Mehr → Abschlüsse und Steuern →
+       Abschlussprüfung → Jahr 2025 → rote Zeile «Offene Rechnungen älter als
+       5 Jahre» → «Jahrgang abschreiben». Die Vorschau muss zeigen:
+       **76 Rechnungen · 7'216.30 brutto · 6'699.87 netto · 516.43 MWST**
+       (Jahrgänge bis 2020; 2019 ist schon abgeschrieben). Migration 214
+       erlaubt den zweiten Lauf im selben Jahr.
+2. [ ] **Claude: Umbau auf das 2019-Muster** (SQL in §9b): Die Rückholung der
+       MWST gehört nicht in Q4/2025 (eingereicht und viermal berichtigt),
+       sondern in die Periode des Entscheids (Art. 41 Abs. 2 MWSTG) — also
+       brutto auf 3805 per 31.12.2025 und **2200 an 3805 516.43 per
+       01.10.2026 → Ziff. 235 in Q4/2026**, Lauf auf MWST 2026/Q4.
+3. [ ] **Claude: Delkredere nachziehen** — 5 % von 105'351.96 = **5'267.60**
+       (bisher 5'629.38): `1109 an 3805 361.78` per 31.12.2025 (`JA2025_E2`).
+4. [ ] **Entscheid Daniel: Steuerrückstellung** — bisher 4'000 auf 2208. Mit
+       dem tieferen Gewinn reichen ≈ **2'800** (18.2 % auf ≈ 15'556 steuerbar).
+       Wenn ja: `2208 an 8900 1'200.00` per 31.12.2025 (`JA2025_D2`).
+       Provisorisch bezahlt sind 5'153.50 → Rückerstattung ≈ 2'300 zu erwarten.
+5. [ ] **Abschlussprüfung 2025** in der App durchgehen — alles grün oder
+       erklärt (Bank = camt 12'202.73, Delkredere 5 %, Rückstellung 2208,
+       Steuerzuordnung, Steuererklärung vorhanden).
+6. [ ] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — App: Mehr →
+       Abschlüsse und Steuern → Bilanz und Erfolgsrechnung → 31.12.2025 → PDF
+       (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Erwartet nach
+       1–4:** Gewinn 2025 ≈ **15'235.70** (20'890.22 − 7'216.30 + 361.78 +
+       1'200.00), EK 31.12.2025 ≈ **70'296.41**, Debitoren 105'351.96,
+       Delkredere 5'267.60. Ohne Schritt 4: Gewinn 14'035.70, EK 69'096.41.
+7. [ ] **Claude: Anhang OR 959c und Steuerbeilage** mit den finalen Zahlen
+       erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
+       6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
+8. [ ] **Steuererklärung 2025 ausfüllen** (juristische Personen, Kanton GR):
+       Reingewinn laut ER, **Aufrechnung Bussen 320.00** (120.00 Verkehrsbusse
+       auf 6280 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig),
+       steuerbarer Gewinn ≈ **15'555.70**, steuerbares Kapital = EK ≈
+       **70'296.41**; keine Beteiligungen, kein Anlagevermögen, keine
+       Liegenschaften, keine Verrechnungssteuer. Beilagen: Jahresrechnung 2025
+       (unterschrieben), Lohnausweis 2025, GKB Zins-/Kapitalausweis, Beschluss
+       der Gesellschafterversammlung (Jahresrechnung genehmigt, Gewinn auf
+       neue Rechnung vorgetragen).
+9. [ ] **Einreichen**; App: Steuern → 2025 → Status «eingereicht», Datum,
+       steuerbarer Gewinn und Kapital eintragen; hochladen: Jahresrechnung
+       Fassung 2, Steuererklärung, GKB-Ausweis, Beschluss.
+10. [ ] **Nachher:** definitive Veranlagung 2025 → 2208 gegen 8900
+        ausgleichen · MWST Q3/2026 (165.88) bis 30.11. · **Q4/2026 Ziff. 235:
+        516.43** (Jahrgang 2020) · Jahrgang 2021 im Abschluss 2026 (84 Rg,
+        8'158.40, MWST 583.39).
+
+**Optional, vor Schritt 3 (Debitoren-Hygiene):** 10 Tresen-Rechnungen vom
+Dezember 2025 stehen noch «offen» (1'036.70), laut Excel-Delta vom 02.09.
+wohl bezahlt: Posthotel 145.95 · Paloma 74.60 · Heuberg 94.05 · Arflina
+94.05 · Bahnhöfli 74.60 · Hemingway 94.05 · Robinson Club 139.45 · Seven
+Alpina 107.00 · Ochsen 2 74.60 · Holländer 138.35. Wenn wirklich bezahlt: in
+der Rechnungsliste je Rechnung «bezahlt» (Datum, Bar/Tresen) — Debitoren
+−1'036.70, Delkredere −51.84.
 
 ### ✅ Entscheide Daniel 27.09.2026 (einzeln abgefragt)
 
@@ -53,7 +125,7 @@ damit beantwortet sich, ob der August ein Einzelfall war.
 
 | | Frist | Stand |
 |---|---|---|
-| **Steuererklärung 2025** | **30.09.2026** | Lohnausweis und Jahresrechnung liegen in der App. **Es fehlt nur der GKB Zins-/Kapitalausweis per 31.12.2025** — bei der Bank holen. Dann Formular 11a (Gewinn 21'201.23, Kapital 75'950.93) und Status auf «eingereicht». **Bussen 2025 aufrechnen: 320.00** (120.00 Verkehrsbusse Bern auf 6280 + 200.00 Steuerbusse, damals auf 8900 gebucht) — Bussen sind nicht abzugsfähig (Befund 23.09.). |
+| **Steuererklärung 2025** | **30.09.2026 → Fristerstreckung beantragen** | Einreichung am Donnerstag 01.10. nach dem Abschluss (Liste «🗓️ Donnerstag» oben). Die Kennzahlen ändern sich mit dem Jahrgang 2020: steuerbarer Gewinn ≈ 15'555.70 statt 21'201.23, Kapital ≈ 70'296.41 statt 75'950.93. **Bussen 2025 aufrechnen: 320.00** (Befund 23.09.). Es fehlt der GKB Zins-/Kapitalausweis. |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
 | **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **73.82 netto in Zeile 303 (8.1 %) → 5.98** (Einzelabschreibungen Dischma 69.00 + Chalet Güggel 2.04 + Triel 2.78, Stand 27.09.). Zusammen 2'149.82 netto → **165.88**. Die App-Sicht (Buchhaltung → MwSt-Abrechnung → Q3) ist führend. Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
 
@@ -214,6 +286,7 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.153.1** — Mehr → Abschlüsse und Steuern: erste Zeile «Bilanz und Erfolgsrechnung» öffnet die Berichte; unter Buchhaltung nur noch Kontenplan und Journal.
 - **v0.153.0** — Fahrten: ein Tag mit Arbeitsbeginn unterwegs (GPS) bekommt nach ~1 min alle Strecken und die Zähler-Kontrolle; keine Befunde «GPS-Position»/«Anfahrtszeiten fehlen» mehr.
 - **v0.152.0** — Fahrten (Auswertung → Arbeitstage → Tag → Fahrten): keine «≈ Luftlinie» mehr; Fahrten ohne Route zeigen «– km / Strecke fehlt»; nach ~30 s sind Betrieb→Betrieb-Strecken nachgeroutet; «Fahrten heute» mit «(N ohne Strecke)».
 - **v0.151.2** — Diktat: neuen Betrieb anlegen → steht sofort in der Betriebsliste; Störung diktieren → sofort auf Heute/Einsätze/Betriebsseite, ohne Refresh.

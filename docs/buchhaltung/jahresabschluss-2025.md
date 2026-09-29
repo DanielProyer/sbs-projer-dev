@@ -103,3 +103,122 @@ Gewinn 2025 = 30'579.16 − 2'235.90 + 2'079.39 − 4'600.00 − 5'629.38 = **20
 **Eingereichte Bilanz 31.12.2024 (10.11.2025):** Kasse 1'142.19 · Bank 11'829.71 (GKB-Zinsausweis: 10'869.26!) · Debitoren 85'749.45 · 1170 261.80 · 1171 33.14 · 2000 7'642.35 · 2200 2'803.06 · 2202 6'360.47 · 2260 13'599.36 · 2271 6'115.87 · 2272 1'690.10 · 2273 485.97 · 2500 5'000 · EK 20'000 + 6'920.04 + 28'399.07 = 55'319.11 · Bilanzsumme 99'016.29. Formular 11a 2024: Reingewinn 28'399, Verlustvortrag aufgebraucht (Vortrag 41'257 aus 2020 bis 2023 verrechnet), steuerbar 28'399 / Kapital 48'918. Jahresrechnung-2025-PDF zeigt diese Werte als Vorjahresspalte.
 
 **Steuerhistorie (Verfügungen):** 2019 Verlust −4'973 · 2020 Verlust −36'284 (Einsprache gutgeheissen 16.03.2022; Busse 150 wegen verspäteter Erklärung) · 2021 Gewinn 16'072 voll verrechnet · 2022 Gewinn 18'049 voll verrechnet (Rest-Vortrag 7'136) · 2023 **Ermessenstaxation** (keine Erklärung; Aufrechnung 20'000, steuerbar 12'864; Busse 200) · 2024 steuerbar 28'399, Bund 2'405.50 / Kanton 2'748.00. Steuerwert Stammanteile per 31.12.2024: 985 (netto 689.50) je Anteil.
+
+
+## 9. Nachtrag 01.10.2026 — Jahrgang 2020 ebenfalls per 31.12.2025 (Entscheid Daniel 29.09.2026)
+
+**Entscheid:** «Die offenen Rechnungen 2019 und 2020 werden wir abschreiben (auf
+Ende 2025).» 2019 ist gebucht (Schritt A, 02.09.2026). 2020 kommt am
+01.10.2026 dazu: **76 Rechnungen, 36 Betriebe, 7'216.30 brutto = 6'699.87
+netto + 516.43 MWST (7.7 %)**, keine mit Zahlung. Die Politik in
+`abschreibungen-jahrgaenge.md` ist angepasst (2021 folgt im Abschluss 2026).
+
+**Vorbereitung 29.09.2026:** Migration 214 (ein zweiter Lauf im selben
+Geschäftsjahr ist erlaubt; vorher blockierte der 2019er-Lauf den App-Schritt
+mit «Für 2025 gibt es schon einen gebuchten Lauf»), Navigationsfix (Bilanz und
+Erfolgsrechnung unter «Abschlüsse und Steuern»), Skript
+`Datenbank/wartung/jahresrechnung_beilage.py` (Anhang OR 959c + Steuerbeilage).
+
+### 9a. App-Schritt (Daniel)
+
+Mehr → Abschlüsse und Steuern → Abschlussprüfung → Jahr 2025 → rote Zeile
+«Offene Rechnungen älter als 5 Jahre» → «Jahrgang abschreiben». Vorschau:
+76 Rg / 7'216.30 / 6'699.87 / 516.43 (Jahrgänge bis 2020). Ergebnis: Lauf L2
+(`geschaeftsjahr` 2025, `jahrgaenge` {2020}), je Rechnung `3805 an 1100 netto`
+und `2200 an 1100 mwst`, beide per 31.12.2025, Lauf `mwst_jahr/quartal` 2025/4.
+
+### 9b. Umbau auf das 2019-Muster (Claude, SQL, direkt nach 9a)
+
+WARUM: Q4/2025 ist eingereicht und viermal berichtigt; die Entgeltsminderung
+gehört in die Periode des Entscheids (Art. 41 Abs. 2 MWSTG), also Q4/2026.
+Wie beim Jahrgang 2019: der Verlust brutto im Abschlussjahr auf 3805, die
+Rückholung `2200 an 3805` im Folgejahr. `view_entgeltsminderung` (196) nimmt
+für Jahrgangsläufe `mwst_jahr/mwst_quartal` des Laufs — nach dem Umbau zeigt
+Q4/2026 6'699.87 netto / 516.43 in Zeile 302 (7.7 %), Q4/2025 nichts. Die
+Sammelbuchung JA2025_A2_MWST hat keine `beleg_id` und zählt in der Sicht
+nicht doppelt.
+
+```sql
+-- L2 = id des neuen Laufs (jahrgaenge = {2020})
+select id, jahrgaenge, anzahl, netto, mwst, brutto, mwst_jahr, mwst_quartal
+from abschreibung_laeufe where geschaeftsjahr = 2025 order by created_at;
+
+-- 1) Die 76 MWST-Zeilen (2200 an 1100 per 31.12.2025) auf 3805 an 1100 umstellen
+update buchungen b
+   set soll_konto = 3805,
+       beschreibung = replace(b.beschreibung, 'MWST-Rückholung', 'Debitorenverlust MWST-Anteil'),
+       notizen = replace(b.notizen, '(MWST-Rückholung', '(MWST-Anteil brutto auf 3805; Rückholung JA2025_A2_MWST per 01.10.2026'),
+       updated_at = now()
+ where b.id in (select buchung_mwst_id from abschreibung_positionen
+                 where lauf_id = 'L2' and buchung_mwst_id is not null);
+-- erwartet: UPDATE 76
+
+-- 2) EINE Rückholung per 01.10.2026 (Q4/2026, Ziff. 235, 7.7 % → Zeile 302)
+insert into buchungen (user_id, datum, belegnummer, soll_konto, haben_konto,
+  betrag_netto, mwst_satz, mwst_betrag, betrag_brutto, beschreibung, zahlungsweg,
+  beleg_typ, geschaeftsjahr, notizen)
+values ('1e1ec2dd-7836-4d8e-8256-c5649d994ee2', '2026-10-01', 'JA2025_A2_MWST',
+  2200, 3805, 516.43, 0, 0, 516.43,
+  'MwSt-Rückholung Debitorenverluste Jahrgang 2020 (76 Rg, brutto 7''216.30, 7.7 %) — Ziff. 235 Q4/2026',
+  'intern', 'abschreibung', 2026,
+  'Jahresabschluss 2025 Schritt A2: MWST-Rückholung Jahrgang 2020 (Entscheid Daniel 29.09.2026, gebucht 01.10.2026)');
+
+-- 3) Lauf auf die MWST-Periode des Entscheids
+update abschreibung_laeufe
+   set mwst_jahr = 2026, mwst_quartal = 4,
+       notizen = notizen || ' — Umbau 01.10.2026: MWST-Anteil brutto auf 3805 per 31.12.2025, Rückholung JA2025_A2_MWST (2200 an 3805) per 01.10.2026, Ziff. 235 Q4/2026.'
+ where id = 'L2';
+
+-- Kontrolle per 31.12.2025 (vorher → nachher): 1100 112'568.26 → 105'351.96 ·
+-- 3805 (2025) 7'865.28 → 15'081.58 · 2200 unverändert gegenüber vor 9a
+```
+
+### 9c. Delkredere nachziehen (Claude)
+
+```sql
+-- 5 % von 105'351.96 = 5'267.60; bisher 5'629.38 (JA2025_E) → 361.78 zurück
+insert into buchungen (user_id, datum, belegnummer, soll_konto, haben_konto,
+  betrag_netto, mwst_satz, mwst_betrag, betrag_brutto, beschreibung, zahlungsweg,
+  beleg_typ, geschaeftsjahr, notizen)
+values ('1e1ec2dd-7836-4d8e-8256-c5649d994ee2', '2025-12-31', 'JA2025_E2',
+  1109, 3805, 361.78, 0, 0, 361.78,
+  'Delkredere auf 5 % von 105''351.96 = 5''267.60 nachgeführt (nach Abschreibung Jahrgang 2020)',
+  'intern', 'abschluss', 2025,
+  'Jahresabschluss 2025 Schritt E2 (Freigabe Daniel 01.10.2026)');
+```
+Falls vorher die 10 Tresen-Rechnungen Dez 2025 (1'036.70) auf «bezahlt»
+gesetzt werden: Basis 104'315.26 → Delkredere 5'215.76 → Betrag 413.62.
+
+### 9d. Steuerrückstellung (Entscheid Daniel)
+
+Vom gebuchten Gewinn 20'890.22 aus: − 7'216.30 (2020) + 361.78 (Delkredere)
+= **14'035.70** mit Rückstellung 4'000. Steuerbar + 320 Bussen. Rückstellung
+R so, dass R ≈ 18.2 % × (18'355.70 − R): R ≈ 2'826 → **2'800**. Buchung, wenn
+Daniel zustimmt:
+```sql
+insert into buchungen (user_id, datum, belegnummer, soll_konto, haben_konto,
+  betrag_netto, mwst_satz, mwst_betrag, betrag_brutto, beschreibung, zahlungsweg,
+  beleg_typ, geschaeftsjahr, notizen)
+values ('1e1ec2dd-7836-4d8e-8256-c5649d994ee2', '2025-12-31', 'JA2025_D2',
+  2208, 8900, 1200.00, 0, 0, 1200.00,
+  'Steuerrückstellung 2025 von 4''000 auf 2''800 angepasst (steuerbarer Gewinn ≈ 15''556)',
+  'intern', 'abschluss', 2025,
+  'Jahresabschluss 2025 Schritt D2 (Freigabe Daniel 01.10.2026)');
+```
+Danach: Gewinn 2025 = **15'235.70**, EK 31.12.2025 = 20'000 + 35'060.71 +
+15'235.70 = **70'296.41**, steuerbar 15'555.70. Massgebend ist die App-Bilanz.
+Provisorisch bezahlt 5'153.50 → Rückerstattung ≈ 2'300.
+
+### 9e. Unterlagen (Fassung 2)
+
+App-PDF Bilanz + ER per 31.12.2025 (Abschlüsse und Steuern → Bilanz und
+Erfolgsrechnung) + `py -3 Datenbank/wartung/jahresrechnung_beilage.py --jahr
+2025 --gewinn … --vortrag 35060.71 --ek … --debitoren … --delkredere …
+--rueckstellung … --bank 12202.73 --kasse 6670.24 --bussen 320 --out …` (Anhang
+OR 959c, Steuerbeilage mit Aufrechnung). Steuerjahr 2025 in der App:
+steuerbarer Gewinn, Kapital, Status «eingereicht», Dokumente hochladen.
+
+**Rollback 9a–9d:** Lauf L2 über die App zurücknehmen (löscht die 152
+Zeilen und setzt die 76 Rechnungen zurück — auch nach dem Umbau, weil die
+Positionen die Buchungs-Ids tragen); JA2025_A2_MWST, JA2025_E2, JA2025_D2
+löschen (`belegnummer in (…)`).

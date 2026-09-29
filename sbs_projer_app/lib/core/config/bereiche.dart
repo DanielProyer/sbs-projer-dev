@@ -196,7 +196,7 @@ const kBereichMehr = Bereich(
         ),
         BereichEintrag(
           titel: 'Buchhaltung',
-          untertitel: 'Konten, Journal, Bilanz',
+          untertitel: 'Konten, Journal',
           icon: Icons.menu_book,
           ziel: '/buchhaltung',
           zaehler: ZaehlerQuelle.bereich,
@@ -211,7 +211,7 @@ const kBereichMehr = Bereich(
         ),
         BereichEintrag(
           titel: 'Abschlüsse und Steuern',
-          untertitel: 'Monat, MWST, Jahr, Steuern',
+          untertitel: 'Bilanz, MWST, Jahr, Steuern',
           icon: Icons.fact_check,
           ziel: '/abschluesse',
           zaehler: ZaehlerQuelle.bereich,
@@ -283,6 +283,16 @@ const kBereichAbschluesse = Bereich(
   gruppen: [
     BereichGruppe(
       eintraege: [
+        // Hier, nicht unter «Buchhaltung»: Bilanz und Erfolgsrechnung sind
+        // die Grundlage und Beilage der Steuererklärung — Daniel suchte sie
+        // am 29.09.2026 bei den Abschlüssen und fand sie bei den Büchern.
+        BereichEintrag(
+          titel: 'Bilanz und Erfolgsrechnung',
+          untertitel: 'Per Datum, Beilage zur Steuererklärung',
+          icon: Icons.assessment,
+          ziel: '/buchhaltung/berichte',
+          stichwoerter: ['jahresrechnung', 'bilanz', 'erfolgsrechnung'],
+        ),
         BereichEintrag(
           titel: 'Monatsabschluss',
           untertitel: 'Zehn Punkte je Monat: Einsätze, Heineken, Bank, Lohn',
@@ -369,12 +379,8 @@ const kBereichBuchhaltung = Bereich(
           icon: Icons.menu_book,
           ziel: '/buchhaltung/buchungen',
         ),
-        BereichEintrag(
-          titel: 'Bilanz und Erfolgsrechnung',
-          untertitel: 'Per Datum',
-          icon: Icons.assessment,
-          ziel: '/buchhaltung/berichte',
-        ),
+        // «Bilanz und Erfolgsrechnung» steht seit v0.153.1 unter
+        // «Abschlüsse und Steuern» (siehe dort).
       ],
     ),
   ],

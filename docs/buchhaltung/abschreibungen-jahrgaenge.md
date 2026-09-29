@@ -1,7 +1,7 @@
 # Abschreibung offener Rechnungen — jahrgangsweise, mit MWST-Rückholung
 
 **Stand:** 19.09.2026 · Grundlage: Datenbank vom selben Tag, ESTV-Abrechnungen Q4/2020, Q4/2022, Q2/2026, `docs/buchhaltung/jahresabschluss-2025.md`
-**Politik (Entscheid Daniel, 02.09.2026, präzisiert 19.09.2026):** Ein Jahrgang wird im Abschluss des Jahres abgeschrieben, in dem er verjährt — fünf Jahre nach der Leistung. Also 2019 im Abschluss 2025 (erledigt), **2020 und 2021 im Abschluss 2026**, 2022 im 2027, 2023 im 2028, 2024 im 2029, 2025 im 2030. Nie gestellte Rechnungen werden **nicht nachversendet** (Entscheid 19.09.2026); sie laufen in derselben Reihe mit.
+**Politik (Entscheid Daniel, 02.09.2026, präzisiert 19.09.2026, geändert 29.09.2026):** Ein Jahrgang wird im Abschluss des Jahres abgeschrieben, in dem er verjährt — fünf Jahre nach der Leistung. **Neu seit 29.09.2026: 2019 UND 2020 im Abschluss 2025** (2019 gebucht 02.09.2026, 2020 am 01.10.2026 — die Fünfjahresfrist der 2020er-Rechnungen läuft am 31.12.2025 ab, also gehört der Verlust in diesen Abschluss), **2021 im Abschluss 2026**, 2022 im 2027, 2023 im 2028, 2024 im 2029, 2025 im 2030. Migration 214 erlaubt dafür einen zweiten Lauf im selben Geschäftsjahr; die MWST-Rückholung folgt dem 2019-Muster (brutto im Abschlussjahr auf 3805, Rückholung 2200 an 3805 in der Periode des Entscheids, Ziff. 235). Ablauf: `docs/buchhaltung/jahresabschluss-2025.md` §9. Nie gestellte Rechnungen werden **nicht nachversendet** (Entscheid 19.09.2026); sie laufen in derselben Reihe mit.
 
 ---
 
