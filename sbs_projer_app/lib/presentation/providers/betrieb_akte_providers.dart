@@ -11,6 +11,11 @@ import 'package:sbs_projer_app/data/repositories/montage_repository.dart';
 import 'package:sbs_projer_app/data/repositories/rechnung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/reinigung_repository.dart';
 import 'package:sbs_projer_app/data/repositories/stoerung_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/eigenauftrag_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/eroeffnungsreinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/reinigung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 
 /// Offener Saldo, Mahnstufe und Guthaben eines Betriebs (Server-Id).
@@ -35,6 +40,17 @@ typedef AkteSchluessel = ({String betriebId, String? anlageId});
 final betriebEinsaetzeProvider = FutureProvider.autoDispose
     .family<List<Einsatz>, AkteSchluessel>((ref, k) async {
       final betrieb = ref.watch(betriebLookupProvider)[k.betriebId];
+      // Die Akte holt sich ihre Zeilen selbst (alle Jahre, nicht nur das
+      // geladene), hängt aber an den Speicher-Listen: Wird eine davon neu
+      // geladen (neue Störung per Diktat, Formular, Abschluss), baut sich die
+      // Akte mit — sonst stand der Einsatz erst nach einem Refresh auf der
+      // Betriebsseite (Daniel, 29.09.2026). Die Werte selbst braucht es
+      // nicht, nur die Abhängigkeit.
+      ref.watch(reinigungenProvider);
+      ref.watch(stoerungenProvider);
+      ref.watch(montagenProvider);
+      ref.watch(eigenauftraegeProvider);
+      ref.watch(eroeffnungsreinigungenProvider);
       final (reinigungen, stoerungen, montagen, eigenauftraege, saison) =
           await (
             ReinigungRepository.getByBetrieb(k.betriebId),

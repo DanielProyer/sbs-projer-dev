@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
@@ -8,6 +9,8 @@ import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_repository.dart';
 import 'package:sbs_projer_app/data/repositories/betrieb_saison_historie_repository.dart';
 import 'package:sbs_projer_app/data/repositories/termin_repository.dart';
+import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart'
+    show betriebeStreamProvider;
 import 'package:sbs_projer_app/presentation/widgets/datum_auswahl.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/presentation/widgets/zeit_auswahl.dart';
@@ -27,12 +30,18 @@ Future<bool> zeigeSaisonAbmachungSheet(
   BuildContext context, {
   required BetriebLocal betrieb,
 }) async {
+  // Vor dem await: nach dem Sheet gehört der Kontext evtl. keinem Baum mehr.
+  final container = ProviderScope.containerOf(context, listen: false);
   final ok = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
     builder: (ctx) => _SaisonAbmachungSheet(betrieb: betrieb),
   );
+  // Das Sheet ändert den Betrieb in der DB; der Web-Strom der Betriebe ist
+  // einmalig — ohne Neuladen sähen Tourenplan und Saison-Warnungen die neuen
+  // Daten erst nach einem Refresh (Wächter `speichern_laedt_neu`, 29.09.2026).
+  if (ok == true) container.invalidate(betriebeStreamProvider);
   return ok ?? false;
 }
 

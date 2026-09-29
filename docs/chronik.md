@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.151.2 Diktat: neuer Betrieb und neue Störung/Montage sofort sichtbar (Provider neu laden), Betriebsakte hängt an den Listen, Wächter «speichern lädt neu»
 - 29.09.2026 — v0.151.1 Material-Karte: Foto ganz sichtbar (contain statt cover)
 - 27.09.2026 — v0.151.0 Material: Kategorie-Chips in einer Zeile, Karten-Ansicht mit Swipe (Foto, Bestand ±, Vormerken), Ansicht und Kategorie gemerkt
 - 27.09.2026 — v0.150.0 Navigation: Leiste Heute · Betriebe · Material · Tour · Mehr, Einsätze unter Mehr, Mehr-Seite als einheitliche Zeilen
@@ -39,6 +40,28 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.151.2 Neu erfasst = sofort sichtbar
+
+Fehlerbericht Daniel: «neuen Betrieb erstellt und eine Störung auf diesen
+Betrieb erfasst, beides war erst nach einem Refresh sichtbar.»
+- **Ursache:** Das Diktat-Sheet (`diktat_sheet.dart`) speicherte Betrieb,
+  Störung und Montage, lud danach aber nur die Aufgaben-Provider neu. Auf Web
+  ist jeder `watchAll()`-Strom einmalig (`Stream.fromFuture`) — ohne
+  `invalidate(<x>StreamProvider)` erfährt Riverpod nichts. Das Betriebs- und
+  das Störungsformular machten es richtig; das Sheet nicht.
+- **Fix:** Nach jedem Speichern im Sheet den passenden Strom neu laden
+  (Betriebe, Störungen, Montagen; Container vor dem `await` geholt). Dasselbe
+  im Saison-Abmachungs-Sheet (Betrieb).
+- **Betriebsakte** (`betriebEinsaetzeProvider`) hängt jetzt an den fünf
+  Speicher-Listen: Wird eine neu geladen, baut sich die Einsätze-Sektion der
+  Betriebsseite mit — vorher nur nach Rückkehr aus einem gepushten Formular.
+- **Wächter** `test/speichern_laedt_neu_waechter_test.dart`: Jede Datei unter
+  `lib/presentation/` mit `XRepository.save(` muss `invalidate(xStreamProvider`
+  enthalten (Betrieb, Störung, Montage, Eigenauftrag, Eröffnungsreinigung,
+  Reinigung). War rot an vier Stellen, jetzt grün.
 
 ---
 

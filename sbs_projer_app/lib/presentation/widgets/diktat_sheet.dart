@@ -24,6 +24,10 @@ import 'package:sbs_projer_app/presentation/providers/aufgaben_providers.dart'
 import 'package:sbs_projer_app/presentation/providers/betrieb_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/heute_providers.dart'
     show tagHeute;
+import 'package:sbs_projer_app/presentation/providers/montage_providers.dart'
+    show montagenStreamProvider;
+import 'package:sbs_projer_app/presentation/providers/stoerung_providers.dart'
+    show stoerungenStreamProvider;
 import 'package:sbs_projer_app/presentation/providers/tour_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/einplanen_sheet.dart';
 import 'package:sbs_projer_app/services/betrieb/betrieb_google_service.dart';
@@ -406,6 +410,12 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
     // «Speichern fehlgeschlagen» ankommen — ein zweiter Tipp legte ihn
     // doppelt an (Review 26.09.2026).
     String? hinweisNachSpeichern;
+    // Container vor den awaits: Der Web-Strom eines Repositories ist einmalig
+    // (`Stream.fromFuture`) — ohne `invalidate` stand die neue Störung erst
+    // nach einem Browser-Refresh in Liste, Heute und Tourenplan (Daniel,
+    // 29.09.2026). `ref` wäre nach dem Schliessen des Sheets nicht mehr
+    // benutzbar, der Container schon.
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final beschreibung = _beschreibungCtrl.text.trim();
       switch (_art) {
@@ -417,6 +427,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
             ..problemBeschreibung = beschreibung
             ..status = 'offen';
           await StoerungRepository.save(s);
+          container.invalidate(stoerungenStreamProvider);
           if (_geplantTag != null) {
             // Ohne das Aufnehmen landet der Einsatz nur in der Fällig-Liste
             // des Zieltags, nie in der Zeitachse — siehe Doku bei
@@ -457,6 +468,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
             ..beschreibung = beschreibung
             ..status = 'geplant';
           await MontageRepository.save(m);
+          container.invalidate(montagenStreamProvider);
           if (_geplantTag != null) {
             // Siehe Störung oben.
             final betrieb = ref.read(betriebLookupProvider)[_betriebId];
@@ -616,6 +628,10 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
       return;
     }
     setState(() => _loading = true);
+    // Siehe `_speichern`: ohne Neuladen stand der neue Betrieb erst nach
+    // einem Refresh in der Betriebsliste — und das nächste Diktat fand ihn
+    // nicht (Daniel, 29.09.2026).
+    final container = ProviderScope.containerOf(context, listen: false);
     try {
       final b = BetriebLocal()
         ..name = name
@@ -640,6 +656,7 @@ class _DiktatSheetState extends ConsumerState<DiktatSheet> {
         if (g.longitude != null) b.longitude = g.longitude;
       }
       await BetriebRepository.save(b);
+      container.invalidate(betriebeStreamProvider);
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
