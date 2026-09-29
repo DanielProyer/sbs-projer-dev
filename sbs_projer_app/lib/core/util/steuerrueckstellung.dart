@@ -11,6 +11,7 @@ library;
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
 import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
 
 /// Effektiver Steuersatz auf den steuerbaren Gewinn (Bund 8.5 % + Kanton GR/Gemeinde
@@ -62,7 +63,7 @@ double steuerbarerGewinn({
 /// [gewinnVorRueckstellung]: Jahresergebnis laut Journal plus die schon
 /// gebuchte Rückstellung des Jahres — damit der Vorschlag nicht von sich
 /// selbst abhängt. [aufrechnungenAuto]: Bussen-Aufwand des Jahres
-/// ([kKontenBussen]). [gebucht]: Rückstellung des Jahres netto
+/// ([kKontenBussen] + [bussenAuf8900]). [gebucht]: Rückstellung des Jahres netto
 /// ([rueckstellungGebucht]).
 typedef SteuerrueckstellungLage = ({
   double gewinnVorRueckstellung,
@@ -72,13 +73,15 @@ typedef SteuerrueckstellungLage = ({
 
 /// Zählt [b] als Rückstellungsbuchung des Jahres [jahr]?
 ///
-/// Nur die Abschlussbuchung selbst: 8900 ↔ 2208, `beleg_typ` «abschluss»,
-/// Geschäftsjahr [jahr] UND per 31.12.[jahr]. WARUM das Datum: Die
-/// Umbuchungen der provisorischen Steuerzahlungen 2025 (`JA2025_D_U1/U2`,
-/// 2208 an 8900 im April/Mai 2026) tragen ebenfalls `beleg_typ` «abschluss»
-/// und Geschäftsjahr 2026 — ohne den Stichtag zählten sie für 2026 als
-/// Auflösung von 5'153.50. Zahlungen gegen 2208 (Bank im Haben) zählen nie.
-/// Stornierte Buchungen und Storno-Gegenbuchungen fallen heraus.
+/// Nur die Abschlussbuchung selbst: 8900 ↔ 2208, Geschäftsjahr [jahr] UND
+/// per 31.12.[jahr]. WARUM das Datum: Die Umbuchungen der provisorischen
+/// Steuerzahlungen 2025 (`JA2025_D_U1/U2`, 2208 an 8900 im April/Mai 2026)
+/// tragen `beleg_typ` «abschluss» und Geschäftsjahr 2026 — ohne den Stichtag
+/// zählten sie für 2026 als Auflösung von 5'153.50. Der `beleg_typ` selbst
+/// zählt bewusst NICHT: Eine Rückstellung aus dem Buchungsformular trägt
+/// keinen, und Datum + Geschäftsjahr + Kontenpaar grenzen schon ab.
+/// Zahlungen gegen 2208 (Bank im Haben) zählen nie. Stornierte Buchungen
+/// und Storno-Gegenbuchungen fallen heraus.
 bool istRueckstellungsbuchung(Buchung b, int jahr) {
   if (!zaehltFuerSaldo(
     istStorniert: b.istStorniert,
@@ -86,7 +89,7 @@ bool istRueckstellungsbuchung(Buchung b, int jahr) {
   )) {
     return false;
   }
-  if (b.belegTyp != 'abschluss' || b.geschaeftsjahr != jahr) return false;
+  if (b.geschaeftsjahr != jahr) return false;
   if (b.datum.year != jahr || b.datum.month != 12 || b.datum.day != 31) {
     return false;
   }
@@ -112,19 +115,53 @@ double rueckstellungGebucht(Iterable<Buchung> journal, int jahr) {
   return rundeAufRappen(summe);
 }
 
+/// Steuerbussen auf 8900 im Jahr [jahr]: Soll 8900 mit `steuerart` «busse»
+/// (nicht storniert, nach Datum wie die Erfolgsrechnung).
+///
+/// WARUM eigens: Bussen sind nicht abzugsfähig, aber im 8900-Saldo nicht
+/// von den Steuern zu trennen. 2025 steht die «Busse Kanton» 200.00 so im
+/// Journal — die Aufrechnung ist dann 311.01 (6280 netto 111.01 + 200), wie
+/// in der Steuerbeilage 2025, nicht 111.01.
+double bussenAuf8900(Iterable<Buchung> journal, int jahr) {
+  final saldi = <int, double>{};
+  for (final b in journal) {
+    if (b.sollKonto != kKontoSteueraufwand || b.steuerart != 'busse') continue;
+    if (b.datum.year != jahr) continue;
+    if (!zaehltFuerSaldo(
+      istStorniert: b.istStorniert,
+      stornoVonId: b.stornoVonId,
+    )) {
+      continue;
+    }
+    // Wie Bilanz/ER: eine Vorsteuer-Aufteilung zählt nur netto als Aufwand.
+    SaldoExpansion.apply(
+      saldi,
+      sollKonto: b.sollKonto,
+      habenKonto: b.habenKonto,
+      mwstKonto: b.mwstKonto,
+      betragNetto: b.betragNetto,
+      mwstBetrag: b.mwstBetrag,
+      betragBrutto: b.betragBrutto,
+    );
+  }
+  return rundeAufRappen(saldi[kKontoSteueraufwand] ?? 0);
+}
+
 /// Lage aus den Saldi per 31.12. des Jahres ([saldiBis]) und per 31.12. des
 /// Vorjahres ([saldiVor]) — gleiche Rechnung wie die Bilanz
 /// (`BilanzService.erstelle`: Jahresergebnis = kumuliertes Ergebnis bis
-/// Stichtag − bis Vorjahr, Gewinn positiv).
+/// Stichtag − bis Vorjahr, Gewinn positiv). [bussen8900] =
+/// [bussenAuf8900] (braucht `steuerart`, die in den Saldi fehlt).
 SteuerrueckstellungLage rueckstellungLageAusSaldi({
   required Map<int, double> saldiBis,
   required Map<int, double> saldiVor,
   required double gebucht,
+  double bussen8900 = 0,
 }) {
   final ergebnis =
       BilanzService.kumuliertesErgebnis(saldiBis) -
       BilanzService.kumuliertesErgebnis(saldiVor);
-  var bussen = 0.0;
+  var bussen = bussen8900;
   for (final k in kKontenBussen) {
     // Aufwandkonto: Roh-Saldo Soll − Haben, Aufwand positiv.
     bussen += (saldiBis[k] ?? 0) - (saldiVor[k] ?? 0);

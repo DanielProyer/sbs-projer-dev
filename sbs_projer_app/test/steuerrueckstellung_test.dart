@@ -19,6 +19,9 @@ Buchung _b(
   String? belegnummer,
   bool storniert = false,
   String? stornoVonId,
+  int? mwstKonto,
+  double mwst = 0,
+  String? steuerart,
 }) => Buchung(
   id: 'b${_id++}',
   userId: 'u',
@@ -26,13 +29,16 @@ Buchung _b(
   belegnummer: belegnummer,
   sollKonto: soll,
   habenKonto: haben,
-  betragNetto: betrag,
+  mwstKonto: mwstKonto,
+  betragNetto: betrag - mwst,
+  mwstBetrag: mwst,
   betragBrutto: betrag,
   beschreibung: 'Test',
   belegTyp: belegTyp,
   geschaeftsjahr: geschaeftsjahr ?? datum.year,
   istStorniert: storniert,
   stornoVonId: stornoVonId,
+  steuerart: steuerart,
 );
 
 final _silvester2025 = DateTime(2025, 12, 31);
@@ -166,9 +172,17 @@ void main() {
       expect(rueckstellungGebucht([jaD, d2], 2025), 2800);
     });
 
-    test('ohne beleg_typ «abschluss», anderes Geschäftsjahr oder storniert '
-        '→ zählt nicht', () {
+    test('aus dem Buchungsformular (ohne beleg_typ) zählt — Datum, '
+        'Geschäftsjahr und Kontenpaar grenzen schon ab', () {
       final ohneTyp = _b(8900, 2208, 100, _silvester2025);
+      expect(istRueckstellungsbuchung(ohneTyp, 2025), isTrue);
+      expect(rueckstellungGebucht([jaD, ohneTyp], 2025), 4100);
+      // Umbuchung einer Steuerzahlung von Hand im Jahr: kein 31.12.
+      final umbuchung = _b(2208, 8900, 2748, DateTime(2025, 5, 5));
+      expect(istRueckstellungsbuchung(umbuchung, 2025), isFalse);
+    });
+
+    test('anderes Geschäftsjahr oder storniert → zählt nicht', () {
       final falschesJahr = _b(
         8900,
         2208,
@@ -193,10 +207,51 @@ void main() {
         belegTyp: 'abschluss',
         stornoVonId: storniert.id,
       );
-      expect(
-        rueckstellungGebucht([ohneTyp, falschesJahr, storniert, gegen], 2025),
-        0,
-      );
+      expect(rueckstellungGebucht([falschesJahr, storniert, gegen], 2025), 0);
+    });
+  });
+
+  group('bussenAuf8900', () {
+    test('Steuerbusse auf 8900 (steuerart «busse») zählt, Steuern nicht', () {
+      final journal = [
+        // 2025: «Busse Kanton» 200.00 auf 8900 (produktiv so gebucht).
+        _b(8900, 1020, 200, DateTime(2025, 3, 20), steuerart: 'busse'),
+        _b(8900, 1020, 1088, DateTime(2025, 5, 14), steuerart: 'bund'),
+        // MWST-Busse auf 2202 ist kein 8900-Aufwand.
+        _b(2202, 1020, 1110, DateTime(2025, 10, 7), steuerart: 'busse'),
+        // Anderes Jahr, storniert → nicht.
+        _b(8900, 1020, 400, DateTime(2024, 3, 17), steuerart: 'busse'),
+        _b(
+          8900,
+          1020,
+          50,
+          DateTime(2025, 6, 1),
+          steuerart: 'busse',
+          storniert: true,
+        ),
+      ];
+      expect(bussenAuf8900(journal, 2025), 200);
+      expect(bussenAuf8900(journal, 2024), 400);
+    });
+  });
+
+  group('Lage mit Bussen wie 2025', () {
+    // Verkehrsbusse 120.00 mit Vorsteuer 8.99 gebucht (1171) → Aufwand 6280
+    // nur 111.01; «Busse Kanton» 200.00 auf 8900 → Aufrechnung 311.01
+    // (so auch die Steuerbeilage 2025).
+    final journal = [
+      _b(1100, 3400, 30000, DateTime(2025, 3, 1)),
+      _b(6280, 1020, 120, DateTime(2025, 7, 31), mwstKonto: 1171, mwst: 8.99),
+      _b(8900, 1020, 200, DateTime(2025, 3, 20), steuerart: 'busse'),
+      _b(8900, 2208, 4000, _silvester2025, belegTyp: 'abschluss'),
+    ];
+
+    test('Aufrechnung = 6280 netto + Steuerbusse 8900', () {
+      final l = SteuerrueckstellungService.lage(journal, 2025);
+      expect(l.aufrechnungenAuto, 311.01);
+      // 30'000 − 111.01 − 200 − 4'000 + 4'000
+      expect(l.gewinnVorRueckstellung, 29688.99);
+      expect(l.gebucht, 4000);
     });
   });
 

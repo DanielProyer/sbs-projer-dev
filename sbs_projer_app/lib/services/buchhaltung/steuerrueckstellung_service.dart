@@ -26,6 +26,7 @@ class SteuerrueckstellungService {
         DateTime(jahr - 1, 12, 31),
       ),
       gebucht: rueckstellungGebucht(journal, jahr),
+      bussen8900: bussenAuf8900(journal, jahr),
     );
   }
 
@@ -76,8 +77,10 @@ class SteuerrueckstellungService {
           'Steuerrückstellung $jahr auf ${chf(ziel)} '
           '(bisher ${chf(gebucht)})',
       'zahlungsweg': 'intern',
-      // «abschluss» + 31.12. + Geschäftsjahr: genau daran erkennt
+      // 31.12. + Geschäftsjahr + 8900 ↔ 2208: daran erkennt
       // `istRueckstellungsbuchung` die Rückstellung des Jahres wieder.
+      // «abschluss» wie JA2025_D: markiert das Jahr als abgeschlossen
+      // (geschaeftsjahr_abgeschlossen, Migration 209/216).
       'beleg_typ': 'abschluss',
       'geschaeftsjahr': jahr,
       'notizen': 'Jahresabschluss $jahr Schritt D (App): $begruendung',
