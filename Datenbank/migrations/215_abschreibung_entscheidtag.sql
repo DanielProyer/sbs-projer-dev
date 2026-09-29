@@ -127,9 +127,12 @@ BEGIN
 
   -- Nummer des Laufs im Geschäftsjahr — nur für die Belegnummer, damit ein
   -- zweiter Lauf im selben Abschluss unterscheidbar bleibt (2025: L2).
+  -- Zurückgenommene Läufe zählen mit (sie bleiben als Zeilen stehen): so
+  -- bleibt die Nummer fortlaufend, und ein neuer Lauf nach einer Rücknahme
+  -- trägt nie die Belegnummer der gelöschten Rückholung.
   SELECT count(*) INTO v_lauf_nr
   FROM abschreibung_laeufe
-  WHERE user_id = v_user AND geschaeftsjahr = p_geschaeftsjahr AND status = 'gebucht';
+  WHERE user_id = v_user AND geschaeftsjahr = p_geschaeftsjahr;
 
   FOR r IN
     SELECT rg.id, rg.rechnungsnummer, rg.rechnungsdatum, rg.betrag_netto, rg.mwst_betrag, rg.betrag_brutto,
@@ -272,12 +275,15 @@ SELECT l.user_id,
        sum(p.netto)                        AS netto,
        sum(p.mwst)                         AS mwst,
        count(*)::int                       AS anzahl,
+       -- Jahrgänge DIESES Satzes, nicht des ganzen Laufs: sonst hiesse die
+       -- 7.7-%-Zeile eines Laufs über 2023 und 2024 «Jahrgang 2023, 2024».
        format('Abschreibung Jahrgang %s (Abschluss %s, %s Rechnungen)',
-              array_to_string(l.jahrgaenge, ', '), l.geschaeftsjahr, count(*)) AS text
+              array_to_string(array_agg(DISTINCT p.jahrgang ORDER BY p.jahrgang), ', '),
+              l.geschaeftsjahr, count(*)) AS text
 FROM abschreibung_laeufe l
 JOIN abschreibung_positionen p ON p.lauf_id = l.id
 WHERE l.status = 'gebucht' AND p.netto > 0
-GROUP BY l.id, l.user_id, l.mwst_jahr, l.mwst_quartal, l.jahrgaenge, l.geschaeftsjahr,
+GROUP BY l.id, l.user_id, l.mwst_jahr, l.mwst_quartal, l.geschaeftsjahr,
          round(p.mwst / p.netto * 100, 1)
 
 UNION ALL

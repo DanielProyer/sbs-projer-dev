@@ -134,6 +134,22 @@ void main() {
       );
     });
 
+    test('Lauf-Nummer zählt auch zurückgenommene Läufe (fortlaufend)', () {
+      // Zurückgenommene Läufe bleiben als Zeilen stehen. Zählte die Nummer
+      // nur gebuchte, bekäme ein neuer Lauf nach einer Rücknahme dieselbe
+      // Belegnummer wie der gelöschte — im Protokoll nicht mehr trennbar.
+      final start = f.indexOf('SELECT count(*) INTO v_lauf_nr');
+      expect(start, isNot(-1));
+      final zaehler = f.substring(start, f.indexOf(';', start));
+      expect(
+        zaehler,
+        contains(
+          'WHERE user_id = v_user AND geschaeftsjahr = p_geschaeftsjahr',
+        ),
+      );
+      expect(zaehler, isNot(contains('status')));
+    });
+
     test('Positionen behalten netto, mwst, brutto; keine MWST-Buchung-Id', () {
       expect(f, contains('r.betrag_netto, r.mwst_betrag, r.betrag_brutto'));
       expect(f, contains('v_brutto_id, NULL'));
@@ -187,6 +203,21 @@ void main() {
       expect(v, contains('sum(p.mwst)'));
       expect(v, contains('GROUP BY l.id'));
       expect(v, isNot(contains('round(l.mwst / l.netto')));
+    });
+
+    test('Text nennt nur die Jahrgänge des Satzes, nicht die des Laufs', () {
+      // Abschluss 2029 mit 2023 (7.7 %) und 2024 (8.1 %): die 7.7-Zeile darf
+      // nicht «Jahrgang 2023, 2024» heissen.
+      final v = view();
+      final erster = v.substring(0, v.indexOf('UNION ALL'));
+      expect(
+        erster,
+        contains(
+          'array_to_string(array_agg(DISTINCT p.jahrgang ORDER BY '
+          'p.jahrgang), \', \')',
+        ),
+      );
+      expect(erster, isNot(contains('l.jahrgaenge')));
     });
 
     test('Spalten in derselben Reihenfolge wie heute', () {
