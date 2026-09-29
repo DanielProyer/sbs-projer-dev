@@ -118,7 +118,34 @@ enum _Feld {
   notizen,
 }
 
-enum _Erkennung { aus, laeuft, erkannt, nichtErkannt, nichtMoeglich }
+enum _Erkennung {
+  aus,
+  laeuft,
+  erkannt,
+  nichtErkannt,
+  nichtMoeglich,
+
+  /// «Erneut erkennen» scheiterte nach einer gelungenen Erkennung — deren
+  /// Werte bleiben stehen.
+  erneutFehlgeschlagen,
+
+  /// Die Erkennung lief noch, als ein Upload scheiterte; ihre Antwort gilt
+  /// nicht mehr.
+  abgebrochen,
+}
+
+/// Meldung für den Steuerjahr-Screen, wenn das hochgeladene Dokument (etwa
+/// durch die Erkennung) nicht im offenen Dossierjahr gelandet ist — sonst
+/// sucht Daniel es dort vergeblich. `null`, wenn es dort liegt.
+String? ablageJahrHinweis({
+  required int dossierJahr,
+  required int? dokumentJahr,
+}) {
+  if (dokumentJahr == dossierJahr) return null;
+  return dokumentJahr == null
+      ? 'Abgelegt ohne Jahr'
+      : 'Abgelegt unter $dokumentJahr';
+}
 
 class _UploadDialog extends StatefulWidget {
   final String bereich;
@@ -166,6 +193,9 @@ class _UploadDialogState extends State<_UploadDialog> {
   var _erkennung = _Erkennung.aus;
   DokumentScanErgebnis? _erkannt;
 
+  /// Warum die Datei nicht zur Erkennung ging (bei [_Erkennung.nichtMoeglich]).
+  String? _hinderungsgrund;
+
   /// Zähler der Erkennungsläufe: eine Antwort, die nach einem neueren Lauf
   /// (andere Datei, «Erneut erkennen») oder nach «Speichern» eintrifft,
   /// wird verworfen.
@@ -190,6 +220,11 @@ class _UploadDialogState extends State<_UploadDialog> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
   void _vonHandGesetzt(_Feld f) => _vonHand.add(f);
+
+  /// Für Felder mit Rückfallwert (Titel, Dateiname): leer getippt heisst
+  /// «nimm den Vorschlag» — dann darf die Erkennung wieder eintragen.
+  void _vonHandMitRueckfall(_Feld f, String wert) =>
+      wert.trim().isEmpty ? _vonHand.remove(f) : _vonHand.add(f);
 
   Future<void> _waehlen(DokumentQuelle quelle) async {
     final d = await widget.dateiWaehler(quelle);
@@ -260,8 +295,12 @@ class _UploadDialogState extends State<_UploadDialog> {
     final mime = _dateityp;
     if (bytes == null || mime == null || _laeuft) return;
     final lauf = ++_lauf;
-    if (!DokumentScanService.erkennbar(mime, bytes.length)) {
-      setState(() => _erkennung = _Erkennung.nichtMoeglich);
+    final grund = DokumentScanService.hinderungsgrund(mime, bytes.length);
+    if (grund != null) {
+      setState(() {
+        _erkennung = _Erkennung.nichtMoeglich;
+        _hinderungsgrund = grund;
+      });
       return;
     }
     setState(() => _erkennung = _Erkennung.laeuft);
@@ -281,12 +320,19 @@ class _UploadDialogState extends State<_UploadDialog> {
     }
     if (!mounted || lauf != _lauf || _laeuft) return;
     setState(() {
-      _erkannt = e;
-      _erkennung = e == null ? _Erkennung.nichtErkannt : _Erkennung.erkannt;
-      if (e != null) {
-        _vorgabenSetzen();
-        _anwenden(e);
+      if (e == null) {
+        // Gab es für diese Datei schon eine gelungene Erkennung (nur dann ist
+        // _erkannt gesetzt — eine neue Datei setzt es zurück), bleiben ihre
+        // Werte stehen.
+        _erkennung = _erkannt == null
+            ? _Erkennung.nichtErkannt
+            : _Erkennung.erneutFehlgeschlagen;
+        return;
       }
+      _erkannt = e;
+      _erkennung = _Erkennung.erkannt;
+      _vorgabenSetzen();
+      _anwenden(e);
     });
   }
 
@@ -419,8 +465,11 @@ class _UploadDialogState extends State<_UploadDialog> {
       if (mounted) {
         setState(() {
           _laeuft = false;
+          // Die Erkennung lief noch; _lauf++ oben hat ihre Antwort schon
+          // verworfen. Sagen, dass sie abgebrochen ist — nicht «nicht
+          // erkannt», das hiesse, das Dokument sei unlesbar.
           if (_erkennung == _Erkennung.laeuft) {
-            _erkennung = _Erkennung.nichtErkannt;
+            _erkennung = _Erkennung.abgebrochen;
           }
         });
         _meldung('Upload fehlgeschlagen: $e');
@@ -488,7 +537,13 @@ class _UploadDialogState extends State<_UploadDialog> {
         ),
         _Erkennung.nichtErkannt => _grau('Nicht erkannt — Felder von Hand'),
         _Erkennung.nichtMoeglich => _grau(
-          'Keine Erkennung (nur PDF, JPG, PNG bis 15 MB) — Felder von Hand',
+          _hinderungsgrund ?? 'Keine Erkennung — Felder von Hand',
+        ),
+        _Erkennung.erneutFehlgeschlagen => _grau(
+          'Erneute Erkennung fehlgeschlagen — bisherige Werte bleiben',
+        ),
+        _Erkennung.abgebrochen => _grau(
+          'Erkennung abgebrochen — Erneut erkennen',
         ),
       },
       if (_erkennung == _Erkennung.erkannt && e?.hinweis != null)
@@ -680,7 +735,8 @@ class _UploadDialogState extends State<_UploadDialog> {
                 controller: _titel,
                 decoration: const InputDecoration(labelText: 'Titel *'),
                 // Gibt den Speichern-Knopf frei, sobald ein Titel dasteht.
-                onChanged: (_) => setState(() => _vonHandGesetzt(_Feld.titel)),
+                onChanged: (v) =>
+                    setState(() => _vonHandMitRueckfall(_Feld.titel, v)),
               ),
               TextField(
                 controller: _dateinameFeld,
@@ -688,7 +744,7 @@ class _UploadDialogState extends State<_UploadDialog> {
                   labelText: 'Dateiname',
                   helperText: 'Endung wird beim Speichern ergänzt',
                 ),
-                onChanged: (_) => _vonHandGesetzt(_Feld.dateiname),
+                onChanged: (v) => _vonHandMitRueckfall(_Feld.dateiname, v),
               ),
               TextField(
                 controller: _notizen,

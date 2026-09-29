@@ -90,17 +90,24 @@ class DokumentScanErgebnis {
     return t.isEmpty ? null : t;
   }
 
+  /// Endliche Zahl oder null. `double.tryParse` liest auch «NaN» und
+  /// «Infinity», und `jsonDecode('1e400')` ist Infinity — beides ist keine
+  /// Zahl, die irgendwo stehen soll.
   static double? _zahl(Object? v) {
-    if (v is num) return v.isFinite ? v.toDouble() : null;
-    if (v is! String) return null;
-    return double.tryParse(
-      v.replaceAll(RegExp(r"['’\s]"), '').replaceAll(',', '.'),
-    );
+    final d = v is num
+        ? v.toDouble()
+        : v is String
+        ? double.tryParse(
+            v.replaceAll(RegExp(r"['’\s]"), '').replaceAll(',', '.'),
+          )
+        : null;
+    return d != null && d.isFinite ? d : null;
   }
 
   static int? _jahr(Object? v) {
+    // Zuerst isFinite: Infinity.toInt() wirft.
     final j = v is num
-        ? (v == v.roundToDouble() ? v.toInt() : null)
+        ? (v.isFinite && v == v.roundToDouble() ? v.toInt() : null)
         : v is String
         ? int.tryParse(v.trim())
         : null;

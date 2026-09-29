@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/models/dokument_scan_ergebnis.dart';
 import 'package:sbs_projer_app/presentation/widgets/dokumente/dokument_upload_dialog.dart';
@@ -57,9 +58,11 @@ class _Erkenner {
   }
 }
 
-/// Hält fest, was hochgeladen würde.
+/// Hält fest, was hochgeladen würde; mit [scheitert] wirft der Upload.
 class _Upload {
   Map<String, Object?>? werte;
+  bool scheitert;
+  _Upload({this.scheitert = false});
 
   Future<Dokument> call({
     required String bereich,
@@ -76,6 +79,7 @@ class _Upload {
     required Uint8List bytes,
     String? buchungId,
   }) async {
+    if (scheitert) throw Exception('offline');
     werte = {
       'bereich': bereich,
       'typ': typ,
@@ -109,9 +113,11 @@ Future<_Ergebnis> _oeffne(
   WidgetTester tester, {
   required _Erkenner erkenner,
   _Upload? upload,
+  DokumentDateiWaehler? dateiWaehler,
   String bereich = 'steuern',
   bool bereichFix = true,
   int? jahr,
+  double schrift = 1.0,
 }) async {
   tester.view.physicalSize = const Size(360, 800);
   tester.view.devicePixelRatio = 1.0;
@@ -120,6 +126,13 @@ Future<_Ergebnis> _oeffne(
   final ergebnis = _Ergebnis();
   await tester.pumpWidget(
     MaterialApp(
+      theme: AppTheme.light,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(schrift)),
+        child: child!,
+      ),
       home: Scaffold(
         body: Builder(
           builder: (context) => GestureDetector(
@@ -130,7 +143,7 @@ Future<_Ergebnis> _oeffne(
                 bereichFix: bereichFix,
                 jahr: jahr,
                 erkenner: erkenner.call,
-                dateiWaehler: (_) async => _pdf,
+                dateiWaehler: dateiWaehler ?? (_) async => _pdf,
                 hochlader: (upload ?? _Upload()).call,
               );
               ergebnis.fertig = true;
@@ -383,48 +396,281 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Datei zu gross für die Erkennung → Hinweis, kein Aufruf', (
+  // K2: Bilder nimmt die Messages API nur bis 5 MB base64 (~3.7 MB roh),
+  // PDFs bis 32 MB je Anfrage — die App schickt PDFs bis 15 MB.
+  testWidgets('zu gross für die Erkennung → Hinweis je Dateiart, kein Aufruf', (
     tester,
   ) async {
     final erkenner = _Erkenner.fest(_zinsausweis);
-    tester.view.physicalSize = const Size(360, 800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final gross = (
-      bytes: Uint8List(DokumentScanService.maxBytes + 1),
-      name: 'gross.pdf',
-      mime: 'application/pdf',
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => GestureDetector(
-              onTap: () => showDokumentUploadDialog(
-                context,
-                bereich: 'steuern',
-                erkenner: erkenner.call,
-                dateiWaehler: (_) async => gross,
-              ),
-              child: const Text('öffnen'),
-            ),
-          ),
-        ),
+    final dateien = <DokumentDatei>[
+      (
+        bytes: Uint8List(DokumentScanService.maxBytes + 1),
+        name: 'gross.pdf',
+        mime: 'application/pdf',
       ),
+      (
+        bytes: Uint8List(DokumentScanService.maxBildBytes + 1),
+        name: 'foto.jpg',
+        mime: 'image/jpeg',
+      ),
+    ];
+    await _oeffne(
+      tester,
+      erkenner: erkenner,
+      dateiWaehler: (_) async => dateien.removeAt(0),
     );
-    await tester.tap(find.text('öffnen'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('PDF'));
     await tester.pumpAndSettle();
-
-    expect(erkenner.aufrufe, 0);
     expect(
       find.text(
-        'Keine Erkennung (nur PDF, JPG, PNG bis 15 MB) — Felder von Hand',
+        'PDF zu gross für die Erkennung (max. 15 MB) — Felder von Hand',
       ),
       findsOneWidget,
     );
+
+    await tester.tap(find.text('Galerie'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Bild zu gross für die Erkennung (max. 3.7 MB) — Felder von Hand',
+      ),
+      findsOneWidget,
+    );
+    expect(erkenner.aufrufe, 0);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('PDF über der Bildgrenze wird trotzdem erkannt', (tester) async {
+    final erkenner = _Erkenner.fest(_zinsausweis);
+    final mittel = (
+      bytes: Uint8List(DokumentScanService.maxBildBytes + 1),
+      name: 'mittel.pdf',
+      mime: 'application/pdf',
+    );
+    await _oeffne(
+      tester,
+      erkenner: erkenner,
+      dateiWaehler: (_) async => mittel,
+    );
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    expect(erkenner.aufrufe, 1);
+    expect(find.textContaining('Erkannt (Zuversicht'), findsOneWidget);
+  });
+
+  // K1: Titel und Dateiname haben einen Rückfallwert — leer getippt heisst
+  // «nimm den Vorschlag», nicht «lass es leer». Andere Felder wie bisher.
+  testWidgets('geleerter Titel/Dateiname gilt nicht als von Hand gesetzt', (
+    tester,
+  ) async {
+    final mitReferenz = DokumentScanErgebnis(
+      bereich: 'steuern',
+      typ: 'zinsausweis',
+      titel: _zinsausweis.titel,
+      dateiname: _zinsausweis.dateiname,
+      referenz: 'R-1',
+      zuversicht: 0.9,
+    );
+    await _oeffne(tester, erkenner: _Erkenner.fest(mitReferenz));
+    await _tippe(tester, 'Titel *', 'Entwurf');
+    await _tippe(tester, 'Titel *', '');
+    await _tippe(tester, 'Referenz / Rechnungs-Nr.', 'X');
+    await _tippe(tester, 'Referenz / Rechnungs-Nr.', '');
+    await tester.ensureVisible(find.text('PDF'));
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+
+    expect(_text(tester, 'Titel *'), mitReferenz.titel);
+    // Referenz hat keinen Rückfall: leer von Hand bleibt leer.
+    expect(_text(tester, 'Referenz / Rechnungs-Nr.'), '');
+
+    await _tippe(tester, 'Dateiname', 'eigener Name');
+    await _tippe(tester, 'Dateiname', '   ');
+    await tester.ensureVisible(find.text('Erneut erkennen'));
+    await tester.tap(find.text('Erneut erkennen'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Dateiname'), '2025_GKB_Zins-Kapitalausweis.pdf');
+    expect(tester.takeException(), isNull);
+  });
+
+  // K4: Ein gescheiterter zweiter Versuch darf die gute erste Erkennung
+  // nicht wegwerfen.
+  testWidgets('«Erneut erkennen» scheitert → bisherige Werte bleiben', (
+    tester,
+  ) async {
+    final erkenner = _Erkenner([
+      () async => _zinsausweis,
+      () async => null,
+      () async => throw Exception('kaputt'),
+    ]);
+    await _oeffne(tester, erkenner: erkenner);
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Erkannt (Zuversicht 92 %)'), findsOneWidget);
+
+    for (var i = 0; i < 2; i++) {
+      await tester.ensureVisible(find.text('Erneut erkennen'));
+      await tester.tap(find.text('Erneut erkennen'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Erneute Erkennung fehlgeschlagen — bisherige Werte bleiben'),
+        findsOneWidget,
+      );
+      expect(_text(tester, 'Titel *'), _zinsausweis.titel);
+      expect(_text(tester, 'Dateiname'), '2025_GKB_Zins-Kapitalausweis.pdf');
+      expect(find.text('Zins-/Kapitalausweis'), findsOneWidget);
+    }
+    expect(erkenner.aufrufe, 3);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Erkenner wirft → «Nicht erkannt», Upload bleibt möglich', (
+    tester,
+  ) async {
+    final upload = _Upload();
+    await _oeffne(
+      tester,
+      erkenner: _Erkenner([() async => throw StateError('Netz weg')]),
+      upload: upload,
+    );
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nicht erkannt — Felder von Hand'), findsOneWidget);
+    await tester.tap(find.text('Speichern'));
+    await tester.pumpAndSettle();
+    expect(upload.werte?['dateiname'], 'scan 0042.pdf');
+  });
+
+  // K11: Die Antwort zur ersten Datei kommt erst, nachdem schon die zweite
+  // gewählt ist — sie darf nichts mehr eintragen.
+  testWidgets('zweite Datei während laufender Erkennung: Antwort zur ersten '
+      'wird ignoriert', (tester) async {
+    final ersteAntwort = Completer<DokumentScanErgebnis?>();
+    final zweiteAntwort = Completer<DokumentScanErgebnis?>();
+    final erkenner = _Erkenner([
+      () => ersteAntwort.future,
+      () => zweiteAntwort.future,
+    ]);
+    final dateien = <DokumentDatei>[
+      _pdf,
+      (
+        bytes: Uint8List.fromList([1, 2, 3]),
+        name: 'brief.pdf',
+        mime: 'application/pdf',
+      ),
+    ];
+    await _oeffne(
+      tester,
+      erkenner: erkenner,
+      dateiWaehler: (_) async => dateien.removeAt(0),
+    );
+    await tester.tap(find.text('PDF'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('PDF'));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Datei: brief.pdf'), findsOneWidget);
+
+    zweiteAntwort.complete(
+      const DokumentScanErgebnis(
+        typ: 'brief',
+        titel: 'Brief Steuerverwaltung 2025',
+        zuversicht: 0.9,
+      ),
+    );
+    await tester.pumpAndSettle();
+    ersteAntwort.complete(_zinsausweis);
+    await tester.pumpAndSettle();
+
+    expect(_text(tester, 'Titel *'), 'Brief Steuerverwaltung 2025');
+    expect(find.text('Brief'), findsOneWidget);
+    expect(find.text('Zins-/Kapitalausweis'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  // K5 + K11: Upload scheitert, während die Erkennung noch läuft. Die
+  // Erkennung ist abgebrochen (ihre späte Antwort gilt nicht mehr) — der
+  // Dialog sagt das und bietet «Erneut erkennen» an.
+  testWidgets('gescheiterter Upload bei laufender Erkennung → «Erkennung '
+      'abgebrochen», späte Antwort ändert nichts', (tester) async {
+    final spaet = Completer<DokumentScanErgebnis?>();
+    final erkenner = _Erkenner([() => spaet.future, () async => _zinsausweis]);
+    await _oeffne(tester, erkenner: erkenner, upload: _Upload(scheitert: true));
+    await tester.tap(find.text('PDF'));
+    await tester.pump();
+    await tester.pump();
+    await tester.tap(find.text('Speichern'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.textContaining('Upload fehlgeschlagen'), findsOneWidget);
+    expect(
+      find.text('Erkennung abgebrochen — Erneut erkennen'),
+      findsOneWidget,
+    );
+
+    spaet.complete(_zinsausweis);
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Titel *'), 'scan 0042');
+    expect(
+      find.text('Erkennung abgebrochen — Erneut erkennen'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('Erneut erkennen'));
+    await tester.tap(find.text('Erneut erkennen'));
+    await tester.pumpAndSettle();
+    expect(_text(tester, 'Titel *'), _zinsausweis.titel);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('360 px, AppTheme, Schrift 130 %: alle Hinweise ohne Overflow', (
+    tester,
+  ) async {
+    const lang = DokumentScanErgebnis(
+      bereich: 'bank',
+      typ: 'zinsausweis',
+      jahr: 2025,
+      titel: 'Zins- und Kapitalausweis Graubündner Kantonalbank per 31.12.2025',
+      dateiname:
+          '2025_GKB_Zins-Kapitalausweis_Kontokorrent_Geschaeftskonto.pdf',
+      zuversicht: 0.61,
+      hinweis:
+          'Kontonummer nur teilweise lesbar, Stichtag aus der Kopfzeile '
+          'übernommen.',
+      felder: {
+        'saldo_31_12': 1234567.89,
+        'zins_brutto': 12.35,
+        'verrechnungssteuer': 4.3,
+        'zins_netto': 8.05,
+        'konto': '…0601',
+      },
+    );
+    await _oeffne(
+      tester,
+      erkenner: _Erkenner.fest(lang),
+      jahr: 2024,
+      schrift: 1.3,
+    );
+    await tester.tap(find.text('PDF'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Erkannt als «Bank»'), findsOneWidget);
+    expect(find.text('Jahr 2025 erkannt (Vorgabe war 2024)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  // K8: Der Steuerjahr-Screen meldet, wenn die Erkennung das Dokument in
+  // ein anderes Jahr gelegt hat als das offene Dossier.
+  test('Ablage-Hinweis, wenn das Dokument in einem anderen Jahr landet', () {
+    expect(ablageJahrHinweis(dossierJahr: 2025, dokumentJahr: 2025), isNull);
+    expect(
+      ablageJahrHinweis(dossierJahr: 2024, dokumentJahr: 2025),
+      'Abgelegt unter 2025',
+    );
+    expect(
+      ablageJahrHinweis(dossierJahr: 2024, dokumentJahr: null),
+      'Abgelegt ohne Jahr',
+    );
   });
 }

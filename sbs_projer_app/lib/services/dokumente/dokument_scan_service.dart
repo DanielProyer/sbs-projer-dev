@@ -23,41 +23,80 @@ String dokumentEndung(String mime) => switch (mime) {
   _ => 'jpg',
 };
 
+/// Längster Dateiname (inklusive Endung), den der Upload speichert.
+const kMaxDateinameLaenge = 150;
+
 /// Dateiname für den Upload: die Eingabe aus dem Feld «Dateiname» (leer →
 /// [original]) mit der Endung, die zum [mime] passt. Eine falsche bekannte
 /// Endung wird ersetzt, eine fehlende ergänzt — sonst öffnet der Download ein
 /// JPG als «.pdf».
+///
+/// Pfadteile und unter Windows verbotene Zeichen (`\ / : * ? " < > |`,
+/// Steuerzeichen) werden zu `_`, `..` fällt weg: Der Name landet im
+/// Download und — bereinigt — im Storage-Pfad. Höchstens
+/// [kMaxDateinameLaenge] Zeichen.
 String dokumentDateiname(
   String eingabe, {
   required String original,
   required String mime,
 }) {
   final ext = dokumentEndung(mime);
-  var name = eingabe.trim();
-  if (name.isEmpty) name = original.trim();
-  final basis = name.replaceAll(
-    RegExp(r'\.(pdf|jpe?g|png)$', caseSensitive: false),
-    '',
-  );
-  if (basis.isEmpty) return 'dokument.$ext';
-  final passend = ext == 'jpg'
-      ? RegExp(r'\.(jpe?g)$', caseSensitive: false)
-      : RegExp('\\.$ext\$', caseSensitive: false);
-  return passend.hasMatch(name) ? name : '$basis.$ext';
+  String bereinigt(String s) => s
+      .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1f]'), '_')
+      .replaceAll(RegExp(r'\.{2,}'), '')
+      .trim();
+  var name = bereinigt(eingabe);
+  if (name.isEmpty) name = bereinigt(original);
+  final passend =
+      (ext == 'jpg'
+              ? RegExp(r'\.jpe?g$', caseSensitive: false)
+              : RegExp('\\.$ext\$', caseSensitive: false))
+          .firstMatch(name);
+  final endung = passend?.group(0) ?? '.$ext';
+  final randpunkte = RegExp(r'^[.\s]+|[.\s]+$');
+  var basis = name
+      .replaceAll(RegExp(r'\.(pdf|jpe?g|png)$', caseSensitive: false), '')
+      .replaceAll(randpunkte, '');
+  final platz = kMaxDateinameLaenge - endung.length;
+  if (basis.length > platz) {
+    basis = basis.substring(0, platz).replaceAll(randpunkte, '');
+  }
+  return '${basis.isEmpty ? 'dokument' : basis}$endung';
 }
 
 /// Ruft die Edge Function `parse-dokument` auf (Claude), die ein Dokument
 /// für die Ablage einordnet. Nie blockierend: jeder Fehler wird zu `null`
 /// (plus `debugPrint`), der Dialog zeigt dann «Nicht erkannt».
 class DokumentScanService {
-  /// Grösser wird nicht erkannt: base64 bläht um ein Drittel auf, die
+  /// Grösstes PDF für die Erkennung: base64 bläht um ein Drittel auf, die
   /// Messages API nimmt höchstens 32 MB je Anfrage.
   static const maxBytes = 15 * 1024 * 1024;
 
+  /// Grösstes Bild für die Erkennung (3.7 MB): Ein Bild nimmt die Messages
+  /// API nur bis 5 MB base64 an — das sind 3.75 MB Rohdaten, der Rest ist
+  /// Reserve.
+  static const maxBildBytes = 37 * 1024 * 1024 ~/ 10;
+
   static const mediaTypen = {'application/pdf', 'image/jpeg', 'image/png'};
 
+  /// Warum eine Datei NICHT zur Erkennung geht — `null`, wenn sie geht.
+  /// Der Dialog zeigt den Text als Statuszeile.
+  static String? hinderungsgrund(String mediaType, int groesse) {
+    if (!mediaTypen.contains(mediaType) || groesse <= 0) {
+      return 'Keine Erkennung für diesen Dateityp — Felder von Hand';
+    }
+    if (mediaType == 'application/pdf') {
+      return groesse > maxBytes
+          ? 'PDF zu gross für die Erkennung (max. 15 MB) — Felder von Hand'
+          : null;
+    }
+    return groesse > maxBildBytes
+        ? 'Bild zu gross für die Erkennung (max. 3.7 MB) — Felder von Hand'
+        : null;
+  }
+
   static bool erkennbar(String mediaType, int groesse) =>
-      mediaTypen.contains(mediaType) && groesse > 0 && groesse <= maxBytes;
+      hinderungsgrund(mediaType, groesse) == null;
 
   /// Die erlaubten Werte aus `dokument_pfad.dart`. Die Function prüft die
   /// Modellantwort dagegen — so braucht eine neue Typ-Art keinen Deploy.

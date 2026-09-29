@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/data/models/dokument_scan_ergebnis.dart';
 import 'package:sbs_projer_app/services/dokumente/dokument_scan_service.dart';
@@ -93,6 +95,34 @@ void main() {
       expect(DokumentScanErgebnis.fromJson({'jahr': 2025.5}).jahr, isNull);
     });
 
+    // K7: double.tryParse('NaN') ist NaN, jsonDecode('1e400') ist Infinity —
+    // und Infinity.toInt() wirft. Nichts davon darf durchkommen.
+    test('NaN, Infinity und 1e400 werden null statt einer Exception', () {
+      final e = DokumentScanErgebnis.fromJson(
+        jsonDecode('{"jahr": 1e400, "betrag": 1e400, "zuversicht": "NaN"}')
+            as Map<String, dynamic>,
+      );
+      expect(e.jahr, isNull);
+      expect(e.betrag, isNull);
+      expect(e.zuversicht, 0);
+
+      final s = DokumentScanErgebnis.fromJson({
+        'typ': 'zinsausweis',
+        'betrag': 'NaN',
+        'jahr': 'Infinity',
+        'felder': {'saldo_31_12': 'Infinity', 'zins_brutto': '-Infinity'},
+      });
+      expect(s.betrag, isNull);
+      expect(s.jahr, isNull);
+      expect(s.feldZahl('saldo_31_12'), isNull);
+      expect(s.zinsausweisNotiz(), isNull);
+      expect(DokumentScanErgebnis.fromJson({'jahr': double.nan}).jahr, isNull);
+      expect(
+        DokumentScanErgebnis.fromJson({'zuversicht': 'Infinity'}).zuversicht,
+        0,
+      );
+    });
+
     test('unbekannter Dokumenttyp bleibt erhalten — der Dialog prüft', () {
       // Das Modell gibt weiter, was kam; ob der Typ in den Bereich passt,
       // entscheidet der Dialog anhand von dokumentTypen().
@@ -172,9 +202,107 @@ void main() {
         isFalse,
       );
     });
+
+    // K2: Die Messages API nimmt ein Bild nur bis 5 MB base64 an — das sind
+    // rund 3.7 MB Rohdaten. PDFs dürfen weiterhin bis 15 MB.
+    test('Bilder nur bis ~3.7 MB, PDFs bis 15 MB', () {
+      const bild = DokumentScanService.maxBildBytes;
+      expect(DokumentScanService.erkennbar('image/jpeg', bild), isTrue);
+      expect(DokumentScanService.erkennbar('image/jpeg', bild + 1), isFalse);
+      expect(DokumentScanService.erkennbar('image/png', bild + 1), isFalse);
+      expect(
+        DokumentScanService.erkennbar('application/pdf', bild + 1),
+        isTrue,
+      );
+      // base64 der grössten erlaubten Bilddatei bleibt unter 5 MB
+      expect((bild + 2) ~/ 3 * 4, lessThanOrEqualTo(5 * 1024 * 1024));
+    });
+
+    test('hinderungsgrund nennt, warum nicht erkannt wird', () {
+      expect(
+        DokumentScanService.hinderungsgrund('application/pdf', 10),
+        isNull,
+      );
+      expect(
+        DokumentScanService.hinderungsgrund(
+          'image/png',
+          DokumentScanService.maxBildBytes + 1,
+        ),
+        'Bild zu gross für die Erkennung (max. 3.7 MB) — Felder von Hand',
+      );
+      expect(
+        DokumentScanService.hinderungsgrund(
+          'application/pdf',
+          DokumentScanService.maxBytes + 1,
+        ),
+        'PDF zu gross für die Erkennung (max. 15 MB) — Felder von Hand',
+      );
+      expect(
+        DokumentScanService.hinderungsgrund('image/heic', 10),
+        'Keine Erkennung für diesen Dateityp — Felder von Hand',
+      );
+    });
   });
 
   group('dokumentDateiname', () {
+    // K6: Der Name landet im Storage-Pfad und im Download — Pfadteile und
+    // unter Windows verbotene Zeichen haben dort nichts zu suchen.
+    test('Pfad- und Windows-Sonderzeichen werden ersetzt, «..» entfernt', () {
+      expect(
+        dokumentDateiname(
+          '../../x',
+          original: 'a.pdf',
+          mime: 'application/pdf',
+        ),
+        '__x.pdf',
+      );
+      expect(
+        dokumentDateiname(
+          'Rechnung: 2025/Q1 "neu"?*<>|',
+          original: 'a.pdf',
+          mime: 'application/pdf',
+        ),
+        'Rechnung_ 2025_Q1 _neu______.pdf',
+      );
+      expect(
+        dokumentDateiname(
+          r'C:\temp\x.pdf',
+          original: 'a.pdf',
+          mime: 'application/pdf',
+        ),
+        'C__temp_x.pdf',
+      );
+      expect(
+        dokumentDateiname(
+          'a\u0000b\u001fc',
+          original: 'a.pdf',
+          mime: 'application/pdf',
+        ),
+        'a_b_c.pdf',
+      );
+      expect(
+        dokumentDateiname('..\\..', original: 'a.pdf', mime: 'application/pdf'),
+        '_.pdf',
+      );
+    });
+
+    test('höchstens 150 Zeichen inklusive Endung', () {
+      final lang = dokumentDateiname(
+        'a' * 200,
+        original: 'a.pdf',
+        mime: 'application/pdf',
+      );
+      expect(lang.length, 150);
+      expect(lang, endsWith('aaa.pdf'));
+      final passend = dokumentDateiname(
+        '${'b' * 200}.jpeg',
+        original: 'b.jpg',
+        mime: 'image/jpeg',
+      );
+      expect(passend.length, 150);
+      expect(passend, endsWith('b.jpeg'));
+    });
+
     test('passende Endung bleibt, fehlende wird ergänzt', () {
       expect(
         dokumentDateiname(
