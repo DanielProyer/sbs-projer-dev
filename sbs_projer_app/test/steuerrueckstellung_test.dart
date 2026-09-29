@@ -337,6 +337,26 @@ void main() {
       },
     );
 
+    test('Verlustjahr: Abbau auf 0 löst die ganze Rückstellung auf', () {
+      expect(
+        rueckstellungVorschlag(
+          gewinnVorRueckstellung: -5000,
+          aufrechnungen: 311.01,
+        ),
+        0,
+      );
+      final z = SteuerrueckstellungService.buchungszeile(
+        jahr: 2025,
+        ziel: 0,
+        gebucht: 4000,
+        begruendung: 'Verlustjahr',
+        belegnummer: 'JA2025_D2',
+      )!;
+      expect(z['soll_konto'], 2208);
+      expect(z['haben_konto'], 8900);
+      expect(z['betrag_brutto'], 4000);
+    });
+
     test('buchungszeile: Aufbau 8900 an 2208; null ohne Differenz', () {
       final z = SteuerrueckstellungService.buchungszeile(
         jahr: 2026,
