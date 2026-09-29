@@ -10,8 +10,6 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/jahresabschluss_schritte.dart';
 import 'package:sbs_projer_app/core/util/jahresrechnung_kennzahlen.dart';
 import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
-import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
-import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresabschluss_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
@@ -19,6 +17,7 @@ import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_leiste.dart'
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/pdf/jahresrechnung_pdf_service.dart';
+import 'package:sbs_projer_app/services/steuern/jahresrechnung_ablage.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
     show kSteuerJahrAb;
 
@@ -35,14 +34,22 @@ class JahresabschlussInhalt extends StatelessWidget {
   final List<int> jahre;
   final ValueChanged<int> onJahr;
 
-  /// `null` solange geladen wird oder ein Fehler vorliegt.
+  /// `null` solange zum ersten Mal geladen wird oder das Laden scheiterte.
   final List<JahresabschlussSchritt>? schritte;
+
+  /// Ladefehler. Mit [schritte] (Nachladen scheiterte, alter Stand bleibt):
+  /// als Band über der Liste — nie verschluckt, sonst sähe ein veralteter
+  /// Stand aktuell aus (Review 29.09.2026, K4).
   final String? fehler;
   final ValueChanged<SchrittAktion> onAktion;
   final VoidCallback? onNeuLaden;
 
   /// Aktionen, die gerade laufen — ihr Knopf dreht und ist gesperrt.
   final Set<SchrittAktion> laufend;
+
+  /// Aktionen, die gerade nicht gehen — etwa «Erzeugen», solange die Lage
+  /// nachlädt (sonst zwei Ablagen mit derselben Fassungsnummer, K10).
+  final Set<SchrittAktion> gesperrt;
 
   const JahresabschlussInhalt({
     super.key,
@@ -54,6 +61,7 @@ class JahresabschlussInhalt extends StatelessWidget {
     this.fehler,
     this.onNeuLaden,
     this.laufend = const {},
+    this.gesperrt = const {},
   });
 
   static Color farbe(PruefStatus s) => switch (s) {
@@ -95,7 +103,7 @@ class JahresabschlussInhalt extends StatelessWidget {
   }
 
   Widget _koerper(BuildContext context, List<JahresabschlussSchritt>? liste) {
-    if (fehler != null) {
+    if (fehler != null && liste == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -122,6 +130,38 @@ class JahresabschlussInhalt extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
       children: [
+        if (fehler != null)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fehler!,
+                  style: const TextStyle(fontSize: 12, color: AppColors.error),
+                ),
+                const Text(
+                  'Angezeigt ist der letzte geladene Stand.',
+                  style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                ),
+                if (onNeuLaden != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: TapKnopf(
+                      text: 'Erneut laden',
+                      primaer: false,
+                      onTap: onNeuLaden,
+                    ),
+                  ),
+              ],
+            ),
+          ),
         const Padding(
           padding: EdgeInsets.only(bottom: 8),
           child: Text(
@@ -220,7 +260,11 @@ class JahresabschlussInhalt extends StatelessWidget {
                           text: k.text,
                           primaer: false,
                           laeuft: laufend.contains(k.aktion),
-                          onTap: () => onAktion(k.aktion),
+                          // Gesperrt: grau statt verschwunden, damit man
+                          // sieht, dass es den Schritt gibt (W2, K10).
+                          onTap: k.aktiv && !gesperrt.contains(k.aktion)
+                              ? () => onAktion(k.aktion)
+                              : null,
                         ),
                     ],
                   ),
@@ -241,13 +285,21 @@ typedef JahresrechnungEingabe = ({double manuell, String? ereignisse});
 class JahresrechnungDialog extends StatefulWidget {
   final JahresrechnungKennzahlen kennzahlen;
 
-  /// Wie viele Jahresrechnungen des Jahrs schon im Dossier liegen.
-  final int bisherige;
+  /// Nummer der Fassung, die abgelegt wird (`naechsteFassung`). Ab 2 liegt
+  /// schon eine im Dossier; sie bleibt liegen.
+  final int fassung;
+
+  /// Titel der roten Schritte 1–4 (`offeneVorschritte`). Nicht leer: Die
+  /// Zahlen ändern sich noch — der Dialog warnt, sperrt aber nicht (W2):
+  /// Eine vorläufige Fassung für den Treuhänder oder die Bank kann gewollt
+  /// sein.
+  final List<String> offeneVorschritte;
 
   const JahresrechnungDialog({
     super.key,
     required this.kennzahlen,
-    this.bisherige = 0,
+    this.fassung = 1,
+    this.offeneVorschritte = const [],
   });
 
   @override
@@ -275,8 +327,15 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
   @override
   Widget build(BuildContext context) {
     final manuell = _manuell;
-    final k = widget.kennzahlen.mit(aufrechnungenManuell: manuell ?? 0);
-    final fassung = widget.bisherige + 1;
+    // Eine Aufrechnung erhöht den steuerbaren Gewinn; ein Minus hier hiesse
+    // Abzug, und der gehört als Buchung ins Journal, nicht in die Beilage
+    // (K9).
+    final negativ = manuell != null && manuell < 0;
+    final gueltig = manuell != null && !negativ;
+    final k = widget.kennzahlen.mit(
+      aufrechnungenManuell: gueltig ? manuell : 0,
+    );
+    final fassung = widget.fassung;
     Widget zahl(String l, double v, {bool fett = false}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 1),
       child: Row(
@@ -300,10 +359,19 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
         ],
       ),
     );
+    Widget band(String text, Color farbe) => Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: farbe.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(text, style: const TextStyle(fontSize: 12)),
+    );
 
     return AlertDialog(
       title: Text(
-        widget.bisherige == 0
+        fassung <= 1
             ? 'Jahresrechnung ${k.jahr} erzeugen'
             : 'Fassung $fassung ablegen?',
       ),
@@ -312,21 +380,18 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.bisherige > 0)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  'Im Dossier liegt schon '
-                  '${widget.bisherige == 1 ? 'eine Jahresrechnung' : '${widget.bisherige} Fassungen'} '
-                  '${k.jahr}. Fassung $fassung wird zusätzlich abgelegt, '
-                  'die bisherige bleibt liegen.',
-                  style: const TextStyle(fontSize: 12),
-                ),
+            if (widget.offeneVorschritte.isNotEmpty)
+              band(
+                'Die Zahlen ändern sich noch — trotzdem erzeugen? Noch rot: '
+                '${widget.offeneVorschritte.join(', ')}.',
+                AppColors.error,
+              ),
+            if (fassung > 1)
+              band(
+                'Im Dossier liegt schon eine Jahresrechnung ${k.jahr} '
+                '(bis Fassung ${fassung - 1}). Fassung $fassung wird '
+                'zusätzlich abgelegt, die bisherigen bleiben liegen.',
+                AppColors.warning,
               ),
             TextField(
               controller: _aufrechnung,
@@ -343,10 +408,13 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
               decoration: InputDecoration(
                 labelText: 'Aufrechnungen (CHF)',
                 hintText: '0.00',
-                errorText: manuell == null ? 'Kein gültiger Betrag' : null,
+                errorText: manuell == null
+                    ? 'Kein gültiger Betrag'
+                    : (negativ ? 'Nur Beträge ab 0' : null),
                 helperText:
-                    'Bussen 6280/6281 (${chf(k.aufrechnungenAuto)}) sind '
-                    'schon drin. Hier z. B. Bussen, die auf 8900 liefen.',
+                    'Bussen 6280/6281 und Steuerbussen auf 8900 '
+                    '(${chf(k.aufrechnungenAuto)}) sind schon drin. Hier '
+                    'weitere nicht abzugsfähige Aufwände.',
                 helperMaxLines: 4,
               ),
               onChanged: (_) => setState(() {}),
@@ -379,8 +447,8 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
           onTap: () => Navigator.pop(context),
         ),
         TapKnopf(
-          text: widget.bisherige == 0 ? 'Erzeugen' : 'Fassung $fassung ablegen',
-          onTap: manuell == null
+          text: fassung <= 1 ? 'Erzeugen' : 'Fassung $fassung ablegen',
+          onTap: !gueltig
               ? null
               : () => Navigator.pop<JahresrechnungEingabe>(context, (
                   manuell: manuell,
@@ -443,11 +511,16 @@ class _JahresabschlussScreenState extends ConsumerState<JahresabschlussScreen> {
       schritte: async.isLoading && lage?.jahr != _jahr
           ? null
           : lage?.schritte(DateTime.now()),
-      fehler: async.hasError && lage == null
+      // Auch mit altem Stand zeigen (K4): Scheitert das Nachladen, bliebe
+      // sonst ein veralteter Stand stehen, der aktuell aussieht.
+      fehler: async.hasError
           ? 'Jahresabschluss nicht ladbar: ${kurzeFehlermeldung(async.error!)}'
           : null,
-      onNeuLaden: () => ref.invalidate(jahresabschlussLageProvider(_jahr)),
+      onNeuLaden: () => jahresabschlussNeuLaden(ref, _jahr),
       laufend: _laufend,
+      // Während die Lage nachlädt, ist die Fassungsnummer womöglich schon
+      // vergeben — zweimal tippen ergäbe zwei «Fassung 2» (K10).
+      gesperrt: async.isLoading ? const {SchrittAktion.erzeugen} : const {},
       onAktion: (a) => _aktion(a, lage),
     );
   }
@@ -523,12 +596,17 @@ class _JahresabschlussScreenState extends ConsumerState<JahresabschlussScreen> {
       });
 
   Future<void> _erzeugen(JahresabschlussLage lage) async {
-    final bisherige = lage.jahresrechnungen.length;
+    // Doppelte Absicherung zu den gesperrten Knöpfen (W2, K10): Der Knopf
+    // kann zwischen Aufbau und Tippen seinen Zustand wechseln.
+    if (lage.jahr >= DateTime.now().year) return;
+    if (ref.read(jahresabschlussLageProvider(lage.jahr)).isLoading) return;
+    final fassung = lage.naechsteFassungsNr;
     final eingabe = await showDialog<JahresrechnungEingabe>(
       context: context,
       builder: (_) => JahresrechnungDialog(
         kennzahlen: lage.kennzahlen,
-        bisherige: bisherige,
+        fassung: fassung,
+        offeneVorschritte: offeneVorschritte(lage.schritte(DateTime.now())),
       ),
     );
     if (eingabe == null || !mounted) return;
@@ -537,59 +615,21 @@ class _JahresabschlussScreenState extends ConsumerState<JahresabschlussScreen> {
       aufrechnungenManuell: eingabe.manuell,
       ereignisse: eingabe.ereignisse,
     );
-    final fassung = bisherige + 1;
 
     await _mitSperre(SchrittAktion.erzeugen, () async {
-      try {
-        final bytes = await _pdf(lage, k);
-        await DokumentRepository.upload(
-          bereich: 'steuern',
-          typ: 'jahresrechnung',
-          jahr: lage.jahr,
-          dokumentDatum: DateTime(lage.jahr, 12, 31),
-          titel: jahresrechnungTitel(k, fassung: fassung),
-          dateiname: jahresrechnungDateiname(lage.jahr, fassung: fassung),
-          dateityp: 'application/pdf',
-          bytes: bytes,
-        );
-      } catch (e) {
-        messenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'Jahresrechnung nicht abgelegt: ${kurzeFehlermeldung(e)}',
-            ),
-          ),
-        );
-        return;
+      final ergebnis = await JahresrechnungAblage.supabase().ablegen(
+        k: k,
+        fassung: fassung,
+        pdf: () => _pdf(lage, k),
+      );
+      if (ergebnis.abgelegt && mounted) {
+        invalidateSteuern(ref);
+        ref.invalidate(jahresabschlussLageProvider(lage.jahr));
       }
-
-      // Steuerjahr frisch lesen, nicht aus der Lage: Wurde es inzwischen
-      // bearbeitet, überschriebe der alte Stand sonst die neuen Felder.
-      var vorbefuellt = false;
-      String? steuerjahrFehler;
-      try {
-        final alle = await SteuerjahrRepository.getAll();
-        final alt = alle.where((s) => s.jahr == lage.jahr).firstOrNull;
-        final neu = steuerjahrVorbefuellt(alt, k);
-        if (neu != null) {
-          await SteuerjahrRepository.upsert(neu);
-          vorbefuellt = true;
-        }
-      } catch (e) {
-        steuerjahrFehler = kurzeFehlermeldung(e);
-      }
-
-      if (!mounted) return;
-      invalidateSteuern(ref);
-      ref.invalidate(jahresabschlussLageProvider(lage.jahr));
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            'Jahresrechnung ${lage.jahr}'
-            '${fassung > 1 ? ' (Fassung $fassung)' : ''} im Dossier abgelegt'
-            '${vorbefuellt ? ' — steuerbarer Gewinn und Kapital im Steuerjahr eingetragen' : ''}'
-            '${steuerjahrFehler == null ? '' : ' — Steuerjahr nicht vorbefüllt: $steuerjahrFehler'}',
-          ),
+          duration: const Duration(seconds: 8),
+          content: Text(ergebnis.meldung),
         ),
       );
     });

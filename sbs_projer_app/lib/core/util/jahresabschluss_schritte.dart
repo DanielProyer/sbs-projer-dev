@@ -9,6 +9,7 @@
 library;
 
 import 'package:intl/intl.dart';
+import 'package:sbs_projer_app/core/util/chf_betrag.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/jahresrechnung_kennzahlen.dart';
 import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
@@ -40,7 +41,11 @@ enum SchrittAktion {
 class SchrittKnopf {
   final String text;
   final SchrittAktion aktion;
-  const SchrittKnopf(this.text, this.aktion);
+
+  /// `false`: sichtbar, aber gesperrt — etwa «Erzeugen» im laufenden Jahr,
+  /// dessen Zahlen sich bis zum 31.12. noch ändern.
+  final bool aktiv;
+  const SchrittKnopf(this.text, this.aktion, {this.aktiv = true});
 }
 
 class JahresabschlussSchritt {
@@ -67,17 +72,72 @@ const kRegelRueckstellung = 'rueckstellung';
 
 final _df = DateFormat('dd.MM.yyyy');
 
-/// Nur die Jahresrechnungen des Jahrs, neueste zuerst.
-List<Dokument> jahresrechnungenVon(int jahr, List<Dokument> dokumente) {
-  final liste =
-      dokumente.where((d) => d.typ == 'jahresrechnung' && d.jahr == jahr).toList()
-        ..sort((a, b) {
-          final da = a.createdAt ?? a.dokumentDatum ?? DateTime(0);
-          final db = b.createdAt ?? b.dokumentDatum ?? DateTime(0);
-          return db.compareTo(da);
-        });
+/// Gewinn-Abweichung, ab der eine Fassung als veraltet gilt (5 Rappen wie
+/// die Toleranz der Abschlussregeln).
+const _gewinnToleranz = 0.05;
+
+/// Eine Fassung der Jahresrechnung im Dossier: aus der App oder aus dem
+/// Beilage-Skript (Fassung 1 vom 08.09.2026). [gewinn] ist der Gewinn, mit
+/// dem sie erzeugt wurde — aus `dokumente.betrag`, sonst aus dem Titel.
+typedef JahresrechnungFassung = ({Dokument dokument, int nr, double? gewinn});
+
+/// Nur App- und Skript-Fassungen zählen, erkennbar am Titel
+/// «Jahresrechnung {jahr} …». WARUM: Unter Typ `jahresrechnung` liegen für
+/// 2019–2024 auch die eingereichten Unterlagen («Bilanz 31.12.2024 …»,
+/// «Erfolgsrechnung 2024 …», Bilanz und ER getrennt) — das sind keine
+/// Fassungen dieser Jahresrechnung.
+bool _istFassung(Dokument d, int jahr) =>
+    d.typ == 'jahresrechnung' &&
+    d.jahr == jahr &&
+    d.titel.toLowerCase().startsWith('jahresrechnung $jahr');
+
+int _fassungNr(String titel) {
+  final m = RegExp(r'Fassung\s+(\d+)').firstMatch(titel);
+  return m == null ? 1 : int.parse(m.group(1)!);
+}
+
+/// «(Gewinn 20890.22, EK …)» (Skript) oder «(Gewinn 20'890.22, EK …)» (App).
+double? _gewinnAusTitel(String titel) {
+  final m = RegExp(r"Gewinn\s+(-?[0-9'’]+(?:\.[0-9]+)?)").firstMatch(titel);
+  return m == null ? null : chfBetragParsen(m.group(1)!);
+}
+
+/// Die Fassungen des Jahrs, höchste Nummer zuerst (bei gleicher Nummer die
+/// jüngere).
+List<JahresrechnungFassung> fassungenVon(int jahr, List<Dokument> dokumente) {
+  final liste = [
+    for (final d in dokumente)
+      if (_istFassung(d, jahr))
+        (
+          dokument: d,
+          nr: _fassungNr(d.titel),
+          gewinn: d.betrag ?? _gewinnAusTitel(d.titel),
+        ),
+  ];
+  liste.sort((a, b) {
+    final n = b.nr.compareTo(a.nr);
+    if (n != 0) return n;
+    final da = a.dokument.createdAt ?? a.dokument.dokumentDatum ?? DateTime(0);
+    final db = b.dokument.createdAt ?? b.dokument.dokumentDatum ?? DateTime(0);
+    return db.compareTo(da);
+  });
   return liste;
 }
+
+/// Nummer der nächsten Fassung: höchste vorhandene + 1. Die Skript-Fassung
+/// ohne Zusatz ist Fassung 1. WARUM nicht die Anzahl: Wird eine Fassung
+/// gelöscht, ergäbe die Anzahl eine Nummer, die es schon gibt.
+int naechsteFassung(int jahr, List<Dokument> dokumente) {
+  final f = fassungenVon(jahr, dokumente);
+  return f.isEmpty ? 1 : f.first.nr + 1;
+}
+
+/// Titel der roten Schritte 1–4 — vor ihnen ist jede Jahresrechnung
+/// vorläufig.
+List<String> offeneVorschritte(List<JahresabschlussSchritt> schritte) => [
+  for (final s in schritte)
+    if (s.nr <= 4 && s.status == PruefStatus.rot) s.titel,
+];
 
 /// «Jahrgänge 2019, 2020 · 105 Rechnungen · 9'452.20» über alle gebuchten
 /// Läufe des Geschäftsjahrs, oder «kein Lauf».
@@ -100,6 +160,10 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
   required List<Dokument> dokumente,
   Steuerjahr? steuerjahr,
   Dossier? dossier,
+
+  /// Gewinn nach heutigem Journal — daran misst sich, ob die neueste
+  /// Fassung noch stimmt. `null`: kein Vergleich.
+  double? gewinnAktuell,
 }) {
   Pruefbefund? befund(String id) {
     for (final b in befunde) {
@@ -124,10 +188,6 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
   final delkredere = befund(kRegelDelkredere);
   final rueckstellung = befund(kRegelRueckstellung);
 
-  final jr = jahresrechnungenVon(jahr, dokumente);
-  final neueste = jr.isEmpty ? null : jr.first;
-  final neuestesDatum = neueste?.createdAt ?? neueste?.dokumentDatum;
-
   final sj = steuerjahr;
   final eingereicht = sj != null &&
       (sj.status == 'eingereicht' || sj.status == 'veranlagt');
@@ -139,7 +199,7 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
       if (vorEinreichung.contains(f)) pflichtTypLabel(f),
   ];
 
-  return [
+  final vorschritte = [
     JahresabschlussSchritt(
       nr: 1,
       titel: 'Abschlussprüfung',
@@ -178,26 +238,17 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
       hinweis: rueckstellung?.hinweis ?? '',
       knoepfe: const [SchrittKnopf('Zur Prüfung', SchrittAktion.pruefung)],
     ),
-    JahresabschlussSchritt(
-      nr: 5,
-      titel: 'Jahresrechnung',
-      status: neueste == null ? PruefStatus.gelb : PruefStatus.gruen,
-      ist: neueste == null
-          ? 'noch nicht erzeugt'
-          : '${jr.length > 1 ? '${jr.length} Fassungen, neueste: ' : ''}'
-                '${neueste.titel}'
-                '${neuestesDatum == null ? '' : ' · ${_df.format(neuestesDatum)}'}',
-      hinweis: neueste == null
-          ? (rot > 0
-                ? 'Erst die Abschlussprüfung bereinigen — sonst stimmen die '
-                      'Zahlen nicht.'
-                : 'Bilanz, Erfolgsrechnung, Anhang und Steuerbeilage in '
-                      'einem PDF.')
-          : 'Nach späteren Buchungen eine neue Fassung ablegen.',
-      knoepfe: const [
-        SchrittKnopf('Vorschau', SchrittAktion.vorschau),
-        SchrittKnopf('Erzeugen und ins Dossier legen', SchrittAktion.erzeugen),
-      ],
+  ];
+
+  return [
+    ...vorschritte,
+    _schrittJahresrechnung(
+      jahr: jahr,
+      heute: heute,
+      dokumente: dokumente,
+      vorschritteRot: offeneVorschritte(vorschritte).isNotEmpty,
+      eingereicht: eingereicht,
+      gewinnAktuell: gewinnAktuell,
     ),
     JahresabschlussSchritt(
       nr: 6,
@@ -228,6 +279,103 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
   ];
 }
 
+/// Schritt 5. Grün nur, wenn eine Fassung vorliegt, deren Gewinn noch dem
+/// Journal entspricht, und kein Schritt 1–4 rot ist.
+///
+/// WARUM so streng (Review 29.09.2026, W1): Die Fassung 1 der Jahresrechnung
+/// 2025 (Gewinn 20'890.22) lag im Dossier, als der Jahrgang 2020 und das
+/// Delkredere den Gewinn schon auf 15'235.70 gedrückt hatten. Ein grüner
+/// Schritt 5 hätte die veraltete Fassung als erledigt gemeldet.
+JahresabschlussSchritt _schrittJahresrechnung({
+  required int jahr,
+  required DateTime heute,
+  required List<Dokument> dokumente,
+  required bool vorschritteRot,
+  required bool eingereicht,
+  required double? gewinnAktuell,
+}) {
+  // Das laufende Jahr ändert sich bis zum 31.12. — ablegen erst danach;
+  // ansehen darf man es jederzeit (W2).
+  final laufend = jahr >= heute.year;
+  final knoepfe = [
+    const SchrittKnopf('Vorschau', SchrittAktion.vorschau),
+    SchrittKnopf(
+      'Erzeugen und ins Dossier legen',
+      SchrittAktion.erzeugen,
+      aktiv: !laufend,
+    ),
+  ];
+  const erstVorschritte =
+      'Erst Schritte 1–4 bereinigen — sonst stimmen die Zahlen nicht.';
+  final fassungen = fassungenVon(jahr, dokumente);
+
+  if (fassungen.isEmpty) {
+    final fremde = dokumente
+        .where((d) => d.typ == 'jahresrechnung' && d.jahr == jahr)
+        .length;
+    // 2019–2024: eingereicht mit Bilanz und ER als getrennte Dokumente —
+    // die alte Ablage genügt, eine App-Fassung braucht es nicht mehr.
+    if (fremde > 0 && eingereicht) {
+      return JahresabschlussSchritt(
+        nr: 5,
+        titel: 'Jahresrechnung',
+        status: PruefStatus.gruen,
+        ist: 'Im Dossier: $fremde ältere Unterlagen (Bilanz/ER getrennt)',
+        knoepfe: knoepfe,
+      );
+    }
+    return JahresabschlussSchritt(
+      nr: 5,
+      titel: 'Jahresrechnung',
+      status: PruefStatus.gelb,
+      ist: 'noch nicht erzeugt',
+      hinweis: laufend
+          ? 'Jahr läuft noch — ablegen erst nach dem 31.12.$jahr.'
+          : (vorschritteRot
+                ? erstVorschritte
+                : 'Bilanz, Erfolgsrechnung, Anhang und Steuerbeilage in '
+                      'einem PDF.'),
+      knoepfe: knoepfe,
+    );
+  }
+
+  final neueste = fassungen.first;
+  final datum = neueste.dokument.createdAt ?? neueste.dokument.dokumentDatum;
+  final ist =
+      '${fassungen.length > 1 ? '${fassungen.length} Fassungen, neueste: ' : ''}'
+      '${neueste.dokument.titel}'
+      '${datum == null ? '' : ' · ${_df.format(datum)}'}';
+  final fassungGewinn = neueste.gewinn;
+  final veraltet =
+      fassungGewinn != null &&
+      gewinnAktuell != null &&
+      (fassungGewinn - gewinnAktuell).abs() > _gewinnToleranz;
+
+  final PruefStatus status;
+  final String hinweis;
+  if (veraltet) {
+    status = PruefStatus.gelb;
+    hinweis =
+        'Zahlen seit dieser Fassung geändert (Fassung: '
+        '${chf(fassungGewinn)}, jetzt: ${chf(gewinnAktuell)}) — neue '
+        'Fassung ablegen.';
+  } else if (vorschritteRot) {
+    status = PruefStatus.gelb;
+    hinweis = erstVorschritte;
+  } else {
+    status = PruefStatus.gruen;
+    hinweis = 'Nach späteren Buchungen eine neue Fassung ablegen.';
+  }
+  return JahresabschlussSchritt(
+    nr: 5,
+    titel: 'Jahresrechnung',
+    status: status,
+    ist: ist,
+    hinweis: hinweis,
+    knoepfe: knoepfe,
+  );
+}
+
 /// Titel des Dossier-Dokuments. Ab der zweiten Fassung mit Nummer, damit
 /// die Liste im Steuerjahr die Fassungen unterscheidet (keine wird
 /// gelöscht).
@@ -239,25 +387,46 @@ String jahresrechnungTitel(JahresrechnungKennzahlen k, {int fassung = 1}) =>
 String jahresrechnungDateiname(int jahr, {int fassung = 1}) =>
     'Jahresrechnung_$jahr${fassung > 1 ? '_Fassung$fassung' : ''}.pdf';
 
-/// Das Steuerjahr mit steuerbarem Gewinn und Kapital aus der Jahresrechnung
-/// — aber nur, wo dort noch nichts steht. `null`: nichts zu ändern.
+/// Steuerbaren Gewinn und Kapital der Jahresrechnung mit dem Steuerjahr
+/// abgleichen: leere Felder füllen ([neu], `null` = nichts zu speichern),
+/// gesetzte behalten und Abweichungen melden ([abweichungen]).
 ///
 /// WARUM nie überschreiben: Nach der Veranlagung stehen dort die Zahlen der
 /// Steuerverwaltung. Eine spätere Fassung der Jahresrechnung darf sie nicht
-/// still durch den eigenen Vorschlag ersetzen.
-Steuerjahr? steuerjahrVorbefuellt(
+/// still durch den eigenen Vorschlag ersetzen — sie still stehen zu lassen,
+/// wenn sie abweichen, aber auch nicht (W2): Daniel entscheidet im
+/// Steuerjahr.
+({Steuerjahr? neu, List<String> abweichungen}) steuerjahrAbgleich(
   Steuerjahr? alt,
   JahresrechnungKennzahlen k,
 ) {
   final s = alt ?? Steuerjahr(jahr: k.jahr);
-  if (s.steuerbarerGewinn != null && s.steuerbaresKapital != null) {
-    return null;
+  final abweichungen = <String>[];
+  void pruefe(String was, double? gesetzt, double neu) {
+    if (gesetzt != null && (gesetzt - neu).abs() > _gewinnToleranz) {
+      abweichungen.add('$was ${chf(gesetzt)} (neu ${chf(neu)})');
+    }
   }
-  return s.copyWith(
-    steuerbarerGewinn: s.steuerbarerGewinn ?? k.steuerbarerGewinn,
-    steuerbaresKapital: s.steuerbaresKapital ?? k.eigenkapital,
+
+  pruefe('Gewinn', s.steuerbarerGewinn, k.steuerbarerGewinn);
+  pruefe('Kapital', s.steuerbaresKapital, k.eigenkapital);
+  final fuellen =
+      s.steuerbarerGewinn == null || s.steuerbaresKapital == null;
+  return (
+    neu: fuellen
+        ? s.copyWith(
+            steuerbarerGewinn: s.steuerbarerGewinn ?? k.steuerbarerGewinn,
+            steuerbaresKapital: s.steuerbaresKapital ?? k.eigenkapital,
+          )
+        : null,
+    abweichungen: abweichungen,
   );
 }
+
+/// Meldung zu [abweichungen] aus [steuerjahrAbgleich], `null` wenn keine.
+String? steuerjahrHinweis(List<String> abweichungen) => abweichungen.isEmpty
+    ? null
+    : 'Steuerjahr behält ${abweichungen.join(', ')} — im Steuerjahr anpassen';
 
 String _eingereichtText(Steuerjahr s) {
   if (s.status == 'veranlagt') {

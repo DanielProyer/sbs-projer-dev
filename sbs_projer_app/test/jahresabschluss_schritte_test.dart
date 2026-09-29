@@ -40,20 +40,41 @@ AbschreibungLauf lauf(List<int> jahrgaenge, int anzahl, double brutto) =>
       ruecknahmeMoeglich: true,
     );
 
-Dokument dok(String typ, {int jahr = 2025, DateTime? erstellt, String titel = 'JR'}) =>
-    Dokument(
-      id: '$typ$erstellt',
-      userId: 'u',
-      bereich: 'steuern',
-      typ: typ,
-      jahr: jahr,
-      dokumentDatum: DateTime(jahr, 12, 31),
-      titel: titel,
-      dateiname: 'x.pdf',
-      dateityp: 'application/pdf',
-      storagePfad: 'p',
-      createdAt: erstellt,
-    );
+Dokument dok(
+  String typ, {
+  int jahr = 2025,
+  DateTime? erstellt,
+  String titel = 'JR',
+  double? betrag,
+}) => Dokument(
+  id: '$typ$erstellt$titel',
+  userId: 'u',
+  bereich: 'steuern',
+  typ: typ,
+  jahr: jahr,
+  dokumentDatum: DateTime(jahr, 12, 31),
+  betrag: betrag,
+  titel: titel,
+  dateiname: 'x.pdf',
+  dateityp: 'application/pdf',
+  storagePfad: 'p',
+  createdAt: erstellt,
+);
+
+/// Die Fassung 1 aus dem Beilage-Skript, wie sie seit 08.09.2026 im Dossier
+/// liegt (ASCII-Bindestrich, Betrag ohne Apostroph, `betrag` leer).
+Dokument skriptFassung() => dok(
+  'jahresrechnung',
+  erstellt: DateTime(2026, 9, 8),
+  titel:
+      'Jahresrechnung 2025 - Bilanz und Erfolgsrechnung mit Vorjahr, Anhang '
+      'OR 959c, Beilage zur Steuererklaerung (Gewinn 20890.22, EK 75950.93)',
+);
+
+/// Die eingereichten Unterlagen 2019–2024: Bilanz und ER getrennt, Typ
+/// `jahresrechnung`, aber keine Fassung der App.
+Dokument fremd(int jahr, String titel) =>
+    dok('jahresrechnung', jahr: jahr, erstellt: DateTime(2026, 9, 2), titel: titel);
 
 void main() {
   final heute = DateTime(2026, 9, 29);
@@ -65,9 +86,11 @@ void main() {
     Steuerjahr? steuerjahr,
     Dossier? dossier,
     int jahr = 2025,
+    double? gewinn,
   }) => jahresabschlussSchritte(
     jahr: jahr,
     heute: heute,
+    gewinnAktuell: gewinn,
     befunde: befunde ??
         [
           befund(kRegelVerjaehrt, PruefStatus.rot, ist: "76 Rechnungen · 7'216.30"),
@@ -132,21 +155,133 @@ void main() {
     expect(s[3].status, PruefStatus.gelb);
   });
 
-  test('Jahresrechnung: gelb ohne Dokument, grün mit der neuesten Fassung', () {
-    expect(schritte()[4].status, PruefStatus.gelb);
-    expect(schritte()[4].ist, 'noch nicht erzeugt');
-    final s = schritte(dokumente: [
-      dok('jahresrechnung', erstellt: DateTime(2026, 9, 2), titel: 'Fassung 1'),
-      dok('jahresrechnung', erstellt: DateTime(2026, 10, 1), titel: 'Fassung 2'),
-      dok('jahresrechnung', jahr: 2024, erstellt: DateTime(2025, 11, 10)),
-      dok('lohnausweis', erstellt: DateTime(2026, 9, 3)),
-    ]);
-    expect(s[4].status, PruefStatus.gruen);
-    expect(s[4].ist, '2 Fassungen, neueste: Fassung 2 · 01.10.2026');
-    expect(
-      s[4].knoepfe.map((k) => k.aktion),
-      [SchrittAktion.vorschau, SchrittAktion.erzeugen],
+  group('Jahresrechnung (Schritt 5)', () {
+    final gruen = [
+      befund(kRegelVerjaehrt, PruefStatus.gruen),
+      befund(kRegelDelkredere, PruefStatus.gruen),
+      befund(kRegelRueckstellung, PruefStatus.gruen),
+    ];
+    final fassung2 = dok(
+      'jahresrechnung',
+      erstellt: DateTime(2026, 10, 1),
+      titel: "Jahresrechnung 2025 — Bilanz, Erfolgsrechnung, Anhang, "
+          "Steuerbeilage (Gewinn 15'235.70, EK 70'296.41) — Fassung 2",
+      betrag: 15235.70,
     );
+
+    test('gelb ohne Dokument', () {
+      expect(schritte()[4].status, PruefStatus.gelb);
+      expect(schritte()[4].ist, 'noch nicht erzeugt');
+    });
+
+    test('grün mit der neuesten Fassung, wenn Zahlen und Vorschritte stimmen', () {
+      final s = schritte(
+        befunde: gruen,
+        gewinn: 15235.70,
+        dokumente: [
+          skriptFassung(),
+          fassung2,
+          dok('jahresrechnung', jahr: 2024, erstellt: DateTime(2025, 11, 10)),
+          dok('lohnausweis', erstellt: DateTime(2026, 9, 3)),
+        ],
+      );
+      expect(s[4].status, PruefStatus.gruen);
+      expect(s[4].ist, startsWith('2 Fassungen, neueste: Jahresrechnung 2025 —'));
+      expect(s[4].ist, endsWith(' · 01.10.2026'));
+      expect(
+        s[4].knoepfe.map((k) => k.aktion),
+        [SchrittAktion.vorschau, SchrittAktion.erzeugen],
+      );
+    });
+
+    test('W1: ein roter Schritt 1–4 hält Schritt 5 auf gelb', () {
+      // Standard-Befunde: Jahrgang verjährt ist rot.
+      final s = schritte(gewinn: 15235.70, dokumente: [fassung2]);
+      expect(s[4].status, PruefStatus.gelb);
+      expect(s[4].hinweis, contains('Erst Schritte 1–4 bereinigen'));
+    });
+
+    test('W1: Gewinn seit der Fassung geändert → gelb mit beiden Zahlen', () {
+      final s = schritte(befunde: gruen, gewinn: 15235.70, dokumente: [skriptFassung()]);
+      expect(s[4].status, PruefStatus.gelb);
+      expect(
+        s[4].hinweis,
+        contains("Zahlen seit dieser Fassung geändert (Fassung: 20'890.22, jetzt: 15'235.70)"),
+      );
+      // Innerhalb von 5 Rappen: keine Änderung.
+      final gleich = schritte(befunde: gruen, gewinn: 20890.25, dokumente: [skriptFassung()]);
+      expect(gleich[4].status, PruefStatus.gruen);
+    });
+
+    test('Betrag der Fassung hat Vorrang vor dem Titel', () {
+      final d = dok(
+        'jahresrechnung',
+        erstellt: DateTime(2026, 10, 1),
+        titel: 'Jahresrechnung 2025 (Gewinn 1.00)',
+        betrag: 15235.70,
+      );
+      final s = schritte(befunde: gruen, gewinn: 15235.70, dokumente: [d]);
+      expect(s[4].status, PruefStatus.gruen);
+    });
+
+    test('W2: im laufenden Jahr ist Erzeugen gesperrt, Vorschau nicht', () {
+      final s = schritte(jahr: 2026, befunde: gruen);
+      final knoepfe = {for (final k in s[4].knoepfe) k.aktion: k.aktiv};
+      expect(knoepfe[SchrittAktion.vorschau], isTrue);
+      expect(knoepfe[SchrittAktion.erzeugen], isFalse);
+      expect(s[4].hinweis, contains('Jahr läuft noch'));
+      final vorjahr = schritte(befunde: gruen);
+      expect(vorjahr[4].knoepfe.every((k) => k.aktiv), isTrue);
+    });
+
+    test('Fremdunterlagen (Bilanz/ER getrennt) sind keine Fassung', () {
+      final dokumente = [
+        fremd(2024, 'Bilanz 31.12.2024 (eingereicht 10.11.2025)'),
+        fremd(2024, 'Erfolgsrechnung 2024 (eingereicht 10.11.2025)'),
+      ];
+      expect(fassungenVon(2024, dokumente), isEmpty);
+      expect(naechsteFassung(2024, dokumente), 1);
+      // Eingereicht: die alte Ablage genügt, Schritt 5 ist erledigt.
+      final s = jahresabschlussSchritte(
+        jahr: 2024,
+        heute: heute,
+        befunde: gruen,
+        laeufe: const [],
+        dokumente: dokumente,
+        steuerjahr: const Steuerjahr(jahr: 2024, status: 'veranlagt'),
+      );
+      expect(s[4].status, PruefStatus.gruen);
+      expect(s[4].ist, contains('2 ältere Unterlagen'));
+    });
+  });
+
+  group('K6: Fassungsnummer', () {
+    test('Skript-Fassung ohne Zusatz zählt als 1, danach 2', () {
+      expect(naechsteFassung(2025, [skriptFassung()]), 2);
+      expect(fassungenVon(2025, [skriptFassung()]).single.nr, 1);
+      expect(fassungenVon(2025, [skriptFassung()]).single.gewinn, 20890.22);
+    });
+
+    test('höchste «Fassung n» + 1, nicht die Anzahl', () {
+      final d = [
+        skriptFassung(),
+        dok('jahresrechnung', erstellt: DateTime(2026, 10, 2), titel: 'Jahresrechnung 2025 — … — Fassung 3'),
+        fremd(2025, 'Bilanz 31.12.2025 (Entwurf)'),
+      ];
+      expect(naechsteFassung(2025, d), 4);
+      expect(fassungenVon(2025, d).first.nr, 3);
+    });
+
+    test('ohne Dossier: Fassung 1', () {
+      expect(naechsteFassung(2025, const []), 1);
+    });
+  });
+
+  test('offeneVorschritte nennt die roten Schritte 1–4', () {
+    expect(offeneVorschritte(schritte()), [
+      'Abschlussprüfung',
+      'Verjährte Jahrgänge abschreiben',
+    ]);
   });
 
   test('Steuererklärung: offen gelb mit Dossier und Frist, eingereicht grün', () {
@@ -207,26 +342,36 @@ void main() {
     });
 
     test('Steuerjahr: leere Felder füllen, gesetzte nie überschreiben', () {
-      final neu = steuerjahrVorbefuellt(null, k)!;
-      expect(neu.jahr, 2025);
-      expect(neu.status, 'offen');
-      expect(neu.steuerbarerGewinn, 15555.70);
-      expect(neu.steuerbaresKapital, 70296.41);
+      final neu = steuerjahrAbgleich(null, k);
+      expect(neu.neu!.jahr, 2025);
+      expect(neu.neu!.status, 'offen');
+      expect(neu.neu!.steuerbarerGewinn, 15555.70);
+      expect(neu.neu!.steuerbaresKapital, 70296.41);
+      expect(neu.abweichungen, isEmpty);
 
-      final halb = steuerjahrVorbefuellt(
+      final halb = steuerjahrAbgleich(
         const Steuerjahr(jahr: 2025, status: 'eingereicht', steuerbarerGewinn: 15000),
         k,
-      )!;
-      expect(halb.steuerbarerGewinn, 15000);
-      expect(halb.steuerbaresKapital, 70296.41);
-      expect(halb.status, 'eingereicht');
+      );
+      expect(halb.neu!.steuerbarerGewinn, 15000);
+      expect(halb.neu!.steuerbaresKapital, 70296.41);
+      expect(halb.neu!.status, 'eingereicht');
+      expect(halb.abweichungen, ["Gewinn 15'000.00 (neu 15'555.70)"]);
 
+      final voll = steuerjahrAbgleich(
+        const Steuerjahr(jahr: 2025, steuerbarerGewinn: 15555.70, steuerbaresKapital: 2),
+        k,
+      );
+      expect(voll.neu, isNull);
+      expect(voll.abweichungen, ["Kapital 2.00 (neu 70'296.41)"]);
+    });
+
+    test('W2: Meldung, wenn das Steuerjahr andere Werte behält', () {
+      expect(steuerjahrHinweis(const []), isNull);
       expect(
-        steuerjahrVorbefuellt(
-          const Steuerjahr(jahr: 2025, steuerbarerGewinn: 1, steuerbaresKapital: 2),
-          k,
-        ),
-        isNull,
+        steuerjahrHinweis(["Gewinn 15'000.00 (neu 15'555.70)", 'Kapital 2.00 (neu 3.00)']),
+        "Steuerjahr behält Gewinn 15'000.00 (neu 15'555.70), Kapital 2.00 "
+        '(neu 3.00) — im Steuerjahr anpassen',
       );
     });
   });

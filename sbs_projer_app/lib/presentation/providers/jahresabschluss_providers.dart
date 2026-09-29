@@ -1,13 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sbs_projer_app/core/util/jahresabschluss_schritte.dart';
 import 'package:sbs_projer_app/core/util/jahresrechnung_kennzahlen.dart';
+import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart'
+    show bussenAuf8900;
 import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
 import 'package:sbs_projer_app/data/models/dokument.dart';
 import 'package:sbs_projer_app/data/models/steuerjahr.dart';
+import 'package:sbs_projer_app/data/repositories/konto_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
-import 'package:sbs_projer_app/presentation/providers/konto_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
@@ -48,7 +50,8 @@ class JahresabschlussLage {
     required this.kontenVorjahr,
   });
 
-  List<Dokument> get jahresrechnungen => jahresrechnungenVon(jahr, dokumente);
+  /// Nummer der nächsten Fassung (höchste im Dossier + 1, K6).
+  int get naechsteFassungsNr => naechsteFassung(jahr, dokumente);
 
   List<JahresabschlussSchritt> schritte(DateTime heute) =>
       jahresabschlussSchritte(
@@ -59,18 +62,33 @@ class JahresabschlussLage {
         dokumente: dokumente,
         steuerjahr: steuerjahr,
         dossier: dossier,
+        gewinnAktuell: kennzahlen.gewinn,
       );
+}
+
+/// «Erneut laden»: die Lage UND ihre Quellen. WARUM alle (K4): Die Lage
+/// beobachtet nur die Futures ihrer Quellen. Scheiterte eine davon (etwa
+/// die Prüfung offline), bliebe deren Fehler gecacht — ein Invalidieren
+/// nur der Lage hätte ihn bloss erneut gelesen.
+void jahresabschlussNeuLaden(WidgetRef ref, int jahr) {
+  ref.invalidate(buchungenStreamProvider);
+  ref.invalidate(abschlussPruefungProvider(jahr));
+  ref.invalidate(abschreibungLaeufeProvider);
+  ref.invalidate(steuerDokumenteProvider(jahr));
+  ref.invalidate(steuerjahreProvider);
+  ref.invalidate(jahresabschlussLageProvider(jahr));
 }
 
 /// Lage des Jahresabschlusses [jahr].
 ///
 /// Bilanz, Erfolgsrechnung und Saldi entstehen aus dem laufenden
-/// `buchungenStreamProvider` — wie `bilanzStichtagProvider` und
-/// `erKontenAufstellungProvider`, aber mit EINEM Journal-Durchgang je
-/// Stichtag und ohne deren je eigenen Konten-Download. Die Teilquellen sind
-/// beobachtet: Bucht die Abschlussprüfung das Delkredere, legt der
-/// Abschreibungsschritt einen Lauf an oder landet ein Dokument im Dossier,
-/// rechnet die Liste neu, ohne dass jemand sie eigens anstossen muss.
+/// `buchungenStreamProvider`, die Konten wie bei `bilanzStichtagProvider`
+/// frisch über `KontoRepository.getAll()` (K4: der Konten-Stream lädt auf
+/// Web nur einmal und kennt ein neues Konto erst nach einem Neustart). Die
+/// Teilquellen sind beobachtet: Bucht die Abschlussprüfung das Delkredere,
+/// legt der Abschreibungsschritt einen Lauf an oder landet ein Dokument im
+/// Dossier, rechnet die Liste neu, ohne dass jemand sie eigens anstossen
+/// muss.
 ///
 /// `autoDispose`: Sonst rechnet jedes einmal gewählte Jahr bei jeder Buchung
 /// mit (gleicher Grund wie bei `abschlussPruefungProvider`).
@@ -79,7 +97,7 @@ final jahresabschlussLageProvider = FutureProvider.autoDispose
       // Alle Quellen vor dem ersten await beobachten — so hängt die Lage an
       // jeder, auch wenn eine davon später fertig wird.
       final buchungenF = ref.watch(buchungenStreamProvider.future);
-      final kontenF = ref.watch(kontenStreamProvider.future);
+      final kontenF = KontoRepository.getAll();
       final befundeF = ref.watch(abschlussPruefungProvider(jahr).future);
       final laeufeF = ref.watch(abschreibungLaeufeProvider.future);
       final dokumenteF = ref.watch(steuerDokumenteProvider(jahr).future);
@@ -149,6 +167,10 @@ final jahresabschlussLageProvider = FutureProvider.autoDispose
           jahr: jahr,
           saldiJahr: BilanzService.saldiPerStichtag(saldoInput, stichtag),
           saldiVorjahr: BilanzService.saldiPerStichtag(saldoInput, stichtagVj),
+          // Steuerbussen auf 8900 (bis Migration 203) — wie die
+          // Rückstellungs-Regel, damit beide denselben steuerbaren Gewinn
+          // meinen.
+          bussen8900: bussenAuf8900(buchungen, jahr),
           laeufe: laeufe,
         ),
         bilanz: BilanzService.erstelle(saldoInput, infos, stichtag),

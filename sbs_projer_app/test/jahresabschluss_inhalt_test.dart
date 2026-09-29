@@ -52,7 +52,9 @@ void main() {
     WidgetTester tester, {
     List<JahresabschlussSchritt>? liste,
     String? fehler,
+    bool ohneListe = false,
     Set<SchrittAktion> laufend = const {},
+    Set<SchrittAktion> gesperrt = const {},
     double hoehe = 800,
   }) async {
     tester.view.physicalSize = Size(360, hoehe);
@@ -67,9 +69,10 @@ void main() {
           jahr: 2025,
           jahre: const [2026, 2025, 2024],
           onJahr: (_) {},
-          schritte: fehler == null ? (liste ?? schritte) : null,
+          schritte: ohneListe ? null : (liste ?? schritte),
           fehler: fehler,
           laufend: laufend,
+          gesperrt: gesperrt,
           onAktion: getippt.add,
         ),
       ),
@@ -143,9 +146,41 @@ void main() {
   });
 
   testWidgets('Fehler statt Liste', (tester) async {
-    await pump(tester, fehler: 'Jahresabschluss nicht ladbar: offline');
+    await pump(tester, ohneListe: true, fehler: 'Jahresabschluss nicht ladbar: offline');
     expect(find.text('Jahresabschluss nicht ladbar: offline'), findsOneWidget);
     expect(find.text('Abschlussprüfung'), findsNothing);
+  });
+
+  testWidgets('K4: Fehler beim Nachladen erscheint über der alten Liste', (tester) async {
+    await pump(tester, hoehe: 2200, fehler: 'Nachladen fehlgeschlagen: offline');
+    expect(find.text('Nachladen fehlgeschlagen: offline'), findsOneWidget);
+    expect(find.text('Abschlussprüfung'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('K10: gesperrte Aktion reagiert nicht', (tester) async {
+    final getippt = await pump(tester, hoehe: 2000, gesperrt: {SchrittAktion.erzeugen});
+    final knopf = tester.widget<TapKnopf>(
+      find.widgetWithText(TapKnopf, 'Erzeugen und ins Dossier legen'),
+    );
+    expect(knopf.onTap, isNull);
+    await tester.tap(find.text('Erzeugen und ins Dossier legen'));
+    await tester.tap(find.text('Vorschau'));
+    expect(getippt, [SchrittAktion.vorschau]);
+  });
+
+  testWidgets('W2: im laufenden Jahr ist Erzeugen gesperrt', (tester) async {
+    final laufend = jahresabschlussSchritte(
+      jahr: 2026,
+      heute: DateTime(2026, 9, 29),
+      befunde: const [],
+      laeufe: const [],
+      dokumente: const [],
+    );
+    final getippt = await pump(tester, hoehe: 2000, liste: laufend);
+    await tester.tap(find.text('Erzeugen und ins Dossier legen'));
+    expect(getippt, isEmpty);
+    expect(find.textContaining('Jahr läuft noch — ablegen erst'), findsOneWidget);
   });
 
   group('Erzeugen-Dialog', () {
@@ -162,7 +197,11 @@ void main() {
       aufrechnungenAuto: 120,
     );
 
-    Future<List<JahresrechnungEingabe?>> dialog(WidgetTester tester, {int bisherige = 0}) async {
+    Future<List<JahresrechnungEingabe?>> dialog(
+      WidgetTester tester, {
+      int fassung = 1,
+      List<String> warnung = const [],
+    }) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -178,7 +217,11 @@ void main() {
                   onTap: () async => ergebnis.add(
                     await showDialog<JahresrechnungEingabe>(
                       context: context,
-                      builder: (_) => JahresrechnungDialog(kennzahlen: k, bisherige: bisherige),
+                      builder: (_) => JahresrechnungDialog(
+                        kennzahlen: k,
+                        fassung: fassung,
+                        offeneVorschritte: warnung,
+                      ),
                     ),
                   ),
                   child: const Text('auf'),
@@ -196,7 +239,7 @@ void main() {
     testWidgets('zeigt 6280-Hinweis und Kennzahlen, rechnet mit', (tester) async {
       final ergebnis = await dialog(tester);
       expect(tester.takeException(), isNull);
-      final hilfe = find.textContaining('Bussen 6280/6281 (120.00)');
+      final hilfe = find.textContaining('Steuerbussen auf 8900 (120.00)');
       expect(hilfe, findsOneWidget);
       // Im Browser endeten zu lange Labels und Hilfetexte mit «…»
       // (Sichtprüfung 29.09.2026).
@@ -230,13 +273,38 @@ void main() {
       expect(ergebnis, isEmpty); // Dialog noch offen
     });
 
-    testWidgets('liegt schon eine vor: Fassung 2 zusätzlich', (tester) async {
-      final ergebnis = await dialog(tester, bisherige: 1);
-      expect(find.text('Fassung 2 ablegen?'), findsOneWidget);
-      expect(find.textContaining('bisherige bleibt liegen'), findsOneWidget);
+    testWidgets('K9: negative Aufrechnung sperrt Erzeugen', (tester) async {
+      final ergebnis = await dialog(tester);
+      await tester.enterText(find.byType(TextField).first, '-50');
+      await tester.pump();
+      expect(find.text('Nur Beträge ab 0'), findsOneWidget);
+      await tester.tap(find.text('Erzeugen'));
+      await tester.pumpAndSettle();
+      expect(ergebnis, isEmpty);
+    });
+
+    testWidgets('liegt schon eine vor: Fassung 3 zusätzlich', (tester) async {
+      final ergebnis = await dialog(tester, fassung: 3);
+      expect(find.text('Fassung 3 ablegen?'), findsOneWidget);
+      expect(find.textContaining('bisherigen bleiben liegen'), findsOneWidget);
       await tester.tap(find.text('Abbrechen'));
       await tester.pumpAndSettle();
       expect(ergebnis, [null]);
+    });
+
+    testWidgets('W2: Warnung, solange ein Schritt 1–4 rot ist', (tester) async {
+      await dialog(tester, warnung: ['Verjährte Jahrgänge abschreiben']);
+      expect(
+        find.textContaining('Die Zahlen ändern sich noch — trotzdem erzeugen?'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Verjährte Jahrgänge abschreiben'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('ohne rote Schritte keine Warnung', (tester) async {
+      await dialog(tester);
+      expect(find.textContaining('Die Zahlen ändern sich noch'), findsNothing);
     });
   });
 }
