@@ -4,13 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:sbs_projer_app/core/theme/app_theme.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
-import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/core/util/delkredere.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/widgets/rueckstellung_dialog.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/gefahr_rueckfrage.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschreibung_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/steuerrueckstellung_service.dart';
 import 'package:sbs_projer_app/services/steuern/steuerjahr_rechner.dart'
     show kSteuerJahrAb;
 
@@ -175,16 +179,50 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
   }
 
   bool _delkredereLaeuft = false;
+  bool _rueckstellungLaeuft = false;
 
-  /// Delkredere (1109) auf 5 % des heutigen Debitorensaldos (1100) — mit
-  /// Rückfrage, weil es eine Aufwandbuchung auf 3805 erzeugt.
+  /// Abgeschlossenes Jahr: Die Abschlussbuchungen (Delkredere, Rückstellung)
+  /// gehen per 31.12. dieses Jahres. Im laufenden Jahr gibt es kein 31.12.
+  /// mit fertigen Zahlen.
+  bool get _jahrAbgeschlossen => _jahr < DateTime.now().year;
+
+  void _meldung(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// Journal frisch laden, bevor ein Abschlussbetrag gerechnet wird.
+  ///
+  /// WARUM: Andere Schritte buchen, ohne den Journal-Stream zu erneuern
+  /// (z. B. «Jahrgang abschreiben») — Delkredere und Rückstellung stünden
+  /// sonst auf einem veralteten 1100-Saldo bzw. Gewinn.
+  Future<List<Buchung>> _frischesJournal() {
+    ref.invalidate(buchungenStreamProvider);
+    return ref.read(buchungenStreamProvider.future);
+  }
+
+  /// Nach einer Buchung: Journal, Bilanz und Prüfung neu rechnen. Der
+  /// Stream zuerst — die Prüfung liest das Journal aus ihm.
+  void _nachBuchung(int jahr) {
+    ref.invalidate(buchungenStreamProvider);
+    ref.invalidate(debitorenUebersichtProvider);
+    ref.invalidate(abschlussPruefungProvider(jahr));
+  }
+
+  /// Delkredere (1109) auf 5 % der Debitoren (1100) — mit Rückfrage, weil es
+  /// eine Aufwandbuchung auf 3805 erzeugt. Abgeschlossenes Jahr: per 31.12.
+  /// ([_delkredereStichtagBuchen]); laufendes Jahr: heute gegen den heutigen
+  /// Saldo (wie bisher).
   Future<void> _delkredereBuchen() async {
+    if (_jahrAbgeschlossen) return _delkredereStichtagBuchen(_jahr);
     setState(() => _delkredereLaeuft = true);
     try {
       ref.invalidate(debitorenUebersichtProvider);
       final d = await ref.read(debitorenUebersichtProvider.future);
       final debitoren = d['debitoren_total'] ?? 0;
-      final ziel = rundeAufRappen(debitoren * 0.05);
+      final ziel = delkredereZiel(debitoren);
       if (!mounted) return;
       final ok = await gefahrRueckfrage(
         context,
@@ -200,21 +238,89 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
         zielWertberichtigung: ziel,
         datum: DateTime.now(),
       );
-      ref.invalidate(debitorenUebersichtProvider);
-      ref.invalidate(abschlussPruefungProvider(_jahr));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Delkredere auf CHF ${chf(ziel)} gesetzt')),
-        );
-      }
+      _nachBuchung(_jahr);
+      _meldung('Delkredere auf CHF ${chf(ziel)} gesetzt');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: ${kurzeFehlermeldung(e)}')),
-        );
-      }
+      _meldung('Fehler: ${kurzeFehlermeldung(e)}');
     } finally {
       if (mounted) setState(() => _delkredereLaeuft = false);
+    }
+  }
+
+  /// Jahresabschluss Schritt E: Delkredere per 31.12.[jahr] auf 5 % der
+  /// Debitoren per 31.12.[jahr] — dieselben Saldi, die die Regel zeigt.
+  Future<void> _delkredereStichtagBuchen(int jahr) async {
+    setState(() => _delkredereLaeuft = true);
+    try {
+      final s = delkredereStichtag(await _frischesJournal(), jahr);
+      final b = delkredereBuchung(
+        debitoren: s.debitoren,
+        bisher: s.wertberichtigung,
+      );
+      if (b.betrag < 0.01) {
+        _meldung(
+          'Delkredere per 31.12.$jahr stimmt schon (CHF ${chf(s.ziel)})',
+        );
+        return;
+      }
+      if (!mounted) return;
+      final ok = await gefahrRueckfrage(
+        context,
+        titel: 'Delkredere per 31.12.$jahr buchen?',
+        text: 'Debitoren 1100 per 31.12.$jahr: CHF ${chf(s.debitoren)}\n'
+            'Delkredere 1109 neu: CHF ${chf(s.ziel)} '
+            '(bisher CHF ${chf(s.wertberichtigung)})\n\n'
+            'Buchung per 31.12.$jahr gegen 3805: CHF ${chf(b.betrag)} '
+            '(${b.aufbau ? '3805 an 1109' : '1109 an 3805'}). Als '
+            'Abschlussbuchung gilt $jahr danach als abgeschlossen.',
+        bestaetigen: 'Buchen',
+      );
+      if (!ok) return;
+      await AbschreibungService.delkredereSetzenPerStichtag(
+        jahr: jahr,
+        debitorenPerStichtag: s.debitoren,
+        wertberichtigungPerStichtag: s.wertberichtigung,
+      );
+      _nachBuchung(jahr);
+      _meldung('Delkredere per 31.12.$jahr auf CHF ${chf(s.ziel)} gesetzt');
+    } catch (e) {
+      _meldung('Fehler: ${kurzeFehlermeldung(e)}');
+    } finally {
+      if (mounted) setState(() => _delkredereLaeuft = false);
+    }
+  }
+
+  /// Jahresabschluss Schritt D: Steuerrückstellung per 31.12. des gewählten
+  /// Jahres — Dialog mit Vorschlag, dann die Differenz buchen.
+  Future<void> _rueckstellungBuchen() async {
+    final jahr = _jahr;
+    setState(() => _rueckstellungLaeuft = true);
+    try {
+      final lage = SteuerrueckstellungService.lage(
+        await _frischesJournal(),
+        jahr,
+      );
+      if (!mounted) return;
+      final eingabe = await zeigeRueckstellungDialog(
+        context,
+        jahr: jahr,
+        lage: lage,
+      );
+      if (eingabe == null) return;
+      await SteuerrueckstellungService.buchen(
+        jahr: jahr,
+        ziel: eingabe.ziel,
+        gebucht: lage.gebucht,
+        begruendung: eingabe.begruendung,
+      );
+      _nachBuchung(jahr);
+      _meldung(
+        'Steuerrückstellung $jahr auf CHF ${chf(eingabe.ziel)} gesetzt',
+      );
+    } catch (e) {
+      _meldung('Fehler: ${kurzeFehlermeldung(e)}');
+    } finally {
+      if (mounted) setState(() => _rueckstellungLaeuft = false);
     }
   }
 
@@ -292,20 +398,36 @@ class _AuditScreenState extends ConsumerState<AuditScreen> {
                     ),
                   ),
                 // Früher im Debitoren-Header der Rechnungsliste, ohne
-                // Rückfrage (Analyse 25.09.2026 Befund E). Nur im laufenden
-                // Jahr: `delkredereSetzen` bucht heute gegen den heutigen
-                // Saldo — für ein Vorjahr wäre das die falsche Periode.
-                if (b.regelId == 'delkredere' &&
-                    b.status != PruefStatus.gruen &&
-                    _jahr == DateTime.now().year)
+                // Rückfrage (Analyse 25.09.2026 Befund E). Seit 29.09.2026
+                // auch für abgeschlossene Jahre: dort per 31.12. gegen die
+                // Debitoren per 31.12. (Jahresabschluss Schritt E).
+                if (b.regelId == 'delkredere' && b.status != PruefStatus.gruen)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: TapKnopf(
-                      text: 'Delkredere auf 5 % buchen',
+                      text: _jahrAbgeschlossen
+                          ? 'Delkredere per 31.12.$_jahr buchen'
+                          : 'Delkredere auf 5 % buchen',
                       icon: Icons.percent,
                       primaer: false,
                       laeuft: _delkredereLaeuft,
                       onTap: _delkredereBuchen,
+                    ),
+                  ),
+                // Schritt D: auch bei grüner Zeile, weil eine gebuchte
+                // Rückstellung nachgeführt werden kann (2025: 4'000 → 2'800
+                // nach Abschreibung Jahrgang 2020). Nur abgeschlossene
+                // Jahre — vorher steht der Gewinn nicht fest.
+                if (b.regelId == 'rueckstellung' && _jahrAbgeschlossen)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: TapKnopf(
+                      key: const Key('rueckstellung_knopf'),
+                      text: 'Rückstellung buchen',
+                      icon: Icons.account_balance,
+                      primaer: false,
+                      laeuft: _rueckstellungLaeuft,
+                      onTap: _rueckstellungBuchen,
                     ),
                   ),
               ],
