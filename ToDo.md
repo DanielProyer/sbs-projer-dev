@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.151.2 live** (Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3125 Tests grün**.
+**Stand:** **v0.151.2 live** (Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **212** · **3127 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
