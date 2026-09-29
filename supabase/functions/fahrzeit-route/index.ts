@@ -358,10 +358,15 @@ async function punktPfad(
   const cached = await punktCacheLookup(admin, userId, vonKey, nachKey);
   const cachedKm = cached ? zahlOderNull(cached.distanz_km) : null;
   if (cached && cachedKm != null) {
+    // `quelle` der ANTWORT ist die Herkunft der Minuten im Sinne von Pfad A
+    // ('beobachtet' | 'route', so liest die App sie in FahrzeitEintrag) --
+    // eine Punkt-Route ist immer 'route'. NICHT die Spalte
+    // `routen_punkte.quelle` durchreichen: Die nennt den Routing-Dienst
+    // ('osrm'), das ist eine andere Frage.
     return ok({
       ok: true,
       minuten: cached.minuten,
-      quelle: "osrm",
+      quelle: "route",
       distanzKm: cachedKm,
     });
   }
