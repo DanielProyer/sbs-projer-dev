@@ -8,12 +8,13 @@ AbschreibungLauf lauf({
   int anzahl = 76,
   double brutto = 7216.30,
   String status = 'gebucht',
+  int? mwstJahr,
 }) => AbschreibungLauf(
   id: 'l$jahrgaenge',
   geschaeftsjahr: geschaeftsjahr,
   jahrgaenge: jahrgaenge,
   buchungsdatum: DateTime(geschaeftsjahr, 12, 31),
-  mwstJahr: geschaeftsjahr,
+  mwstJahr: mwstJahr ?? geschaeftsjahr,
   mwstQuartal: 4,
   anzahl: anzahl,
   netto: brutto,
@@ -112,15 +113,61 @@ void main() {
     expect(k.aufrechnungenAuto, 270);
   });
 
-  test('aufwandBussen überschreibt die Saldo-Differenz', () {
+  test('Steuerbussen auf 8900 zählen zur automatischen Aufrechnung', () {
+    // Wie die Rückstellungs-Regel (B, 29.09.2026): 2025 steht die «Busse
+    // Kanton» 200.00 auf 8900 — sie ist nicht abzugsfähig wie 6280/6281.
     final k = kennzahlenAus(
-      jahr: 2026,
-      saldiJahr: {6280: 500},
+      jahr: 2025,
+      saldiJahr: {6280: 111.01},
       saldiVorjahr: const {},
-      aufwandBussen: 42,
+      bussen8900: 200,
       laeufe: const [],
     );
-    expect(k.aufrechnungenAuto, 42);
+    expect(k.aufrechnungenAuto, 311.01);
+  });
+
+  group('Abschreibung nach dem Bilanzstichtag', () {
+    test('Rückholung im Folgejahr = nach dem Stichtag beschlossen', () {
+      final k = kennzahlenAus(
+        jahr: 2025,
+        saldiJahr: const {},
+        saldiVorjahr: const {},
+        laeufe: [lauf(mwstJahr: 2026)],
+      );
+      expect(k.abschreibungNachStichtag, isTrue);
+    });
+
+    test('Rückholung im selben Jahr, fremde oder zurückgenommene Läufe: nein', () {
+      final k = kennzahlenAus(
+        jahr: 2025,
+        saldiJahr: const {},
+        saldiVorjahr: const {},
+        laeufe: [
+          lauf(),
+          lauf(geschaeftsjahr: 2026, mwstJahr: 2027),
+          lauf(mwstJahr: 2026, status: 'zurueckgenommen'),
+        ],
+      );
+      expect(k.abschreibungNachStichtag, isFalse);
+    });
+  });
+
+  test('Delkredere-Satz aus den Beträgen, eine Nachkommastelle', () {
+    final k = kennzahlenAus(
+      jahr: 2025,
+      saldiJahr: {1100: 105351.96, 1109: -5629.38},
+      saldiVorjahr: const {},
+      laeufe: const [],
+    );
+    // 5'629.38 auf 105'351.96 = 5.34 % — nicht fest «5 %».
+    expect(k.delkredereSatzText, '5.3 %');
+    final ohne = kennzahlenAus(
+      jahr: 2025,
+      saldiJahr: const {},
+      saldiVorjahr: const {},
+      laeufe: const [],
+    );
+    expect(ohne.delkredereSatzText, '0.0 %');
   });
 
   test('zurückgenommene und fremde Läufe zählen nicht', () {

@@ -10,15 +10,10 @@ library;
 
 import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart'
+    show kKontenBussen;
 import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
-
-/// Konten, deren Aufwand steuerlich nicht abzugsfähig ist und darum in der
-/// Steuererklärung automatisch aufgerechnet wird: 6280 Verkehrsbussen und
-/// 6281 Übrige Bussen (Steuer-, MWST-, Verwaltungsbussen; seit Migration
-/// 203 vom 23.09.2026). Bussen, die vorher auf 8900 liefen (2022, 2025),
-/// gehören in die manuellen Aufrechnungen.
-const kNichtAbzugsfaehigeKonten = [6280, 6281];
 
 class JahresrechnungKennzahlen {
   final int jahr;
@@ -44,8 +39,11 @@ class JahresrechnungKennzahlen {
   /// Saldo 1020 / 1000 per 31.12.
   final double bank, kasse;
 
-  /// Aufwand der nicht abzugsfähigen Konten ([kNichtAbzugsfaehigeKonten])
-  /// im Jahr — wird ohne Zutun aufgerechnet.
+  /// Nicht abzugsfähige Bussen des Jahrs — werden ohne Zutun aufgerechnet:
+  /// Aufwand 6280/6281 ([kKontenBussen]) und Steuerbussen auf 8900 (bis
+  /// Migration 203 dort gebucht; `bussenAuf8900`). Dieselbe Rechnung wie
+  /// die Rückstellungs-Regel der Abschlussprüfung, damit Vorschlag und
+  /// Steuerbeilage vom selben steuerbaren Gewinn ausgehen.
   final double aufrechnungenAuto;
 
   /// Weitere Aufrechnungen, die Daniel im Dialog einträgt (z. B. Bussen,
@@ -54,6 +52,12 @@ class JahresrechnungKennzahlen {
 
   /// «Jahrgang 2020: 76 Rechnungen, 7'216.30» je gebuchtem Lauf des Jahrs.
   final List<String> abschreibungen;
+
+  /// Ein gebuchter Lauf des Jahrs holt die MWST erst im Folgejahr zurück
+  /// (`mwstJahr > jahr`): Die Abschreibung wurde nach dem Stichtag
+  /// beschlossen und zurückdatiert. Nur dann gilt der Standardtext
+  /// «Ereignisse nach dem Bilanzstichtag» des Beilage-Skripts.
+  final bool abschreibungNachStichtag;
 
   /// Freitext «Ereignisse nach dem Bilanzstichtag» (optional).
   final String? ereignisse;
@@ -71,8 +75,18 @@ class JahresrechnungKennzahlen {
     required this.aufrechnungenAuto,
     this.aufrechnungenManuell = 0,
     this.abschreibungen = const [],
+    this.abschreibungNachStichtag = false,
     this.ereignisse,
   });
+
+  /// Tatsächlicher Satz des Delkredere auf den Debitoren, eine
+  /// Nachkommastelle («5.3 %»). WARUM nicht fest «5 %»: Nach einer
+  /// Abschreibung ohne Nachführung stimmt die Pauschale nicht mehr — der
+  /// Anhang soll zeigen, was gebucht ist.
+  String get delkredereSatzText {
+    final satz = debitoren > 0.005 ? delkredere / debitoren * 100 : 0.0;
+    return '${satz.toStringAsFixed(1)} %';
+  }
 
   double get eigenkapital =>
       rundeAufRappen(stammkapital + gewinnvortrag + gewinn);
@@ -97,6 +111,7 @@ class JahresrechnungKennzahlen {
     aufrechnungenAuto: aufrechnungenAuto,
     aufrechnungenManuell: aufrechnungenManuell ?? this.aufrechnungenManuell,
     abschreibungen: abschreibungen,
+    abschreibungNachStichtag: abschreibungNachStichtag,
     ereignisse: ereignisse ?? this.ereignisse,
   );
 }
@@ -125,25 +140,24 @@ List<String> abschreibungsZeilen(int jahr, List<AbschreibungLauf> laeufe) {
 /// 31.12. des Vorjahrs ([saldiVorjahr]) — beide aus
 /// `BilanzService.saldiPerStichtag`, also kumuliert seit Buchhaltungsbeginn.
 ///
-/// [aufwandBussen] überschreibt den Aufwand der nicht abzugsfähigen Konten;
-/// ohne Angabe ist es ihre Bewegung im Jahr (Differenz der beiden Saldi).
+/// [bussen8900] = `bussenAuf8900(journal, jahr)`: Steuerbussen auf 8900
+/// lassen sich im Saldo nicht von den Steuern trennen (dafür braucht es
+/// die `steuerart` der Buchung) und kommen darum von aussen dazu.
 JahresrechnungKennzahlen kennzahlenAus({
   required int jahr,
   required Map<int, double> saldiJahr,
   required Map<int, double> saldiVorjahr,
-  double? aufwandBussen,
+  double bussen8900 = 0,
   required List<AbschreibungLauf> laeufe,
   double aufrechnungenManuell = 0,
   String? ereignisse,
 }) {
   double s(int konto) => saldiJahr[konto] ?? 0;
   final vortrag = BilanzService.kumuliertesErgebnis(saldiVorjahr);
-  final bussen =
-      aufwandBussen ??
-      kNichtAbzugsfaehigeKonten.fold<double>(
-        0,
-        (sum, k) => sum + s(k) - (saldiVorjahr[k] ?? 0),
-      );
+  final bussen = kKontenBussen.fold<double>(
+    bussen8900,
+    (sum, k) => sum + s(k) - (saldiVorjahr[k] ?? 0),
+  );
   return JahresrechnungKennzahlen(
     jahr: jahr,
     gewinn: rundeAufRappen(
@@ -159,6 +173,9 @@ JahresrechnungKennzahlen kennzahlenAus({
     aufrechnungenAuto: rundeAufRappen(bussen),
     aufrechnungenManuell: rundeAufRappen(aufrechnungenManuell),
     abschreibungen: abschreibungsZeilen(jahr, laeufe),
+    abschreibungNachStichtag: laeufe.any(
+      (l) => l.geschaeftsjahr == jahr && l.gebucht && l.mwstJahr > jahr,
+    ),
     ereignisse: (ereignisse == null || ereignisse.trim().isEmpty)
         ? null
         : ereignisse.trim(),
