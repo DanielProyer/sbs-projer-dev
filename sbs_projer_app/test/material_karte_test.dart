@@ -41,6 +41,7 @@ Widget _app(
   Future<void> Function(double)? onBestand,
   Future<void> Function(bool)? onVormerken,
   double? bestandVorgabe,
+  Future<String?>? fotoUrl,
 }) =>
     MaterialApp(
       home: Scaffold(
@@ -48,7 +49,7 @@ Widget _app(
           lager: lager,
           bestandVorgabe: bestandVorgabe,
           kategorieName: 'Zapfhahn',
-          fotoUrl: Future.value(null),
+          fotoUrl: fotoUrl ?? Future.value(null),
           bearbeitbar: bearbeitbar,
           onBestand: onBestand ??
               (neu) async {
@@ -71,6 +72,7 @@ Future<_Aufrufe> _zeige(
   Future<void> Function(bool)? onVormerken,
   Size groesse = const Size(360, 800),
   double? bestandVorgabe,
+  Future<String?>? fotoUrl,
 }) async {
   tester.view.physicalSize = groesse;
   tester.view.devicePixelRatio = 1.0;
@@ -82,7 +84,8 @@ Future<_Aufrufe> _zeige(
         bearbeitbar: bearbeitbar,
         onBestand: onBestand,
         onVormerken: onVormerken,
-        bestandVorgabe: bestandVorgabe),
+        bestandVorgabe: bestandVorgabe,
+        fotoUrl: fotoUrl),
   );
   await tester.pumpAndSettle();
   return r;
@@ -123,6 +126,21 @@ void main() {
         )
         .first);
     expect(foto.height, lessThanOrEqualTo(640 * 0.22));
+  });
+
+  testWidgets('Foto wird ganz gezeigt, nicht auf den Rahmen beschnitten',
+      (tester) async {
+    // Der Test-HttpClient liefert 400 → errorBuilder; das Image-Widget mit
+    // seiner `fit`-Einstellung steht trotzdem im Baum. Geprüft wird die
+    // Einstellung, nicht das Bild (Daniel, 29.09.2026: «ganz dargestellt und
+    // nicht beschnitten» — `cover` schnitt den Zapfhahn oben und unten ab).
+    await _zeige(
+      tester,
+      _lager(),
+      fotoUrl: Future.value('https://example.invalid/zapfhahn_preview.jpg'),
+    );
+    final bild = tester.widget<Image>(find.byType(Image));
+    expect(bild.fit, BoxFit.contain);
   });
 
   testWidgets('«+» speichert 6 und zeigt 6 ohne Neuladen', (tester) async {

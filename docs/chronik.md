@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.151.1 Material-Karte: Foto ganz sichtbar (contain statt cover)
 - 27.09.2026 — v0.151.0 Material: Kategorie-Chips in einer Zeile, Karten-Ansicht mit Swipe (Foto, Bestand ±, Vormerken), Ansicht und Kategorie gemerkt
 - 27.09.2026 — v0.150.0 Navigation: Leiste Heute · Betriebe · Material · Tour · Mehr, Einsätze unter Mehr, Mehr-Seite als einheitliche Zeilen
 - 27.09.2026 — v0.149.1 «Offen pro Betrieb» nutzt dieselbe Zustell-Regel wie die Rechnungsliste (Tresen = übergeben)
@@ -38,6 +39,17 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.151.1 Material-Karte: Foto ganz sichtbar
+
+Rückmeldung Daniel: «die Fotos sollen ganz dargestellt werden und nicht
+beschnitten». Die Karte zeichnete das Foto mit `BoxFit.cover` in den
+180-px-Rahmen und schnitt hohe Fotos oben und unten ab. Jetzt `contain`: das
+ganze Foto im Rahmen, der hellgraue Hintergrund füllt den Rest. Die
+Detailseite machte es schon richtig. Wächter-Test in
+`test/material_karte_test.dart` prüft die `fit`-Einstellung.
 
 ---
 

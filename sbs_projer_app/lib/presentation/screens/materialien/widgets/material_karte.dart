@@ -234,9 +234,12 @@ class _MaterialKarteState extends State<MaterialKarte> {
           builder: (context, snap) {
             final url = snap.data;
             if (url == null) return platzhalter;
+            // `contain`, nicht `cover`: Das ganze Foto muss sichtbar sein —
+            // ein beschnittener Zapfhahn ist am Fahrzeug nicht zu erkennen
+            // (Daniel, 29.09.2026). Der graue Rahmen füllt den Rest.
             return Image.network(
               url,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
               width: double.infinity,
               height: hoehe,
               errorBuilder: (_, _, _) => platzhalter,
