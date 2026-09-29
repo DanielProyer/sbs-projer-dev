@@ -496,8 +496,9 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
   /// an Tagen ohne Erfassung — nie eine erfundene «0 km».
   ///
   /// Nachrouten: [tagesFahrtenProvider] liest den Monats-Provider, und der
-  /// fragt fehlende Betrieb→Betrieb-Distanzen nach (höchstens 10 je Lauf,
-  /// 30 je Sitzung, seriell gedrosselt — `fahrten_providers.dart`). Das ist
+  /// fragt fehlende Betrieb→Betrieb-Distanzen nach (gedeckelt je Lauf und
+  /// Sitzung — `kRoutenJeLauf`/`kRoutenJeSitzung` —, seriell gedrosselt,
+  /// `fahrten_providers.dart`). Das ist
   /// erwünscht, aber nur einmal: Der Provider wird erst beobachtet, wenn der
   /// Feierabend-Ablauf ganz durch ist ([_feierabendLaeuft]); Auswertung und
   /// Fahrten-Screen teilen sich denselben Monats-Provider (Record-Schlüssel),
@@ -755,15 +756,24 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
 /// «Fahrten heute: 7 · 143 km · Zähler 148 km» + «(+5)». Ohne Zählerstand
 /// fehlen Zähler und Δ. Rundung wie in der Auswertung: erst auf ganze km,
 /// dann das Vorzeichen — sonst stünde bei −0.4 ein «(−0)»; Null ist «±0».
+///
+/// Fahrten ohne Strecke (seit 29.09.2026 keine Luftlinien-km) werden
+/// genannt: «Fahrten heute: 3 · 40 km (1 ohne Strecke) · Zähler 55 km» —
+/// dann ohne Δ, denn die Lücke erschiene sonst als «unerklärte» km.
 ({String basis, String? delta}) fahrtenHeuteText(TagesFahrten f) {
+  final ohne = f.fahrtenOhneKm;
   final basis =
-      'Fahrten heute: ${f.fahrten.length} · ${f.kmFahrten.round()} km';
+      'Fahrten heute: ${f.fahrten.length} · ${f.kmFahrten.round()} km'
+      '${ohne > 0 ? ' ($ohne ohne Strecke)' : ''}';
   final zaehler = f.kmZaehler;
+  if (zaehler == null) return (basis: basis, delta: null);
+  final mitZaehler = '$basis · Zähler $zaehler km';
+  // `null`, solange nicht jede Fahrt eine Strecke hat (kmVollstaendig).
   final d = f.differenz;
-  if (zaehler == null || d == null) return (basis: basis, delta: null);
+  if (d == null) return (basis: mitZaehler, delta: null);
   final km = d.round();
   final delta = km == 0 ? '±0' : '${km < 0 ? '−' : '+'}${km.abs()}';
-  return (basis: '$basis · Zähler $zaehler km', delta: '($delta)');
+  return (basis: mitZaehler, delta: '($delta)');
 }
 
 /// Route der Fahrten eines Tages: `/auswertungen/arbeitstage/2026-09-27/fahrten`.

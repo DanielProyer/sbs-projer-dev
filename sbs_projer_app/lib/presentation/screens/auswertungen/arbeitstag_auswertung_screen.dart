@@ -328,8 +328,9 @@ class _Kennzahlen extends StatelessWidget {
           wert: schnittText(k.minutenJeBesuch, nachkomma: 0),
           icon: Icons.timer_outlined,
         ),
-        // Summe der Fahrten aus der Kette (geroutet/geschätzt) — neben
-        // «Total km» vom Zähler; die Differenz je Tag steht in der Liste.
+        // Summe der Fahrten aus der Kette (nur geroutete Strecken und
+        // erfasste Anfahrten, keine Schätzung) — neben «Total km» vom
+        // Zähler; die Differenz je Tag steht in der Liste.
         _KennzahlKarte(
           label: 'Fahrten-km (Kette)',
           wert: fahrtenKm == null ? '–' : '${fahrtenKm.round()}',
@@ -420,7 +421,9 @@ String _datumPfad(DateTime d) =>
 
 /// «Fahrten 132 km · Δ +16 km» — Δ = Zähler − Fahrten, rot, wenn ausserhalb
 /// der Toleranz (`differenzIstAuffaellig`), sonst grau. Ohne Zählerstand nur
-/// die Fahrten-km.
+/// die Fahrten-km. Fehlen Strecken, steht die Lücke statt des Δ da
+/// («Fahrten 70 km (1 ohne Strecke)») — seit 29.09.2026 gibt es keine
+/// Luftlinien-km mehr, die sie füllten.
 class _FahrtenAngabe extends StatelessWidget {
   final TagesFahrten f;
 
@@ -436,13 +439,15 @@ class _FahrtenAngabe extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final d = f.differenz;
+    final d = f.differenz; // null, solange Strecken fehlen
+    final ohne = f.fahrtenOhneKm;
+    final luecke = ohne > 0 ? ' ($ohne ohne Strecke)' : '';
     const grau = TextStyle(fontSize: 11, color: AppColors.textSecondary);
     return Text.rich(
       TextSpan(
         style: grau,
         children: [
-          TextSpan(text: 'Fahrten ${f.kmFahrten.round()} km'),
+          TextSpan(text: 'Fahrten ${f.kmFahrten.round()} km$luecke'),
           if (d != null) ...[
             const TextSpan(text: ' · '),
             TextSpan(

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart';
-import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/arbeitstag_providers.dart';
@@ -124,13 +123,6 @@ Map<DateTime, TagesFahrten> bauen({
   startortFuer: startortFuer,
 );
 
-double luftlinie(String von, String nach) {
-  final v = betriebe[von]!, n = betriebe[nach]!;
-  return (luftlinieStreckeKm(haversineKm(v.lat!, v.lng!, n.lat!, n.lng!)) * 10)
-          .round() /
-      10;
-}
-
 void main() {
   group('monatsFahrtenBauen — Beispieltag', () {
     // 2 Reinigungen, 1 Störung nur mit Stempel, Feierabend erfasst.
@@ -164,13 +156,14 @@ void main() {
       expect(t.fahrten[1].nach.name, 'Holländer');
     });
 
-    test('km-Quellen: Anfahrt, Route (Gegenrichtung), Luftlinie, Heimweg', () {
+    test('km-Quellen: Anfahrt, Route (Gegenrichtung), ohne Route, Heimweg', () {
       expect(t.fahrten[0].km, 12.0);
       expect(t.fahrten[0].kmQuelle, kKmQuelleAnfahrt);
       expect(t.fahrten[1].km, 20.0);
       expect(t.fahrten[1].kmQuelle, kKmQuelleRoute);
-      expect(t.fahrten[2].km, luftlinie('betrieb-b', 'betrieb-c'));
-      expect(t.fahrten[2].kmQuelle, kKmQuelleLuftlinie);
+      // b → c ist (noch) nicht geroutet: keine km, keine Schätzung.
+      expect(t.fahrten[2].km, isNull);
+      expect(t.fahrten[2].kmQuelle, isNull);
       // Heimweg Betrieb → Startort: Anfahrt in umgekehrter Richtung.
       expect(t.fahrten[3].km, 8.0);
       expect(t.fahrten[3].kmQuelle, kKmQuelleAnfahrt);
@@ -184,15 +177,41 @@ void main() {
       expect(t.fahrten[2].nach.quelle, 'wegpunkt');
     });
 
-    test('Befunde: Zähler-Differenz und Luftlinien-Anteil', () {
-      final summe = t.kmFahrten.round();
+    test('Befunde: Zähler-Kontrolle wartet auf die fehlende Strecke', () {
       expect(t.kmZaehler, 200);
+      expect(t.kmFahrten, 40); // 12 + 20 + 8, ohne b → c
+      expect(t.fahrtenOhneKm, 1);
+      expect(t.differenz, isNull);
       expect(t.befunde, [
-        'Zähler 200 km, Fahrten $summe km — ${200 - summe} km unerklärt '
-            '(privat oder Umweg?)',
-        '1 von 4 Fahrten nur als Luftlinie geschätzt',
+        'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
+        '1 Fahrt noch ohne Strecke — Route wird geholt',
       ]);
       expect(t.ohneZeit, isEmpty);
+    });
+
+    test('ist die Route da, kommt die Zähler-Kontrolle', () {
+      final mitRoute = bauen(
+        tagesplaene: {tag: plan(start: startorte['domat_ems'])},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00:00', bis: '11:00:00'),
+          einsatz('s1', 'betrieb-c', typ: 'stoerung'),
+        ],
+        stempelListe: [
+          stempel(DateTime(2026, 9, 25, 13, 15), betriebId: 'betrieb-c'),
+        ],
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0, 'betrieb-c': 8.0},
+        },
+        routen: {'betrieb-b>betrieb-a': 20.0, 'betrieb-b>betrieb-c': 30.0},
+      )[tag]!;
+      expect(mitRoute.kmVollstaendig, isTrue);
+      expect(mitRoute.kmFahrten, 70);
+      expect(mitRoute.differenz, 130);
+      expect(mitRoute.befunde, [
+        'Zähler 200 km, Fahrten 70 km — 130 km unerklärt '
+            '(privat oder Umweg?)',
+      ]);
     });
   });
 
@@ -528,11 +547,18 @@ void main() {
       expect(erste.von.lat, zuerich.lat);
       expect(erste.von.abfahrtMin, 7 * 60 + 30);
       expect(erste.nach.id, 'betrieb-a');
-      expect(erste.kmQuelle, kKmQuelleLuftlinie);
-      final a = ortVon('betrieb-a');
-      final luft = haversineKm(zuerich.lat, zuerich.lng, a.lat, a.lng);
-      expect(erste.km, (luftlinieStreckeKm(luft) * 10).round() / 10);
+      // Ab einer GPS-Position gibt es keine erfasste Anfahrt → keine km.
+      expect(erste.km, isNull);
+      expect(erste.kmQuelle, isNull);
       expect(t.befunde, contains('Arbeitsbeginn nicht am Startort'));
+      expect(
+        t.befunde,
+        contains(
+          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+        ),
+      );
+      // Der Heimweg a → Domat/Ems hat seine Anfahrt (rückwärts).
+      expect(t.fahrten.last.km, 12.0);
     });
 
     test('Arbeitsbeginn ≤ 300 m vom ersten Betrieb → keine Anfahrt', () {
@@ -565,7 +591,8 @@ void main() {
       expect(letzte.nach.id, kGpsEndeId);
       expect(letzte.nach.name, 'Feierabend unterwegs');
       expect(letzte.nach.ankunftMin, 17 * 60);
-      expect(letzte.kmQuelle, kKmQuelleLuftlinie);
+      expect(letzte.km, isNull);
+      expect(letzte.kmQuelle, isNull);
       expect(t.befunde, contains('Feierabend nicht am Startort'));
     });
 
@@ -646,7 +673,7 @@ void main() {
       ]);
     });
 
-    test('zwei Startorte ohne Einsätze: Domat/Ems → Chur als Luftlinie', () {
+    test('zwei Startorte ohne Einsätze: Domat/Ems → Chur ohne Strecke', () {
       final t = bauen(
         tagesplaene: {
           tag: plan(
@@ -659,13 +686,13 @@ void main() {
       final f = t.fahrten.single;
       expect(f.von.id, 'domat_ems');
       expect(f.nach.id, 'chur');
-      expect(f.kmQuelle, kKmQuelleLuftlinie);
-      final d = startorte['domat_ems']!, c = startorte['chur']!;
+      expect(f.km, isNull);
+      expect(f.kmQuelle, isNull);
       expect(
-        f.km,
-        (luftlinieStreckeKm(haversineKm(d.lat, d.lng, c.lat, c.lng)) * 10)
-                .round() /
-            10,
+        t.befunde,
+        contains(
+          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+        ),
       );
     });
   });
@@ -776,7 +803,7 @@ void main() {
       expect(km(b, a), (km: 31.2, quelle: kKmQuelleRoute));
     });
 
-    test('ohne Eintrag null (dann rechnet die Regel mit der Luftlinie)', () {
+    test('ohne Eintrag null (dann bleibt die Fahrt ohne km)', () {
       expect(km(chur, b), isNull);
       const domat = Halt(
         typ: HaltTyp.startort,
@@ -789,7 +816,7 @@ void main() {
   });
 
   group('fehlendeRoutenPaare', () {
-    test('nur Betrieb→Betrieb als Luftlinie, je Paar einmal', () {
+    test('nur Betrieb→Betrieb ohne km, je Paar einmal', () {
       final ergebnis = bauen(
         einsaetze: [
           einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),

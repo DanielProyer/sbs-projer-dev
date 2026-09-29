@@ -27,11 +27,11 @@ GespeicherterTagesplan _plan({String? ende}) => (
   pauseStart: null,
 );
 
-TagesFahrten _fahrten({double km = 142.6}) => TagesFahrten(
+TagesFahrten _fahrten({double km = 142.6, int ohneKm = 0}) => TagesFahrten(
   fahrten: const [],
   ohneZeit: const [],
   kmFahrten: km,
-  fahrtenNurLuftlinie: 0,
+  fahrtenOhneKm: ohneKm,
   kmZaehler: 148,
   befunde: const [],
 );
@@ -126,6 +126,18 @@ void main() {
     await _pumpe(tester, ende: '17:30', fahrten: () async => _fahrten(km: 120));
     expect(_deltaSpan(tester).text, ' (+28)');
     expect(_deltaSpan(tester).style?.color, AppColors.error);
+  });
+
+  testWidgets('Strecken fehlen: kein Δ, auch kein rotes', (tester) async {
+    await _pumpe(
+      tester,
+      ende: '17:30',
+      fahrten: () async => _fahrten(km: 120, ohneKm: 1),
+    );
+    expect(
+      tester.widget<Text>(_zeile).textSpan!.toPlainText(),
+      'Fahrten heute: 0 · 120 km (1 ohne Strecke) · Zähler 148 km',
+    );
   });
 
   testWidgets('während des Ladens keine Zeile', (tester) async {

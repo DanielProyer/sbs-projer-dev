@@ -153,7 +153,7 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
 // Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s). Jetzt:
 // - höchstens `kRoutenJeLauf` Paare je Lauf und `kRoutenJeSitzung` je
 //   Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht, startet
-//   kein Lauf mehr; der Rest bleibt Luftlinie, bis die App neu lädt;
+//   kein Lauf mehr; der Rest bleibt «ohne Strecke», bis die App neu lädt;
 // - nur Tage mit Zählerstand (`fehlendeRoutenPaare`) — nur dort zählen km;
 // - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause
 //   (`FahrzeitRepository.routeAnfordern`); ein neuer Lauf stellt sich an.
@@ -187,8 +187,8 @@ void _routenNachholen(
     final antworten = await Future.wait([
       for (final p in neu) FahrzeitRepository.routeAnfordern(p.von, p.nach),
     ]);
-    // routeAnfordern liefert bei Fehlern still null — die Luftlinien-
-    // Schätzung bleibt dann stehen.
+    // routeAnfordern liefert bei Fehlern still null — die Fahrt bleibt dann
+    // ohne Strecke (keine km, keine Zähler-Kontrolle für den Tag).
     if (!antworten.any((r) => r?.distanzKm != null)) return;
     try {
       container.invalidate(fahrzeitenMapProvider);

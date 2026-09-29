@@ -14,7 +14,7 @@ TagesFahrten fahrtenMit(List<Halt> halte) => TagesFahrten(
   fahrten: const [],
   ohneZeit: const [],
   kmFahrten: 0,
-  fahrtenNurLuftlinie: 0,
+  fahrtenOhneKm: 0,
   kmZaehler: null,
   befunde: const [],
   halte: halte,

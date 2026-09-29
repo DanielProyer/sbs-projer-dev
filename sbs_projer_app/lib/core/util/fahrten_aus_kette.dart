@@ -2,10 +2,17 @@
 ///
 /// Aus den Ereignissen eines Arbeitstags — Arbeitsbeginn, Einsätze,
 /// Feierabend — entsteht eine Kette von Halten; je zwei aufeinanderfolgende
-/// Halte an verschiedenen Orten sind eine Fahrt. Die Kilometer kommen aus
-/// gerouteten Distanzen (Nachschlag des Aufrufers), sonst aus der Luftlinie
-/// mal dem kalibrierten [umwegFaktor]. Die Tagessumme wird gegen den
-/// Zählerstand geprüft.
+/// Halte an verschiedenen Orten sind eine Fahrt. Die Kilometer kommen NUR
+/// aus gerouteten Strecken (OSRM, `fahrzeiten.distanz_km`) und erfassten
+/// Anfahrten (`anfahrtszeiten.distanz_km`) — Nachschlag des Aufrufers. Ohne
+/// Treffer hat die Fahrt keine km. Die Tagessumme wird gegen den Zählerstand
+/// geprüft, sobald jede Fahrt des Tages eine Strecke hat.
+///
+/// WARUM keine Schätzung aus der Luftlinie (Entscheid Daniel 29.09.2026):
+/// Bündner Strassen folgen den Tälern — zwischen zwei Dörfern, die sich auf
+/// der Karte gegenüberliegen, liegt oft ein Pass oder ein ganzes Tal. Eine
+/// Luftlinie mal Umwegfaktor sagt dort nichts, und eine Zähler-Kontrolle
+/// gegen solche Zahlen wäre eine falsche Aussage.
 ///
 /// Bewusst ohne Flutter-/Supabase-Abhängigkeiten (auch nichts aus
 /// `presentation/`): Startort-Koordinaten und Distanzen kommen als Parameter.
@@ -18,8 +25,7 @@ import 'dart:math' as math;
 
 import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart'
     show tagesKm;
-import 'package:sbs_projer_app/core/util/fahrzeit.dart'
-    show haversineKm, umwegFaktor;
+import 'package:sbs_projer_app/core/util/fahrzeit.dart' show haversineKm;
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart'
     show hhmmAusMinuten, minutenAusHhmm;
 
@@ -64,10 +70,10 @@ const kTypLeerfahrt = 'vergeblich';
 /// Halte-Id-Präfix für Einsätze ohne Betrieb.
 const _ohneBetriebPraefix = 'einsatz:';
 
-/// Herkunft der km einer [Fahrt].
+/// Herkunft der km einer [Fahrt]. Eine geschätzte Quelle gibt es bewusst
+/// nicht mehr (siehe Bibliotheks-Kommentar, 29.09.2026).
 const kKmQuelleAnfahrt = 'anfahrt'; // anfahrtszeiten.distanz_km
 const kKmQuelleRoute = 'route'; // fahrzeiten.distanz_km
-const kKmQuelleLuftlinie = 'luftlinie'; // geschätzt, kein Messwert
 
 /// Ein Ort in der Tageskette: Startort (morgens/abends) oder Betrieb.
 class Halt {
@@ -167,11 +173,26 @@ class Fahrt {
     return d < 0 ? null : d;
   }
 
-  /// `null` nur, wenn weder ein Nachschlag noch Koordinaten vorliegen.
+  /// Nur aus dem Nachschlag (geroutete Strecke oder erfasste Anfahrt);
+  /// `null`, wenn es keine gibt — nie geschätzt.
   final double? km;
 
-  /// [kKmQuelleAnfahrt], [kKmQuelleRoute], [kKmQuelleLuftlinie] oder `null`.
+  /// [kKmQuelleAnfahrt], [kKmQuelleRoute] oder `null` (keine km).
   final String? kmQuelle;
+
+  /// Mindestens ein Halt ohne Koordinaten (Einsatz ohne Betrieb, Betrieb
+  /// ohne lat/lng) — dann lässt sich auch keine Route holen.
+  bool get ohneKoordinaten =>
+      von.lat == null ||
+      von.lng == null ||
+      nach.lat == null ||
+      nach.lng == null;
+
+  /// Anfahrt oder Heimweg: Ein Ende ist kein Betrieb (Startort oder
+  /// Arbeitsbeginn/Feierabend unterwegs). km gibt es dann nur aus
+  /// `anfahrtszeiten` — das Nachrouten holt nur Betrieb→Betrieb.
+  bool get startortFahrt =>
+      von.typ != HaltTyp.betrieb || nach.typ != HaltTyp.betrieb;
 }
 
 /// Ergebnis eines Tages.
@@ -180,7 +201,7 @@ class TagesFahrten {
     required this.fahrten,
     required this.ohneZeit,
     required this.kmFahrten,
-    required this.fahrtenNurLuftlinie,
+    required this.fahrtenOhneKm,
     required this.kmZaehler,
     required this.befunde,
     this.halte = const [],
@@ -195,34 +216,44 @@ class TagesFahrten {
   /// Kette gebaut wird (Tests).
   final List<Halt> halte;
 
-  /// Summe aller Fahrten mit km, auf eine Nachkommastelle gerundet.
+  /// Summe der Fahrten MIT km, auf eine Nachkommastelle gerundet. Fehlen
+  /// Strecken ([fahrtenOhneKm] > 0), ist das nur der bekannte Teil.
   final double kmFahrten;
 
-  /// Anzahl Fahrten mit `kmQuelle == 'luftlinie'`.
-  final int fahrtenNurLuftlinie;
+  /// Anzahl Fahrten ohne km (keine Route, keine erfasste Anfahrt oder keine
+  /// Koordinaten).
+  final int fahrtenOhneKm;
+
+  /// Hat jede Fahrt eine Strecke? Nur dann ist die Zähler-Kontrolle eine
+  /// Aussage — sonst erschiene jede Lücke als «unerklärte» km.
+  bool get kmVollstaendig => fahrtenOhneKm == 0;
 
   /// `tagesKm(kmStart, kmEnde)` — `null` ohne (gültige) Zählerstände.
   final int? kmZaehler;
 
-  /// Zähler − Fahrten; positiv = mehr gefahren als erklärt.
+  /// Zähler − Fahrten; positiv = mehr gefahren als erklärt. `null` ohne
+  /// Zähler und solange nicht jede Fahrt eine Strecke hat
+  /// ([kmVollstaendig]).
   double? get differenz {
     final z = kmZaehler;
-    return z == null ? null : z - kmFahrten;
+    return (z == null || !kmVollstaendig) ? null : z - kmFahrten;
   }
 
   /// Liegt die [differenz] ausserhalb der Toleranz? (Für die Farbe im UI.)
+  /// `false`, solange es keine [differenz] gibt.
   bool get differenzAuffaellig {
-    final z = kmZaehler;
+    final z = kmZaehler, d = differenz;
     return z != null &&
-        differenzIstAuffaellig(kmZaehler: z, differenz: z - kmFahrten);
+        d != null &&
+        differenzIstAuffaellig(kmZaehler: z, differenz: d);
   }
 
   /// Deutsche Hinweise mit Zahlen, wichtigster zuerst (Zähler-Kontrolle).
   final List<String> befunde;
 }
 
-/// Liefert die geroutete Strecke zwischen zwei Halten oder `null` (dann
-/// rechnet [fahrtenAusHalten] mit der Luftlinie).
+/// Liefert die geroutete Strecke (oder erfasste Anfahrt) zwischen zwei
+/// Halten oder `null` (dann hat die Fahrt keine km).
 typedef KmNachschlag =
     ({double km, String quelle})? Function(Halt von, Halt nach);
 
@@ -247,8 +278,9 @@ typedef KmNachschlag =
 /// keine Fahrt dorthin. Befund 27.09.2026: An 6 von 33 Tagen lag die
 /// Startposition > 5 km von beiden Startorten, an 4 davon ≤ 0,8 km vom
 /// ersten Betrieb; mit Domat/Ems als Annahme entstanden ~100 km erfundene
-/// Anfahrt. km für diese Halte gibt es nur per Luftlinie (kein Eintrag in
-/// `anfahrtszeiten`).
+/// Anfahrt. km für Fahrten von/zu diesen Halten gibt es keine (kein Eintrag
+/// in `anfahrtszeiten`, und das Nachrouten holt nur Betrieb→Betrieb) — ein
+/// solcher Tag bleibt ohne Zähler-Kontrolle.
 List<Halt> halteAusKette({
   required String? arbeitsbeginn,
   required String? arbeitsende,
@@ -363,8 +395,9 @@ List<EinsatzHalt> einsaetzeOhneZeit(
 ];
 
 /// Je zwei aufeinanderfolgende Halte mit verschiedener Id ergeben eine Fahrt.
-/// km aus [km]; ohne Treffer Luftlinie × Umwegfaktor (Quelle 'luftlinie'),
-/// ohne Koordinaten `null`.
+/// km und Quelle NUR aus [km]; ohne Treffer beide `null` — keine Schätzung
+/// aus der Luftlinie, auch wenn beide Halte Koordinaten haben (Entscheid
+/// Daniel 29.09.2026, siehe Bibliotheks-Kommentar).
 List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
   final fahrten = <Fahrt>[];
   for (var i = 1; i < halte.length; i++) {
@@ -373,27 +406,14 @@ List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
     if (von.id == nach.id) continue;
 
     final treffer = km(von, nach);
-    var strecke = treffer?.km;
-    var quelle = treffer?.quelle;
-    final vLat = von.lat, vLng = von.lng, nLat = nach.lat, nLng = nach.lng;
-    if (strecke == null &&
-        vLat != null &&
-        vLng != null &&
-        nLat != null &&
-        nLng != null) {
-      strecke = _eineStelle(
-        luftlinieStreckeKm(haversineKm(vLat, vLng, nLat, nLng)),
-      );
-      quelle = kKmQuelleLuftlinie;
-    }
     fahrten.add(
       Fahrt(
         von: von,
         nach: nach,
         abfahrtMin: von.abfahrtMin,
         ankunftMin: nach.ankunftMin,
-        km: strecke,
-        kmQuelle: strecke == null ? null : quelle,
+        km: treffer?.km,
+        kmQuelle: treffer?.quelle,
       ),
     );
   }
@@ -413,6 +433,13 @@ List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
 /// Einsätze, die vor dem Arbeitsbeginn beginnen oder nach dem Feierabend
 /// liegen, sind fast immer eine falsch erfasste Zeit (Arbeitsbeginn zu spät
 /// gedrückt, Einsatz abends nachgetragen) — Befund «Zeit prüfen».
+///
+/// Die Zähler-Kontrolle (Zähler − Fahrten) gibt es nur, wenn JEDE Fahrt eine
+/// Strecke hat ([TagesFahrten.kmVollstaendig]); sonst ein Hinweis, dass sie
+/// wartet. Fahrten ohne km werden nach Ursache getrennt gemeldet: Koordinaten
+/// fehlen / Betrieb→Betrieb noch nicht geroutet (das Nachrouten holt sie,
+/// siehe [fehlendeRoutenPaare]) / Anfahrt oder Heimweg ohne Eintrag in
+/// `anfahrtszeiten`.
 TagesFahrten tagesFahrten({
   required List<Halt> halte,
   required List<EinsatzHalt> ohneZeit,
@@ -426,14 +453,24 @@ TagesFahrten tagesFahrten({
 }) {
   final fahrten = fahrtenAusHalten(halte, km);
   final summe = _eineStelle(fahrten.fold<double>(0, (s, f) => s + (f.km ?? 0)));
-  final nurLuftlinie = fahrten
-      .where((f) => f.kmQuelle == kKmQuelleLuftlinie)
+  final ohneKm = [
+    for (final f in fahrten)
+      if (f.km == null) f,
+  ];
+  // Drei Ursachen, drei Befunde — jede verlangt etwas anderes.
+  final ohneKoordinaten = ohneKm.where((f) => f.ohneKoordinaten).length;
+  final ohneAnfahrt = ohneKm
+      .where((f) => !f.ohneKoordinaten && f.startortFahrt)
       .length;
-  final ohneKm = fahrten.where((f) => f.km == null).length;
+  final ohneRoute = ohneKm.length - ohneKoordinaten - ohneAnfahrt;
   final zaehler = tagesKm(kmStart: kmStart, kmEnde: kmEnde);
 
   final befunde = <String>[];
-  if (zaehler != null) {
+  if (zaehler != null && ohneKm.isNotEmpty) {
+    // Eine Kontrolle mit Lücken wäre eine falsche Aussage: Jede fehlende
+    // Strecke erschiene als «unerklärte» km.
+    befunde.add('Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben');
+  } else if (zaehler != null) {
     final differenz = zaehler - summe;
     if (differenzIstAuffaellig(kmZaehler: zaehler, differenz: differenz)) {
       // Mit der gerundeten Summe rechnen, damit die Zahlen im Text aufgehen.
@@ -513,17 +550,25 @@ TagesFahrten tagesFahrten({
       'nicht in den Fahrten',
     );
   }
-  if (ohneKm > 0) {
+  if (ohneKoordinaten > 0) {
+    final n = ohneKoordinaten;
     befunde.add(
-      '$ohneKm ${ohneKm == 1 ? 'Fahrt' : 'Fahrten'} ohne Distanz '
+      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} ohne Distanz '
       '(Koordinaten fehlen)',
     );
   }
-  if (nurLuftlinie > 0) {
-    final n = fahrten.length;
+  if (ohneRoute > 0) {
+    final n = ohneRoute;
     befunde.add(
-      '$nurLuftlinie von $n ${n == 1 ? 'Fahrt' : 'Fahrten'} nur als '
-      'Luftlinie geschätzt',
+      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} noch ohne Strecke — '
+      'Route wird geholt',
+    );
+  }
+  if (ohneAnfahrt > 0) {
+    final n = ohneAnfahrt;
+    befunde.add(
+      '$n ${n == 1 ? 'Anfahrt/Heimweg' : 'Anfahrten/Heimwege'} ohne '
+      'erfasste Strecke (Anfahrtszeiten fehlen)',
     );
   }
 
@@ -531,7 +576,7 @@ TagesFahrten tagesFahrten({
     fahrten: fahrten,
     ohneZeit: ohneZeit,
     kmFahrten: summe,
-    fahrtenNurLuftlinie: nurLuftlinie,
+    fahrtenOhneKm: ohneKm.length,
     kmZaehler: zaehler,
     befunde: befunde,
     halte: halte,
@@ -545,11 +590,6 @@ bool differenzIstAuffaellig({
 }) =>
     differenz.abs() >
     math.max(kDifferenzToleranzKm, kmZaehler * kDifferenzToleranzAnteil);
-
-/// Geschätzte Strassenstrecke aus der Luftlinie (gleiche Kalibrierung wie
-/// die Fahrzeit-Heuristik).
-double luftlinieStreckeKm(double luftlinieKm) =>
-    luftlinieKm * umwegFaktor(luftlinieKm);
 
 /// «12.3 km» — eine Nachkommastelle, Punkt (wie `distanzText`).
 String kmText(double km) => '${km.toStringAsFixed(1)} km';
@@ -641,7 +681,7 @@ bool montageWarVorOrt(String status, String? montageTyp) =>
 ///   Startort → betriebId), Richtung egal — Heimweg = Anfahrt rückwärts.
 /// - Betrieb ↔ Betrieb: [routen] (`fahrzeiten.distanz_km`, Schlüssel
 ///   `'von>nach'`), beide Richtungen wie `FahrzeitRepository.ausMap`.
-/// - Sonst `null` → [fahrtenAusHalten] rechnet mit der Luftlinie.
+/// - Sonst `null` → die Fahrt bleibt ohne km (keine Schätzung).
 KmNachschlag kmNachschlagAus({
   required Map<String, Map<String, double>> anfahrten,
   required Map<String, double> routen,
@@ -801,10 +841,11 @@ List<RoutenPaar> routenAuswahl({
   return auswahl;
 }
 
-/// Betrieb→Betrieb-Fahrten, die nur als Luftlinie geschätzt sind, obwohl
-/// beide Betriebe Koordinaten haben — Kandidaten fürs Nachrouten über die
-/// Edge Function `fahrzeit-route`. Je Paar nur eine Richtung (der Nachschlag
-/// prüft beide), in der Reihenfolge der übergebenen Tage.
+/// Betrieb→Betrieb-Fahrten ohne km, obwohl beide Betriebe Koordinaten haben
+/// — Kandidaten fürs Nachrouten über die Edge Function `fahrzeit-route`. Je
+/// Paar nur eine Richtung (der Nachschlag prüft beide), in der Reihenfolge
+/// der übergebenen Tage. Anfahrten/Heimwege sind nie Kandidaten (deren km
+/// kommen aus `anfahrtszeiten`).
 ///
 /// Nur Tage mit Zählerstand ([TagesFahrten.kmZaehler]): Nur dort gibt es
 /// eine Kontrolle, bei der die genaueren km etwas ändern — alles andere
@@ -815,16 +856,7 @@ List<RoutenPaar> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
   for (final t in tage) {
     if (t.kmZaehler == null) continue;
     for (final f in t.fahrten) {
-      if (f.kmQuelle != kKmQuelleLuftlinie) continue;
-      if (f.von.typ != HaltTyp.betrieb || f.nach.typ != HaltTyp.betrieb) {
-        continue;
-      }
-      if (f.von.lat == null ||
-          f.von.lng == null ||
-          f.nach.lat == null ||
-          f.nach.lng == null) {
-        continue;
-      }
+      if (f.km != null || f.startortFahrt || f.ohneKoordinaten) continue;
       if (gesehen.add(routenPaarSchluessel(f.von.id, f.nach.id))) {
         paare.add((von: f.von.id, nach: f.nach.id));
       }
