@@ -51,8 +51,8 @@ const _heim = Halt(
   quelle: 'feierabend',
 );
 
-/// Peppino ↔ Domat/Ems aus den Anfahrten, Peppino → Holländer geroutet,
-/// Heimweg nur Luftlinie.
+/// Domat/Ems → Peppino aus den Anfahrten, Peppino → Holländer geroutet,
+/// Heimweg ohne erfasste Strecke (keine Anfahrtszeit ab dem Holländer).
 ({double km, String quelle})? _km(Halt von, Halt nach) {
   if (von.id == 'domat_ems' && nach.id == 'a') {
     return (km: 12.0, quelle: kKmQuelleAnfahrt);
@@ -62,6 +62,13 @@ const _heim = Halt(
   }
   return null;
 }
+
+/// Wie [_km], aber mit Heimweg (40 km) — alle Strecken da.
+({double km, String quelle})? _kmVoll(Halt von, Halt nach) =>
+    _km(von, nach) ??
+    (von.id == 'b' && nach.id == 'domat_ems'
+        ? (km: 40.0, quelle: kKmQuelleAnfahrt)
+        : null);
 
 final _tag = tagesFahrten(
   halte: const [_domat, _peppino, _hollaender, _heim],
@@ -114,22 +121,27 @@ void main() {
     expect(find.text('Fahrten · Fr 25.09.'), findsOneWidget);
     expect(find.byType(RueckwegKnopf), findsOneWidget);
 
-    // Kopfkarte: Zähler 148, Fahrten 12 + 31.4 + Luftlinie Holländer→Domat.
+    // Kopfkarte: Zähler 148, Fahrten 12 + 31.4; der Heimweg Holländer →
+    // Domat/Ems hat keine Strecke — also keine Zähler-Kontrolle.
     expect(find.text('Fahrten-km'), findsOneWidget);
     expect(find.text(kmText(_tag.kmFahrten)), findsOneWidget);
+    expect(find.text('43.4 km'), findsOneWidget);
     expect(find.text('148 km'), findsOneWidget);
-    expect(find.text('3 (davon 1 geschätzt)'), findsOneWidget);
-    final differenz = tester.widget<Text>(find.textContaining('— auffällig'));
-    expect(differenz.style?.color, AppColors.error);
-    // Richtung der Differenz ist erklärt.
-    expect(find.text('Differenz'), findsOneWidget);
-    expect(find.text('(Zähler − Fahrten)'), findsOneWidget);
-    expect(find.text('+ = mehr gefahren als erklärt'), findsOneWidget);
+    expect(find.text('3 (davon 1 ohne Strecke)'), findsOneWidget);
+    expect(find.text('Zähler-Kontrolle'), findsOneWidget);
+    expect(find.text('erst mit allen Strecken'), findsOneWidget);
+    expect(find.text('Differenz'), findsNothing);
+    expect(find.textContaining('— auffällig'), findsNothing);
+    expect(find.textContaining('— im Rahmen'), findsNothing);
 
     // Befunde aus der Regel, Wort für Wort.
     for (final b in _tag.befunde) {
       expect(find.text(b), findsOneWidget);
     }
+    expect(
+      find.text('Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben'),
+      findsOneWidget,
+    );
 
     // Je Fahrt Zeiten, Weg, km mit Herkunft.
     expect(find.text('07:30 → 08:00 · 30 min'), findsOneWidget);
@@ -138,8 +150,18 @@ void main() {
     expect(find.text('Anfahrt'), findsOneWidget);
     expect(find.text('31.4 km'), findsOneWidget);
     expect(find.text('geroutet'), findsOneWidget);
-    expect(find.text('≈ Luftlinie'), findsOneWidget);
     expect(find.text('10:00 → 17:00 · 420 min'), findsOneWidget);
+    // Fahrt ohne Strecke: «– km» grau, keine Schätzung.
+    expect(find.text('Strecke fehlt'), findsOneWidget);
+    final ohneKm = tester.widget<Text>(find.text('– km'));
+    expect(ohneKm.style?.color, AppColors.textSecondary);
+    expect(find.textContaining('≈'), findsNothing);
+    expect(find.textContaining('geschätzt'), findsNothing);
+    // Fusstext erklärt, warum.
+    expect(
+      find.textContaining('km nur aus gerouteten Strecken (OSRM)'),
+      findsOneWidget,
+    );
 
     // Einsätze ohne Zeit.
     expect(find.text('Einsätze ohne Zeit'), findsOneWidget);
@@ -147,6 +169,48 @@ void main() {
     expect(find.text('Störung'), findsOneWidget);
     expect(find.text('Sonne'), findsOneWidget);
     expect(find.text('Leerfahrt'), findsOneWidget);
+  });
+
+  testWidgets('alle Strecken da: Differenz auffällig, rot', (tester) async {
+    final voll = tagesFahrten(
+      halte: const [_domat, _peppino, _hollaender, _heim],
+      ohneZeit: const [],
+      km: _kmVoll,
+      kmStart: 50000,
+      kmEnde: 50148,
+      feierabendErfasst: true,
+    );
+    await _pumpe(tester, () async => voll);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('3'), findsOneWidget); // Fahrten, ohne «davon»
+    // 148 − (12 + 31.4 + 40) = +64.6
+    final differenz = tester.widget<Text>(find.textContaining('— auffällig'));
+    expect(differenz.data, '+64.6 km — auffällig');
+    expect(differenz.style?.color, AppColors.error);
+    // Richtung der Differenz ist erklärt.
+    expect(find.text('Differenz'), findsOneWidget);
+    expect(find.text('(Zähler − Fahrten)'), findsOneWidget);
+    expect(find.text('+ = mehr gefahren als erklärt'), findsOneWidget);
+    expect(find.text('Zähler-Kontrolle'), findsNothing);
+    expect(find.text('Strecke fehlt'), findsNothing);
+  });
+
+  testWidgets('ohne Zähler: kein Hinweis auf die Zähler-Kontrolle', (
+    tester,
+  ) async {
+    final ohneZaehler = tagesFahrten(
+      halte: const [_domat, _peppino, _hollaender, _heim],
+      ohneZeit: const [],
+      km: _km,
+      feierabendErfasst: true,
+    );
+    await _pumpe(tester, () async => ohneZaehler);
+
+    expect(find.text('nicht erfasst'), findsOneWidget);
+    expect(find.text('Zähler-Kontrolle'), findsNothing);
+    expect(find.text('Differenz'), findsNothing);
+    expect(find.text('3 (davon 1 ohne Strecke)'), findsOneWidget);
   });
 
   testWidgets('Differenz im Rahmen: nicht rot', (tester) async {
@@ -197,8 +261,7 @@ void main() {
     test('kmQuelleText', () {
       expect(kmQuelleText(kKmQuelleAnfahrt), 'Anfahrt');
       expect(kmQuelleText(kKmQuelleRoute), 'geroutet');
-      expect(kmQuelleText(kKmQuelleLuftlinie), '≈ Luftlinie');
-      expect(kmQuelleText(null), 'ohne Distanz');
+      expect(kmQuelleText(null), 'Strecke fehlt');
     });
 
     test('tagesTitel', () {

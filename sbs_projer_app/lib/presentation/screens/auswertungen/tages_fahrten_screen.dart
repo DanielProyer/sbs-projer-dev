@@ -15,7 +15,8 @@ import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 
 /// Fahrten eines Arbeitstags, abgeleitet aus Arbeitsbeginn, Einsätzen und
 /// Feierabend («Fahrten aus der Kette», Stufe 1, 27.09.2026) — mit der
-/// Kontrolle gegen den Zählerstand. Nur Anzeige: nichts davon ist
+/// Kontrolle gegen den Zählerstand, sobald jede Fahrt eine Strecke hat
+/// (keine Luftlinien-km seit 29.09.2026). Nur Anzeige: nichts davon ist
 /// gespeichert, und es ist kein Fahrtenbuch.
 ///
 /// Knöpfe aus `TapKnopf`/GestureDetector, keine Material-Buttons
@@ -69,12 +70,12 @@ String differenzText(double differenz) {
   return '${gerundet < 0 ? '−' : '+'}${kmText(gerundet.abs())}';
 }
 
-/// Herkunft der km einer Fahrt, kurz für die Karte.
+/// Herkunft der km einer Fahrt, kurz für die Karte. Ohne Quelle hat die
+/// Fahrt keine km — geschätzt wird seit 29.09.2026 nicht mehr.
 String kmQuelleText(String? quelle) => switch (quelle) {
   kKmQuelleAnfahrt => 'Anfahrt',
   kKmQuelleRoute => 'geroutet',
-  kKmQuelleLuftlinie => '≈ Luftlinie',
-  _ => 'ohne Distanz',
+  _ => 'Strecke fehlt',
 };
 
 class _Inhalt extends StatelessWidget {
@@ -98,16 +99,24 @@ class _Inhalt extends StatelessWidget {
               t.kmZaehler == null ? 'nicht erfasst' : '${t.kmZaehler} km',
               labelBreite: 110,
             ),
+            // Die Differenz nur, wenn jede Fahrt eine Strecke hat — mit
+            // Lücken erschiene jede fehlende Strecke als «unerklärte» km.
             if (differenz != null)
               _DifferenzZeile(
                 differenz: differenz,
                 auffaellig: t.differenzAuffaellig,
+              )
+            else if (t.kmZaehler != null)
+              const InfoZeile(
+                'Zähler-Kontrolle',
+                'erst mit allen Strecken',
+                labelBreite: 110,
               ),
             InfoZeile(
               'Fahrten',
-              t.fahrtenNurLuftlinie > 0
-                  ? '${t.fahrten.length} (davon ${t.fahrtenNurLuftlinie} '
-                        'geschätzt)'
+              t.fahrtenOhneKm > 0
+                  ? '${t.fahrten.length} (davon ${t.fahrtenOhneKm} '
+                        'ohne Strecke)'
                   : '${t.fahrten.length}',
               labelBreite: 110,
             ),
@@ -157,9 +166,11 @@ class _Inhalt extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.fromLTRB(4, 8, 4, 0),
           child: Text(
-            'Abgeleitet aus Arbeitsbeginn, Einsätzen und Feierabend; km aus '
-            'gerouteten Strecken, sonst aus der Luftlinie geschätzt. Nichts '
-            'davon ist gespeichert — kein Fahrtenbuch.',
+            'Abgeleitet aus Arbeitsbeginn, Einsätzen und Feierabend; km nur '
+            'aus gerouteten Strecken (OSRM) und erfassten Anfahrten — '
+            'Fahrten ohne Route zeigen keine km, eine Luftlinie sagt im '
+            'Bündnerland nichts. Nichts davon ist gespeichert — kein '
+            'Fahrtenbuch.',
             style: TextStyle(
               fontSize: 11,
               color: AppColors.textSecondary,
@@ -278,7 +289,6 @@ class _FahrtKarte extends StatelessWidget {
       if (dauer != null) '$dauer min',
     ].join(' · ');
     final km = f.km;
-    final geschaetzt = f.kmQuelle == kKmQuelleLuftlinie;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -309,7 +319,7 @@ class _FahrtKarte extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: km == null || geschaetzt
+                    color: km == null
                         ? AppColors.textSecondary
                         : AppColors.primary,
                   ),

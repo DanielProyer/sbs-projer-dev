@@ -59,12 +59,27 @@ final _besucheAugust = <DateTime, int>{
   DateTime(2026, 8, 5): 7,
 };
 
-/// «Fahrten aus der Kette» je Tag (Zähler: 84 / 92 / 178 km).
-TagesFahrten _fahrtenTag(double km, int zaehler) => TagesFahrten(
-  fahrten: const [],
+const _halt = Halt(
+  typ: HaltTyp.betrieb,
+  id: 'b',
+  name: 'Betrieb',
+  quelle: 'reinigung',
+);
+
+/// «Fahrten aus der Kette» je Tag (Zähler: 84 / 92 / 178 km). [anzahl]
+/// Platzhalter-Fahrten, davon [ohneKm] ohne Strecke.
+TagesFahrten _fahrtenTag(
+  double km,
+  int zaehler, {
+  int ohneKm = 0,
+  int anzahl = 0,
+}) => TagesFahrten(
+  fahrten: [
+    for (var i = 0; i < anzahl; i++) const Fahrt(von: _halt, nach: _halt),
+  ],
   ohneZeit: const [],
   kmFahrten: km,
-  fahrtenNurLuftlinie: 0,
+  fahrtenOhneKm: ohneKm,
   kmZaehler: zaehler,
   befunde: const [],
 );
@@ -210,6 +225,66 @@ void main() {
       // Kennzahl: «–» statt dauerhaft «wird berechnet».
       expect(find.text('Fahrten-km (Kette)'), findsOneWidget);
       expect(find.text('wird berechnet'), findsNothing);
+    });
+
+    // Seit 29.09.2026 keine Luftlinien-km: Ein Tag mit fehlender Strecke
+    // zeigt die Lücke statt eines Δ, das die Lücke als «unerklärt» zählte.
+    testWidgets('Strecken fehlen: Lücke genannt, kein Δ', (tester) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => {
+          DateTime(2026, 8, 3): _fahrtenTag(70.4, 84, ohneKm: 1),
+          DateTime(2026, 8, 4): _fahrtenTag(90.0, 92),
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Fahrten 70 km (1 ohne Strecke)'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Fahrten 70 km · Δ'), findsNothing);
+      expect(find.textContaining('Fahrten 90 km · Δ +2 km'), findsOneWidget);
+    });
+
+    // Die Monatssumme zählt nur die bekannten Strecken — die Kennzahl muss
+    // sagen, dass welche fehlen (Review 29.09.).
+    testWidgets('Kennzahl «Fahrten-km (Kette)» nennt fehlende Strecken', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => {
+          DateTime(2026, 8, 3): _fahrtenTag(70.4, 84, anzahl: 4, ohneKm: 1),
+          DateTime(2026, 8, 4): _fahrtenTag(90.0, 92, anzahl: 3),
+          DateTime(2026, 8, 5): _fahrtenTag(181.2, 178, anzahl: 5, ohneKm: 2),
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fahrten-km (Kette)'), findsOneWidget);
+      expect(find.text('342'), findsOneWidget); // 70.4 + 90 + 181.2
+      expect(find.text('12 Fahrten, 3 ohne Strecke'), findsOneWidget);
+      expect(find.textContaining('Fahrten an 3 Tagen'), findsNothing);
+    });
+
+    testWidgets('Kennzahl ohne Lücken: wie bisher «… an N Tagen»', (
+      tester,
+    ) async {
+      await _pumpe(
+        tester,
+        besuche: () async => _besucheAugust,
+        fahrten: () async => {
+          DateTime(2026, 8, 3): _fahrtenTag(70.4, 84, anzahl: 4),
+          DateTime(2026, 8, 4): _fahrtenTag(90.0, 92, anzahl: 3),
+        },
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('7 Fahrten an 2 Tagen'), findsOneWidget);
+      expect(find.textContaining('ohne Strecke'), findsNothing);
     });
 
     testWidgets('Δ erst runden, dann Vorzeichen — kein «−0 km»', (

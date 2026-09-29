@@ -16,13 +16,14 @@ TagesFahrten _tag({
   int anzahl = 7,
   double km = 142.6,
   int? zaehler = 148,
+  int ohneKm = 0,
 }) => TagesFahrten(
   fahrten: [
     for (var i = 0; i < anzahl; i++) const Fahrt(von: _halt, nach: _halt),
   ],
   ohneZeit: const [],
   kmFahrten: km,
-  fahrtenNurLuftlinie: 0,
+  fahrtenOhneKm: ohneKm,
   kmZaehler: zaehler,
   befunde: const [],
 );
@@ -63,6 +64,31 @@ void main() {
     test('Rot-Regel kommt aus TagesFahrten (Toleranz 5 km bzw. 5 %)', () {
       expect(_tag(km: 142.6, zaehler: 148).differenzAuffaellig, isFalse);
       expect(_tag(km: 130, zaehler: 148).differenzAuffaellig, isTrue);
+    });
+
+    // Seit 29.09.2026 keine Luftlinien-km: Fehlt eine Strecke, wäre das Δ
+    // eine falsche Aussage (die Lücke erschiene als «unerklärte» km).
+    test('Strecken fehlen: Anzahl genannt, Zähler ja, Δ nein', () {
+      final t = fahrtenHeuteText(
+        _tag(anzahl: 3, km: 40, zaehler: 55, ohneKm: 1),
+      );
+      expect(
+        t.basis,
+        'Fahrten heute: 3 · 40 km (1 ohne Strecke) · Zähler 55 km',
+      );
+      expect(t.delta, isNull);
+      expect(
+        _tag(anzahl: 3, km: 40, zaehler: 55, ohneKm: 1).differenzAuffaellig,
+        isFalse,
+      );
+    });
+
+    test('Strecken fehlen, ohne Zählerstand', () {
+      final t = fahrtenHeuteText(
+        _tag(anzahl: 4, km: 22.4, zaehler: null, ohneKm: 2),
+      );
+      expect(t.basis, 'Fahrten heute: 4 · 22 km (2 ohne Strecke)');
+      expect(t.delta, isNull);
     });
   });
 

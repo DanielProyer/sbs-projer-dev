@@ -1,6 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart';
-import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 
 /// Gleiche Werte wie `kStartorte` (tour_providers.dart) — hier kopiert, weil
 /// die reine Regel bewusst nichts aus `presentation/` kennt.
@@ -63,7 +64,8 @@ List<Halt> halte(
 
 const zuerich = (lat: 47.37, lng: 8.54);
 
-/// Nachschlag ohne Treffer — jede Fahrt fällt auf die Luftlinie zurück.
+/// Nachschlag ohne Treffer — keine Fahrt bekommt km (seit 29.09.2026 gibt
+/// es keinen Luftlinien-Rückfall mehr).
 ({double km, String quelle})? keinTreffer(Halt von, Halt nach) => null;
 
 /// Halt ohne Koordinaten, nur für die Befund-Tests.
@@ -332,7 +334,10 @@ void main() {
         ], beginnUnterwegs: knappDaneben(b.lat, b.lng));
         expect(h.first.id, kGpsStartId);
         final f = fahrtenAusHalten(h, keinTreffer);
-        expect(f.first.kmQuelle, kKmQuelleLuftlinie);
+        expect(f.first.von.id, kGpsStartId);
+        // Keine Anfahrtszeit ab einer GPS-Position → keine km.
+        expect(f.first.km, isNull);
+        expect(f.first.startortFahrt, isTrue);
       });
 
       test('Feierabend fern vom letzten Betrieb → GPS-Halt', () {
@@ -444,18 +449,68 @@ void main() {
       expect(f.map((x) => x.kmQuelle), ['anfahrt', 'route', 'anfahrt']);
     });
 
-    test('Rückfall Luftlinie × Umwegfaktor, Quelle «luftlinie»', () {
-      final h = halte([einsatz('r1', a, von: '08:00', bis: '08:30')]);
+    // Entscheid Daniel 29.09.2026: Bündner Strassen folgen den Tälern — die
+    // Luftlinie sagt nichts über die gefahrene Strecke. Ohne geroutete
+    // Strecke oder erfasste Anfahrt bleibt die Fahrt ohne km.
+    test('ohne Treffer keine km — auch mit Koordinaten (keine Luftlinie)', () {
+      final h = halte([
+        einsatz('r1', a, von: '08:00', bis: '08:30'),
+        einsatz('r2', b, von: '09:30', bis: '10:00'),
+      ]);
       final f = fahrtenAusHalten(h, keinTreffer);
-      final luft = haversineKm(
-        startorte['domat_ems']!.lat,
-        startorte['domat_ems']!.lng,
-        a.lat,
-        a.lng,
+      expect(f, hasLength(3));
+      for (final x in f) {
+        expect(x.ohneKoordinaten, isFalse);
+        expect(x.km, isNull);
+        expect(x.kmQuelle, isNull);
+      }
+    });
+
+    test('ohneKoordinaten: ein Halt ohne lat/lng genügt', () {
+      final mit = halte([einsatz('r1', a, von: '08:00', bis: '08:30')]);
+      expect(fahrtenAusHalten(mit, keinTreffer).first.ohneKoordinaten, isFalse);
+      final ohne = fahrtenAusHalten([
+        betriebHalt('x', 480, 500),
+        betriebHalt('y', 520, 540),
+      ], keinTreffer);
+      expect(ohne.single.ohneKoordinaten, isTrue);
+      // Einsatz ohne Betrieb (keine Koordinaten) nach einem Betrieb.
+      final gemischt = fahrtenAusHalten(
+        halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('s1', null, typ: 'stoerung', von: '09:00'),
+        ]),
+        keinTreffer,
       );
-      final erwartet = (luftlinieStreckeKm(luft) * 10).round() / 10;
-      expect(f.first.km, erwartet);
-      expect(f.first.kmQuelle, 'luftlinie');
+      expect(gemischt.map((x) => x.ohneKoordinaten), [false, true, true]);
+    });
+
+    test('startortFahrt: Anfahrt, Heimweg und GPS-Halte, nicht B→B', () {
+      final f = fahrtenAusHalten(
+        halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ], endeUnterwegs: zuerich),
+        keinTreffer,
+      );
+      expect(f.map((x) => '${x.von.id}>${x.nach.id}'), [
+        'domat_ems>${a.id}',
+        '${a.id}>${b.id}',
+        '${b.id}>$kGpsEndeId',
+      ]);
+      expect(f.map((x) => x.startortFahrt), [true, false, true]);
+      // Nur die Fahrt zur GPS-Position ist eine GPS-Fahrt.
+      expect(f.map((x) => x.gpsFahrt), [false, false, true]);
+    });
+
+    test('gpsFahrt: Arbeitsbeginn unterwegs → erster Betrieb', () {
+      final f = fahrtenAusHalten(
+        halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], beginnUnterwegs: zuerich),
+        keinTreffer,
+      );
+      expect(f.map((x) => x.gpsFahrt), [true, false]);
     });
 
     test('ohne Koordinaten keine km (und keine Quelle)', () {
@@ -476,6 +531,8 @@ void main() {
       final t = tagMitKm(132, kmEnde: 50148);
       expect(t.kmZaehler, 148);
       expect(t.kmFahrten, 132);
+      expect(t.fahrtenOhneKm, 0);
+      expect(t.kmVollstaendig, isTrue);
       expect(t.differenz, 16);
       expect(t.differenzAuffaellig, isTrue);
       expect(
@@ -561,23 +618,246 @@ void main() {
       expect(zwei.ohneZeit, hasLength(2));
     });
 
-    test('Fahrten nur als Luftlinie werden gemeldet', () {
-      final h = halte([
-        einsatz('r1', a, von: '08:00', bis: '08:30'),
-        einsatz('r2', b, von: '09:30', bis: '10:00'),
-      ]);
+    /// Anfahrt und Heimweg je 5 km aus den Anfahrtszeiten, Betrieb→Betrieb
+    /// ohne Route.
+    ({double km, String quelle})? nurAnfahrten(Halt von, Halt nach) =>
+        (von.typ == HaltTyp.startort || nach.typ == HaltTyp.startort)
+        ? (km: 5.0, quelle: kKmQuelleAnfahrt)
+        : null;
+
+    // Neutraler Wortlaut (Review 29.09.): «Route wird geholt» stimmte nicht,
+    // wenn das Paar in dieser Sitzung schon scheiterte oder der
+    // Sitzungsdeckel voll ist.
+    test('Betrieb→Betrieb ohne Route: keine km, «ohne geroutete Strecke»', () {
       final t = tagesFahrten(
-        halte: h,
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ]),
         ohneZeit: const [],
-        km: (von, nach) =>
-            von.typ == HaltTyp.startort ? (km: 5.0, quelle: 'anfahrt') : null,
+        km: nurAnfahrten,
         feierabendErfasst: true,
       );
       expect(t.fahrten, hasLength(3));
-      expect(t.fahrtenNurLuftlinie, 2);
+      expect(t.fahrten[1].km, isNull);
+      expect(t.fahrten[1].kmQuelle, isNull);
+      expect(t.fahrtenOhneKm, 1);
+      expect(t.kmVollstaendig, isFalse);
+      // Nur die Fahrten MIT km zählen in die Summe.
+      expect(t.kmFahrten, 10);
+      expect(t.befunde, contains('1 Fahrt noch ohne geroutete Strecke'));
+      expect(t.befunde.where((x) => x.contains('Luftlinie')), isEmpty);
+      expect(t.befunde.where((x) => x.contains('wird geholt')), isEmpty);
+    });
+
+    test('Anfahrt/Heimweg ohne Anfahrtszeit: «Anfahrtszeiten fehlen»', () {
+      ({double km, String quelle})? nurRouten(Halt von, Halt nach) =>
+          (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.betrieb)
+          ? (km: 31.2, quelle: kKmQuelleRoute)
+          : null;
+      final zwei = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ]),
+        ohneZeit: const [],
+        km: nurRouten,
+        feierabendErfasst: true,
+      );
+      expect(zwei.fahrtenOhneKm, 2);
+      expect(
+        zwei.befunde,
+        contains(
+          '2 Anfahrten/Heimwege ohne erfasste Strecke '
+          '(Anfahrtszeiten fehlen)',
+        ),
+      );
+
+      final eine = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], arbeitsende: null),
+        ohneZeit: const [],
+        km: nurRouten,
+        feierabendErfasst: false,
+      );
+      expect(
+        eine.befunde,
+        contains(
+          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+        ),
+      );
+    });
+
+    test('Fahrten ohne km: Ursachen getrennt gezählt', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+          // Einsatz ohne Betrieb: keine Koordinaten.
+          einsatz('s1', null, typ: 'stoerung', von: '11:00'),
+        ], arbeitsende: null),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      // domat>a (Anfahrt), a>b (Route), b>Störung (Koordinaten).
+      expect(t.fahrten, hasLength(3));
+      expect(t.fahrtenOhneKm, 3);
+      expect(t.befunde, [
+        'Zählerstand fehlt — keine Kontrolle möglich',
+        '1 Fahrt ohne Distanz (Koordinaten fehlen)',
+        '1 Fahrt noch ohne geroutete Strecke',
+        '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+      ]);
+    });
+
+    test('Mehrzahl bei «ohne geroutete Strecke»', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+          einsatz('r3', c, von: '11:00', bis: '11:30'),
+        ]),
+        ohneZeit: const [],
+        km: nurAnfahrten,
+        feierabendErfasst: true,
+      );
+      expect(t.befunde, contains('2 Fahrten noch ohne geroutete Strecke'));
+    });
+
+    // GPS-Halte (Arbeitsbeginn/Feierabend unterwegs) haben weder einen
+    // Eintrag in `anfahrtszeiten` noch eine Route — `fahrzeit-route` kennt
+    // nur Betriebe. «Anfahrtszeiten fehlen» wäre dort ein falscher Auftrag.
+    test('Betrieb → GPS-Ende mit Zähler: kein Δ, GPS-Befund', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], endeUnterwegs: zuerich),
+        ohneZeit: const [],
+        // Nur die Anfahrt ab Domat/Ems ist erfasst.
+        km: (von, nach) =>
+            von.id == 'domat_ems' ? (km: 5.0, quelle: kKmQuelleAnfahrt) : null,
+        kmStart: 50000,
+        kmEnde: 50148,
+        feierabendErfasst: true,
+        feierabendUnterwegs: true,
+      );
+      expect(t.fahrten.last.nach.id, kGpsEndeId);
+      expect(t.fahrten.last.km, isNull);
+      expect(t.differenz, isNull);
+      expect(t.differenzAuffaellig, isFalse);
+      expect(t.befunde, [
+        'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
+        'Feierabend nicht am Startort',
+        '1 Fahrt von/zu einer GPS-Position ohne Strecke '
+            '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
+      ]);
+      expect(t.befunde.where((x) => x.contains('unerklärt')), isEmpty);
+      expect(t.befunde.where((x) => x.contains('Anfahrtszeiten')), isEmpty);
+    });
+
+    test('GPS-Befund in der Mehrzahl (Beginn und Ende unterwegs)', () {
+      final t = tagesFahrten(
+        halte: halte(
+          [einsatz('r1', a, von: '08:00', bis: '08:30')],
+          beginnUnterwegs: zuerich,
+          endeUnterwegs: zuerich,
+        ),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
       expect(
         t.befunde,
-        contains('2 von 3 Fahrten nur als Luftlinie geschätzt'),
+        contains(
+          '2 Fahrten von/zu einer GPS-Position ohne Strecke '
+          '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
+        ),
+      );
+    });
+
+    // Domat/Ems → Chur ohne Einsätze: kein Betrieb an einem Ende, also
+    // weder Anfahrtszeit noch Route möglich. Eigener Befund statt
+    // «Anfahrtszeiten fehlen» (Entscheid Review 29.09.: getrennt vom
+    // GPS-Befund, damit klar ist, welcher Fall vorliegt).
+    test('Startort → Startort: eigener Befund, nicht «Anfahrtszeiten»', () {
+      final t = tagesFahrten(
+        halte: halte(const [], startortAbend: 'chur'),
+        ohneZeit: const [],
+        km: keinTreffer,
+        feierabendErfasst: true,
+      );
+      expect(t.fahrten.single.von.id, 'domat_ems');
+      expect(t.fahrten.single.nach.id, 'chur');
+      expect(t.befunde, [
+        'Zählerstand fehlt — keine Kontrolle möglich',
+        '1 Fahrt zwischen Startorten ohne Strecke',
+      ]);
+    });
+
+    // Tippfehler im Zählerstand und fehlende Strecken sind zwei Befunde —
+    // der eine verdrängt den anderen nicht.
+    test('Zähler-Tippfehler und fehlende km: beide Befunde', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ]),
+        ohneZeit: const [],
+        km: nurAnfahrten,
+        kmStart: 50148,
+        kmEnde: 50000,
+        feierabendErfasst: true,
+      );
+      expect(t.kmZaehler, isNull);
+      expect(t.befunde, [
+        'Zählerstand Feierabend 50000 km liegt unter dem Morgenstand '
+            '50148 km — Tippfehler?',
+        '1 Fahrt noch ohne geroutete Strecke',
+      ]);
+    });
+
+    // Eine Zähler-Kontrolle mit Lücken wäre eine falsche Aussage: Die
+    // fehlenden Strecken erschienen als «unerklärte» km.
+    test('Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ]),
+        ohneZeit: const [],
+        km: nurAnfahrten,
+        kmStart: 50000,
+        kmEnde: 50148,
+        feierabendErfasst: true,
+      );
+      expect(t.kmZaehler, 148);
+      expect(t.kmFahrten, 10);
+      expect(t.differenz, isNull);
+      expect(t.differenzAuffaellig, isFalse);
+      expect(t.befunde, [
+        'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
+        '1 Fahrt noch ohne geroutete Strecke',
+      ]);
+      expect(t.befunde.where((x) => x.contains('unerklärt')), isEmpty);
+    });
+
+    test('ohne Zähler kein Hinweis auf die Zähler-Kontrolle', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+          einsatz('r2', b, von: '09:30', bis: '10:00'),
+        ]),
+        ohneZeit: const [],
+        km: nurAnfahrten,
+        feierabendErfasst: true,
+      );
+      expect(t.differenz, isNull);
+      expect(t.befunde.where((x) => x.contains('Zähler-Kontrolle')), isEmpty);
+      expect(
+        t.befunde,
+        contains('Zählerstand fehlt — keine Kontrolle möglich'),
       );
     });
 
@@ -611,7 +891,12 @@ void main() {
         feierabendErfasst: true,
       );
       expect(t.kmFahrten, 0);
-      expect(t.befunde, ['1 Fahrt ohne Distanz (Koordinaten fehlen)']);
+      expect(t.fahrtenOhneKm, 1);
+      expect(t.differenz, isNull);
+      expect(t.befunde, [
+        'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
+        '1 Fahrt ohne Distanz (Koordinaten fehlen)',
+      ]);
     });
 
     test('Kein Feierabend → Heimweg fehlt', () {
@@ -776,10 +1061,31 @@ void main() {
       expect(kmText(12.34), '12.3 km');
       expect(kmText(7), '7.0 km');
     });
+  });
 
-    test('luftlinieStreckeKm = Luftlinie × Umwegfaktor', () {
-      expect(luftlinieStreckeKm(10), 10 * umwegFaktor(10));
-      expect(luftlinieStreckeKm(0), 0);
-    });
+  // Wächter (29.09.2026): Die Luftlinien-Schätzung der Fahrten-km ist
+  // abgeschafft — sie darf nicht still zurückkommen. Die Fahrzeit-Heuristik
+  // des Tourenplans (`fahrzeit.dart`) ist davon nicht betroffen.
+  test('Wächter: keine Luftlinien-km mehr in lib/', () {
+    const verboten = [
+      'kKmQuelleLuftlinie',
+      'luftlinieStreckeKm',
+      'fahrtenNurLuftlinie',
+      '≈ Luftlinie',
+    ];
+    final verstoesse = <String>[];
+    final dateien = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'));
+    for (final f in dateien) {
+      final text = f.readAsStringSync();
+      for (final v in verboten) {
+        if (text.contains(v)) {
+          verstoesse.add('${f.path.replaceAll('\\', '/')}: $v');
+        }
+      }
+    }
+    expect(verstoesse, isEmpty, reason: verstoesse.join('\n'));
   });
 }

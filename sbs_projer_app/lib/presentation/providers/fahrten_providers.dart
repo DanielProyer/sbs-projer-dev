@@ -95,7 +95,8 @@ final monatsFahrtenProvider = FutureProvider.autoDispose
         startortFuer: startortSchluessel,
       );
 
-      // Neueste Tage zuerst nachrouten — die sieht man oben in der Liste.
+      // Neueste Tage zuerst nachrouten — die sieht man oben in der Liste
+      // (fehlendeRoutenPaare zieht die Tage mit Zählerstand noch vor).
       final neuesteZuerst = ergebnis.keys.toList()
         ..sort((a, b) => b.compareTo(a));
       _routenNachholen(
@@ -153,10 +154,18 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
 // Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s). Jetzt:
 // - höchstens `kRoutenJeLauf` Paare je Lauf und `kRoutenJeSitzung` je
 //   Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht, startet
-//   kein Lauf mehr; der Rest bleibt Luftlinie, bis die App neu lädt;
-// - nur Tage mit Zählerstand (`fehlendeRoutenPaare`) — nur dort zählen km;
-// - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause
-//   (`FahrzeitRepository.routeAnfordern`); ein neuer Lauf stellt sich an.
+//   kein Lauf mehr; der Rest bleibt «ohne Strecke», bis die App neu lädt;
+// - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause ab
+//   dem Ende der vorigen Antwort (`FahrzeitRepository.routeAnfordern`); ein
+//   neuer Lauf stellt sich an — ein voller Lauf dauert ≥ `kRoutenJeLauf` ×
+//   1,1 s, der Server sieht nie mehr als eine Anfrage pro Sekunde;
+// - Tage mit Zählerstand zuerst (`fehlendeRoutenPaare`), dann die übrigen.
+//
+// WARUM höhere Deckel und auch Tage ohne Zähler (29.09.2026): Seit es
+// keine Luftlinien-km mehr gibt (Entscheid Daniel — im Bündnerland sagt die
+// Luftlinie nichts), zeigt eine Fahrt ohne Route gar keine km. Jede Antwort
+// landet dauerhaft in `fahrzeiten.distanz_km`, der Rückstand schrumpft also
+// von Sitzung zu Sitzung von selbst.
 
 /// Schon angefragte Paare dieser Sitzung (richtungslos) — jedes Paar geht
 /// höchstens einmal an die Edge Function, auch wenn der Monat neu rechnet
@@ -187,8 +196,8 @@ void _routenNachholen(
     final antworten = await Future.wait([
       for (final p in neu) FahrzeitRepository.routeAnfordern(p.von, p.nach),
     ]);
-    // routeAnfordern liefert bei Fehlern still null — die Luftlinien-
-    // Schätzung bleibt dann stehen.
+    // routeAnfordern liefert bei Fehlern still null — die Fahrt bleibt dann
+    // ohne Strecke (keine km, keine Zähler-Kontrolle für den Tag).
     if (!antworten.any((r) => r?.distanzKm != null)) return;
     try {
       container.invalidate(fahrzeitenMapProvider);

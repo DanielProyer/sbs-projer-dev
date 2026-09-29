@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart';
-import 'package:sbs_projer_app/core/util/fahrzeit.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/arbeitstag_providers.dart';
@@ -124,13 +123,6 @@ Map<DateTime, TagesFahrten> bauen({
   startortFuer: startortFuer,
 );
 
-double luftlinie(String von, String nach) {
-  final v = betriebe[von]!, n = betriebe[nach]!;
-  return (luftlinieStreckeKm(haversineKm(v.lat!, v.lng!, n.lat!, n.lng!)) * 10)
-          .round() /
-      10;
-}
-
 void main() {
   group('monatsFahrtenBauen — Beispieltag', () {
     // 2 Reinigungen, 1 Störung nur mit Stempel, Feierabend erfasst.
@@ -164,13 +156,14 @@ void main() {
       expect(t.fahrten[1].nach.name, 'Holländer');
     });
 
-    test('km-Quellen: Anfahrt, Route (Gegenrichtung), Luftlinie, Heimweg', () {
+    test('km-Quellen: Anfahrt, Route (Gegenrichtung), ohne Route, Heimweg', () {
       expect(t.fahrten[0].km, 12.0);
       expect(t.fahrten[0].kmQuelle, kKmQuelleAnfahrt);
       expect(t.fahrten[1].km, 20.0);
       expect(t.fahrten[1].kmQuelle, kKmQuelleRoute);
-      expect(t.fahrten[2].km, luftlinie('betrieb-b', 'betrieb-c'));
-      expect(t.fahrten[2].kmQuelle, kKmQuelleLuftlinie);
+      // b → c ist (noch) nicht geroutet: keine km, keine Schätzung.
+      expect(t.fahrten[2].km, isNull);
+      expect(t.fahrten[2].kmQuelle, isNull);
       // Heimweg Betrieb → Startort: Anfahrt in umgekehrter Richtung.
       expect(t.fahrten[3].km, 8.0);
       expect(t.fahrten[3].kmQuelle, kKmQuelleAnfahrt);
@@ -184,15 +177,41 @@ void main() {
       expect(t.fahrten[2].nach.quelle, 'wegpunkt');
     });
 
-    test('Befunde: Zähler-Differenz und Luftlinien-Anteil', () {
-      final summe = t.kmFahrten.round();
+    test('Befunde: Zähler-Kontrolle wartet auf die fehlende Strecke', () {
       expect(t.kmZaehler, 200);
+      expect(t.kmFahrten, 40); // 12 + 20 + 8, ohne b → c
+      expect(t.fahrtenOhneKm, 1);
+      expect(t.differenz, isNull);
       expect(t.befunde, [
-        'Zähler 200 km, Fahrten $summe km — ${200 - summe} km unerklärt '
-            '(privat oder Umweg?)',
-        '1 von 4 Fahrten nur als Luftlinie geschätzt',
+        'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
+        '1 Fahrt noch ohne geroutete Strecke',
       ]);
       expect(t.ohneZeit, isEmpty);
+    });
+
+    test('ist die Route da, kommt die Zähler-Kontrolle', () {
+      final mitRoute = bauen(
+        tagesplaene: {tag: plan(start: startorte['domat_ems'])},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00:00', bis: '11:00:00'),
+          einsatz('s1', 'betrieb-c', typ: 'stoerung'),
+        ],
+        stempelListe: [
+          stempel(DateTime(2026, 9, 25, 13, 15), betriebId: 'betrieb-c'),
+        ],
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0, 'betrieb-c': 8.0},
+        },
+        routen: {'betrieb-b>betrieb-a': 20.0, 'betrieb-b>betrieb-c': 30.0},
+      )[tag]!;
+      expect(mitRoute.kmVollstaendig, isTrue);
+      expect(mitRoute.kmFahrten, 70);
+      expect(mitRoute.differenz, 130);
+      expect(mitRoute.befunde, [
+        'Zähler 200 km, Fahrten 70 km — 130 km unerklärt '
+            '(privat oder Umweg?)',
+      ]);
     });
   });
 
@@ -528,11 +547,23 @@ void main() {
       expect(erste.von.lat, zuerich.lat);
       expect(erste.von.abfahrtMin, 7 * 60 + 30);
       expect(erste.nach.id, 'betrieb-a');
-      expect(erste.kmQuelle, kKmQuelleLuftlinie);
-      final a = ortVon('betrieb-a');
-      final luft = haversineKm(zuerich.lat, zuerich.lng, a.lat, a.lng);
-      expect(erste.km, (luftlinieStreckeKm(luft) * 10).round() / 10);
+      // Ab einer GPS-Position gibt es weder Anfahrtszeit noch Route → keine
+      // km, und der Befund sagt das (nicht «Anfahrtszeiten fehlen»).
+      expect(erste.km, isNull);
+      expect(erste.kmQuelle, isNull);
+      expect(erste.gpsFahrt, isTrue);
       expect(t.befunde, contains('Arbeitsbeginn nicht am Startort'));
+      expect(
+        t.befunde,
+        contains(
+          '1 Fahrt von/zu einer GPS-Position ohne Strecke '
+          '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
+        ),
+      );
+      expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
+      expect(t.differenz, isNull); // Zähler da, aber eine Strecke fehlt
+      // Der Heimweg a → Domat/Ems hat seine Anfahrt (rückwärts).
+      expect(t.fahrten.last.km, 12.0);
     });
 
     test('Arbeitsbeginn ≤ 300 m vom ersten Betrieb → keine Anfahrt', () {
@@ -565,7 +596,8 @@ void main() {
       expect(letzte.nach.id, kGpsEndeId);
       expect(letzte.nach.name, 'Feierabend unterwegs');
       expect(letzte.nach.ankunftMin, 17 * 60);
-      expect(letzte.kmQuelle, kKmQuelleLuftlinie);
+      expect(letzte.km, isNull);
+      expect(letzte.kmQuelle, isNull);
       expect(t.befunde, contains('Feierabend nicht am Startort'));
     });
 
@@ -646,7 +678,7 @@ void main() {
       ]);
     });
 
-    test('zwei Startorte ohne Einsätze: Domat/Ems → Chur als Luftlinie', () {
+    test('zwei Startorte ohne Einsätze: Domat/Ems → Chur ohne Strecke', () {
       final t = bauen(
         tagesplaene: {
           tag: plan(
@@ -659,14 +691,10 @@ void main() {
       final f = t.fahrten.single;
       expect(f.von.id, 'domat_ems');
       expect(f.nach.id, 'chur');
-      expect(f.kmQuelle, kKmQuelleLuftlinie);
-      final d = startorte['domat_ems']!, c = startorte['chur']!;
-      expect(
-        f.km,
-        (luftlinieStreckeKm(haversineKm(d.lat, d.lng, c.lat, c.lng)) * 10)
-                .round() /
-            10,
-      );
+      expect(f.km, isNull);
+      expect(f.kmQuelle, isNull);
+      expect(t.befunde, contains('1 Fahrt zwischen Startorten ohne Strecke'));
+      expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
     });
   });
 
@@ -776,7 +804,7 @@ void main() {
       expect(km(b, a), (km: 31.2, quelle: kKmQuelleRoute));
     });
 
-    test('ohne Eintrag null (dann rechnet die Regel mit der Luftlinie)', () {
+    test('ohne Eintrag null (dann bleibt die Fahrt ohne km)', () {
       expect(km(chur, b), isNull);
       const domat = Halt(
         typ: HaltTyp.startort,
@@ -789,7 +817,7 @@ void main() {
   });
 
   group('fehlendeRoutenPaare', () {
-    test('nur Betrieb→Betrieb als Luftlinie, je Paar einmal', () {
+    test('nur Betrieb→Betrieb ohne km, je Paar einmal', () {
       final ergebnis = bauen(
         einsaetze: [
           einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
@@ -806,27 +834,99 @@ void main() {
       expect(paare, [(von: 'betrieb-a', nach: 'betrieb-b')]);
     });
 
-    test('nur Tage mit Zählerstand — nur dort zählen die km', () {
-      final zweiBetriebe = [
-        einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
-        einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
-      ];
+    // GPS-Halte sind nie Kandidaten (`fahrzeit-route` kennt nur Betriebe),
+    // ein Leerfahrt-Halt schon — er ist ein Betrieb mit Koordinaten.
+    test('keine GPS-Fahrt, aber die Fahrt zur Leerfahrt', () {
+      final ergebnis = bauen(
+        tagesplaene: {tag: plan(start: zuerich)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        stempelListe: [
+          stempel(
+            DateTime(2026, 9, 25, 10, 15),
+            quelle: 'vergeblich',
+            betriebId: 'betrieb-c',
+          ),
+        ],
+      );
+      final t = ergebnis[tag]!;
+      expect(t.fahrten.map((f) => '${f.von.id}>${f.nach.id}').toList(), [
+        '$kGpsStartId>betrieb-a',
+        'betrieb-a>betrieb-c',
+        'betrieb-c>domat_ems',
+      ]);
+      expect(fehlendeRoutenPaare(ergebnis.values), [
+        (von: 'betrieb-a', nach: 'betrieb-c'),
+      ]);
+    });
+
+    // Seit 29.09.2026 zeigt eine Fahrt ohne Route gar keine km — routen
+    // lohnt sich also überall. Die Tage mit Zählerstand kommen zuerst: Dort
+    // wartet eine Kontrolle auf die Strecke.
+    test('auch Tage ohne Zählerstand', () {
       final ohneZaehler = bauen(
         tagesplaene: {tag: plan(kmEnde: null)},
-        einsaetze: zweiBetriebe,
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+        ],
       );
       expect(ohneZaehler[tag]!.kmZaehler, isNull);
-      expect(fehlendeRoutenPaare(ohneZaehler.values), isEmpty);
-
-      final mitZaehler = bauen(einsaetze: zweiBetriebe);
-      expect(fehlendeRoutenPaare(mitZaehler.values), [
+      expect(fehlendeRoutenPaare(ohneZaehler.values), [
         (von: 'betrieb-a', nach: 'betrieb-b'),
+      ]);
+    });
+
+    test('Tage mit Zählerstand zuerst, sonst in der übergebenen Folge', () {
+      final t26 = DateTime(2026, 9, 26), t27 = DateTime(2026, 9, 27);
+      final ergebnis = bauen(
+        tagesplaene: {
+          tag: plan(kmEnde: null), // 25.: ohne Zähler
+          t26: plan(), // 26.: mit Zähler
+          t27: plan(kmEnde: null), // 27.: ohne Zähler
+        },
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+          einsatz('r3', 'betrieb-b', von: '08:00', bis: '09:00', datum: t26),
+          einsatz('r4', 'betrieb-c', von: '10:00', bis: '11:00', datum: t26),
+          einsatz('r5', 'betrieb-c', von: '08:00', bis: '09:00', datum: t27),
+          einsatz('r6', 'betrieb-a', von: '10:00', bis: '11:00', datum: t27),
+        ],
+      );
+      // Neueste zuerst übergeben (wie der Provider).
+      final paare = fehlendeRoutenPaare([
+        ergebnis[t27]!,
+        ergebnis[t26]!,
+        ergebnis[tag]!,
+      ]);
+      expect(paare, [
+        (von: 'betrieb-b', nach: 'betrieb-c'), // 26. — mit Zähler
+        (von: 'betrieb-c', nach: 'betrieb-a'), // 27.
+        (von: 'betrieb-a', nach: 'betrieb-b'), // 25.
+      ]);
+    });
+
+    test('ein Paar nur einmal, auch über Tage mit und ohne Zähler', () {
+      final t26 = DateTime(2026, 9, 26);
+      final ergebnis = bauen(
+        tagesplaene: {tag: plan(kmEnde: null), t26: plan()},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+          einsatz('r3', 'betrieb-b', von: '08:00', bis: '09:00', datum: t26),
+          einsatz('r4', 'betrieb-a', von: '10:00', bis: '11:00', datum: t26),
+        ],
+      );
+      expect(fehlendeRoutenPaare([ergebnis[tag]!, ergebnis[t26]!]), [
+        (von: 'betrieb-b', nach: 'betrieb-a'), // vom Tag mit Zähler
       ]);
     });
   });
 
   // OSRM-Demo-Server: höchstens 1 Anfrage/s, keine Massenabfragen. Vorher
   // holte jeder Erfolg die nächsten zehn, bis der ganze Monat durch war.
+  // Seit 29.09.2026 25 je Lauf (≥ 28 s bei ≥ 1,1 s Abstand) und 100 je
+  // Sitzung: Ohne Route zeigt eine Fahrt keine km mehr.
   group('routenAuswahl', () {
     List<RoutenPaar> paare(int n, [String p = 'a']) => [
       for (var i = 0; i < n; i++) (von: '$p$i', nach: 'z$i'),
@@ -835,33 +935,33 @@ void main() {
       for (var i = 0; i < n; i++) routenPaarSchluessel('alt$i', 'z$i'),
     };
 
-    test('Standard: 10 je Lauf, 30 je Sitzung', () {
-      expect(kRoutenJeLauf, 10);
-      expect(kRoutenJeSitzung, 30);
+    test('Standard: 25 je Lauf, 100 je Sitzung', () {
+      expect(kRoutenJeLauf, 25);
+      expect(kRoutenJeSitzung, 100);
     });
 
     test('Deckel je Lauf', () {
       expect(
-        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}),
-        paare(10),
+        routenAuswahl(kandidaten: paare(40), schonAngefragt: {}),
+        paare(25),
       );
       expect(
-        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}, jeLauf: 3),
+        routenAuswahl(kandidaten: paare(40), schonAngefragt: {}, jeLauf: 3),
         paare(3),
       );
     });
 
     test('Deckel je Sitzung zählt die schon angefragten mit', () {
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(25)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(95)),
         paare(5),
       );
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(30)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(100)),
         isEmpty,
       );
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(31)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(101)),
         isEmpty,
       );
     });
