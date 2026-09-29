@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.152.0 Fahrten: Route oder nichts — keine Luftlinie mehr, Zähler-Kontrolle nur mit vollständigen Strecken, Nachrouten 25/100
 - 29.09.2026 — v0.151.2 Diktat: neuer Betrieb und neue Störung/Montage sofort sichtbar (Provider neu laden), Betriebsakte hängt an den Listen, Wächter «speichern lädt neu»
 - 29.09.2026 — v0.151.1 Material-Karte: Foto ganz sichtbar (contain statt cover)
 - 27.09.2026 — v0.151.0 Material: Kategorie-Chips in einer Zeile, Karten-Ansicht mit Swipe (Foto, Bestand ±, Vormerken), Ansicht und Kategorie gemerkt
@@ -40,6 +41,33 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.152.0 Fahrten: Route oder nichts
+
+Entscheid Daniel: «Die Fahrten über Luftlinie machen im Kanton Graubünden
+keinen Sinn — entweder Route über OSM oder Google Maps, oder sein lassen.»
+- **Keine Luftlinie mehr.** Eine Fahrt hat entweder eine geroutete Strecke
+  (OSRM über `fahrzeit-route`, oder eine erfasste Anfahrt aus
+  `anfahrtszeiten`) oder gar keine km («– km», «Strecke fehlt»).
+  `kKmQuelleLuftlinie` und `luftlinieStreckeKm` sind weg.
+- **Zähler-Kontrolle nur mit vollständigen Strecken:** Fehlt einer Fahrt die
+  km, gibt es keine Differenz und keinen Befund «unerklärt», sondern
+  «Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben».
+- **Befunde getrennt:** «noch ohne Strecke — Route wird geholt»
+  (Betrieb→Betrieb, wird nachgeroutet), «Anfahrt/Heimweg ohne erfasste
+  Strecke (Anfahrtszeiten fehlen)» (Startort↔Betrieb kann die Edge Function
+  nicht routen — dafür gibt es `anfahrt-google`), «Koordinaten fehlen».
+- **Nachrouten** über OSRM: 25 Paare je Lauf, 100 je Sitzung (vorher 10/30),
+  weiterhin ≥ 1,1 s Abstand; Tage mit Zählerstand zuerst, dann die übrigen.
+  Jede Antwort bleibt dauerhaft in `fahrzeiten.distanz_km` — der Rückstand
+  schrumpft von selbst.
+- «Fahrten heute» auf der Arbeitstag-Karte: «7 · 143 km (2 ohne Strecke) ·
+  Zähler 148 km», Δ nur bei vollständigen km.
+- Die Tourenplan-Zeitheuristik (Fahrzeit aus Luftlinie × Umwegfaktor für die
+  Planung) ist davon nicht berührt.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 
