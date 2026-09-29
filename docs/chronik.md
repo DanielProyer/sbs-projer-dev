@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 29.09.2026 — v0.154.0 Jahresabschluss in der App: Abschreibung nach dem 2019-Muster (215), Delkredere und Steuerrückstellung per 31.12. (216), geführter Jahresabschluss mit Jahresrechnungs-PDF ins Dossier, Dokument-Erkennung beim Upload (parse-dokument)
 - 29.09.2026 — v0.153.1 Vorbereitung Jahresabschluss 2025: Bilanz/ER unter «Abschlüsse und Steuern», Migration 214 (zweiter Abschreibungslauf je Jahr), Donnerstag-Liste, Beilage-Skript
 - 29.09.2026 — v0.153.0 fahrzeit-route routet Koordinaten: GPS-, Startort- und Anfahrts-Fahrten bekommen OSRM-Strecken (Migration 213 `routen_punkte`)
 - 29.09.2026 — v0.152.0 Fahrten: Route oder nichts — keine Luftlinie mehr, Zähler-Kontrolle nur mit vollständigen Strecken, Nachrouten 25/100
@@ -43,6 +44,49 @@ dortigen Archiv.
 - Laufende Chronik 07.07.–17.09.2026
 - Ursprünglicher Projektplan (Februar 2026)
 - Erledigt-Liste Februar–Juni 2026 (Punkte 1–209)
+
+---
+
+## 29.09.2026 — v0.154.0 Jahresabschluss in der App
+
+Auftrag Daniel: «Schritte 2–5 in die App einbauen, damit ich das in späteren
+Jahren direkt machen kann» — und «Warum wird der Zins-/Kapitalausweis nicht
+automatisch erkannt?». Vier Stränge, je mit Review:
+- **A — Jahrgang abschreiben nach dem 2019-Muster (Migration 215):** je
+  Rechnung `3805 an 1100 brutto` per 31.12. des Geschäftsjahrs, je MWST-Satz
+  EINE Sammelbuchung `2200 an 3805` am Entscheidtag (Europe/Zurich) → Ziff. 235
+  im laufenden Quartal (Art. 41 Abs. 2 MWSTG; Q4 des Abschlussjahrs ist beim
+  Abschluss meist schon eingereicht). Neue Spalte `buchung_mwst_ids`, Rücknahme
+  löscht die Sammelbuchungen mit, `view_entgeltsminderung` je Lauf UND Satz.
+  Mehrere Läufe je Jahr (der eindeutige Index aus 194 hätte den 2020er-Lauf
+  für 2025 trotz 214 mit «duplicate key» abgebrochen — Fund des Implementers);
+  Doppelklick-Schutz per `FOR UPDATE`. Screen zeigt alle Läufe, Journal- und
+  Rechnungsstrom werden nach dem Lauf neu geladen.
+- **B — Delkredere und Steuerrückstellung per 31.12. in der Abschlussprüfung:**
+  Knopf «Delkredere per 31.12. buchen» (5 % der Debitoren per Stichtag,
+  `JA<jahr>_E…`), Dialog «Rückstellung buchen» (Gewinn vor Rückstellung,
+  Aufrechnungen automatisch aus 6280/6281 und 8900 `steuerart='busse'`, Satz
+  18.2 % editierbar, Vorschlag R = s·(G+A)/(1+s) auf 100, `JA<jahr>_D…`);
+  Knöpfe nur im Abschlussjahr (Vorjahr), Verlustjahr grün ohne Rückstellung,
+  Abweichung ≥ 500 gelb. **Migration 216:** `geschaeftsjahr_abgeschlossen`
+  prüfte `datum <= 31.12.` ohne Untergrenze — 2026 hätte ab 01.01.2027 als
+  abgeschlossen gegolten (JA2025_C2/D_U1/U2 tragen `abschluss`); jetzt
+  `datum = 31.12.`, app-seitig `nachbuchGrenze` gleich.
+- **C — Geführter Jahresabschluss** (Mehr → Abschlüsse und Steuern →
+  Jahresabschluss): sechs Schritte mit Ampel — Abschlussprüfung, verjährte
+  Jahrgänge, Delkredere, Rückstellung, Jahresrechnung, Steuererklärung.
+  **Jahresrechnung als PDF** (Bilanz und ER mit Vorjahr, Anhang OR 959c,
+  Steuerbeilage mit Aufrechnungen) mit einem Knopf ins Steuer-Dossier;
+  Steuerjahr wird mit steuerbarem Gewinn/Kapital vorbefüllt (nur leere
+  Felder). Fassungen ab 2 werden zusätzlich abgelegt.
+- **D — Dokument-Erkennung beim Upload** (Edge Function `parse-dokument`,
+  Claude Sonnet): Bereich, Typ, Kategorie, Jahr, Datum, Betrag, Referenz,
+  Titel und Dateiname-Vorschlag werden nach der Dateiauswahl vorbefüllt
+  (Handeingaben bleiben), beim Zinsausweis Saldo/Zins/VSt in der Notiz.
+  Antwort strikt gegen den Katalog geprüft, Dateiname bereinigt.
+- Rollout: Migrationen 215 + 216 angewendet, `parse-dokument` deployt, dann
+  die App. Donnerstag-Liste in `ToDo.md` läuft jetzt über die App-Knöpfe.
+- TESTZAHL Tests grün, `flutter analyze` 0.
 
 ---
 

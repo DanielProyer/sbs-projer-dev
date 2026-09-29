@@ -307,7 +307,7 @@ const kBereichAbschluesse = Bereich(
         ),
         BereichEintrag(
           titel: 'Monatsabschluss',
-          untertitel: 'Zehn Punkte je Monat: Einsätze, Heineken, Bank, Lohn',
+          untertitel: 'Zehn Punkte je Monat',
           icon: Icons.event_available,
           ziel: '/buchhaltung/monatsabschluss',
         ),

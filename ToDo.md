@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.153.1 live** (Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **214** · **3185 Tests grün**.
+**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **216** · **3371 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -106,6 +106,11 @@ SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
         ausgleichen · MWST Q3/2026 (165.88) bis 30.11. · **Q4/2026 Ziff. 235:
         516.43** (Jahrgang 2020) · Jahrgang 2021 im Abschluss 2026 (84 Rg,
         8'158.40, MWST 583.39).
+
+**Aus den Reviews 29.09. (nicht dringend):**
+- Abschreibung: rechnerischer MWST-Satz aus gerundeten Beträgen (2023–2025 gibt es Rechnungen mit 6.8/7.0/6.7/7.2/83.3 %) — ab Abschluss 2028 relevant; Satz aus dem Leistungsdatum ableiten (< 2024 → 7.7, sonst 8.1) in Funktion, View und Vorschau, «Satz unplausibel» als Ausschlussgrund; die 2024er-Rechnung mit 83.3 % (netto 69.00 / MWST 57.45) ist ein Datenfehler.
+- Bussen 6280 sind mit Vorsteuer gebucht (31.07.2025 8.99, 28.01.2026 1.50) — auf Bussen gibt es keinen Vorsteuerabzug; bei der nächsten MWST-Abrechnung korrigieren.
+- Dokument-Erkennung: keine Seitenbremse bei grossen PDFs (Kosten ≈ 0.5–1 $ je 50–100 Seiten); bei Bedarf Seiten zählen und über ~20 Seiten nicht erkennen.
 
 **Optional, vor Schritt 3 (Debitoren-Hygiene):** 10 Tresen-Rechnungen vom
 Dezember 2025 stehen noch «offen» (1'036.70), laut Excel-Delta vom 02.09.
@@ -294,6 +299,7 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
+- **v0.154.0** — Mehr → Abschlüsse und Steuern → **Jahresabschluss** (Jahr 2025): sechs Zeilen mit Ampel; Schritt 2 «Jahrgang abschreiben» zeigt Vorschau 76 / 7'216.30 / 516.43 und «Ziff. 235 im laufenden Quartal»; Abschlussprüfung 2025: Knöpfe «Delkredere per 31.12. buchen» und «Rückstellung buchen» (Dialog mit Vorschlag 2'800 nach dem Lauf); Jahresrechnung «Vorschau» und «Erzeugen und ins Dossier legen» (4 Seiten); Steuern → 2025 → «Dokument hochladen» mit GKB-Zinsausweis: Typ/Jahr/Titel/Dateiname erkannt, Saldo/Zins in der Notiz.
 - **v0.153.1** — Mehr → Abschlüsse und Steuern: erste Zeile «Bilanz und Erfolgsrechnung» öffnet die Berichte; unter Buchhaltung nur noch Kontenplan und Journal.
 - **v0.153.0** — Fahrten: ein Tag mit Arbeitsbeginn unterwegs (GPS) bekommt nach ~1 min alle Strecken und die Zähler-Kontrolle; keine Befunde «GPS-Position»/«Anfahrtszeiten fehlen» mehr.
 - **v0.152.0** — Fahrten (Auswertung → Arbeitstage → Tag → Fahrten): keine «≈ Luftlinie» mehr; Fahrten ohne Route zeigen «– km / Strecke fehlt»; nach ~30 s sind Betrieb→Betrieb-Strecken nachgeroutet; «Fahrten heute» mit «(N ohne Strecke)».
