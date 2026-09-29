@@ -3,9 +3,11 @@
 /// Aus den Ereignissen eines Arbeitstags — Arbeitsbeginn, Einsätze,
 /// Feierabend — entsteht eine Kette von Halten; je zwei aufeinanderfolgende
 /// Halte an verschiedenen Orten sind eine Fahrt. Die Kilometer kommen NUR
-/// aus gerouteten Strecken (OSRM, `fahrzeiten.distanz_km`) und erfassten
-/// Anfahrten (`anfahrtszeiten.distanz_km`) — Nachschlag des Aufrufers. Ohne
-/// Treffer hat die Fahrt keine km. Die Tagessumme wird gegen den Zählerstand
+/// aus gerouteten Strecken (OSRM: `fahrzeiten.distanz_km` für Betrieb →
+/// Betrieb, seit Migration 213 `routen_punkte.distanz_km` für alles mit
+/// einem Startort oder einer GPS-Position) und erfassten Anfahrten
+/// (`anfahrtszeiten.distanz_km`) — Nachschlag des Aufrufers. Ohne Treffer
+/// hat die Fahrt keine km. Die Tagessumme wird gegen den Zählerstand
 /// geprüft, sobald jede Fahrt des Tages eine Strecke hat.
 ///
 /// WARUM keine Schätzung aus der Luftlinie (Entscheid Daniel 29.09.2026):
@@ -26,6 +28,7 @@ import 'dart:math' as math;
 import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart'
     show tagesKm;
 import 'package:sbs_projer_app/core/util/fahrzeit.dart' show haversineKm;
+import 'package:sbs_projer_app/core/util/routen_punkt_key.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart'
     show hhmmAusMinuten, minutenAusHhmm;
 
@@ -73,7 +76,7 @@ const _ohneBetriebPraefix = 'einsatz:';
 /// Herkunft der km einer [Fahrt]. Eine geschätzte Quelle gibt es bewusst
 /// nicht mehr (siehe Bibliotheks-Kommentar, 29.09.2026).
 const kKmQuelleAnfahrt = 'anfahrt'; // anfahrtszeiten.distanz_km
-const kKmQuelleRoute = 'route'; // fahrzeiten.distanz_km
+const kKmQuelleRoute = 'route'; // fahrzeiten / routen_punkte .distanz_km
 
 /// Ein Ort in der Tageskette: Startort (morgens/abends) oder Betrieb.
 class Halt {
@@ -110,6 +113,17 @@ class Halt {
 
   @override
   String toString() => 'Halt($id $ankunftMin–$abfahrtMin $quelle)';
+}
+
+/// Schlüssel eines Halts im Punkt-Routen-Cache (`routen_punkte`, Migration
+/// 213): Betrieb → [betriebKey], jedes andere Ende (Startort, GPS-Position
+/// unterwegs) → [punktKey] seiner Koordinaten. `null` ohne Koordinaten —
+/// auch bei einem Betrieb: Ohne Koordinaten routet die Edge Function nicht
+/// (sie liest dieselben Stammdaten).
+String? haltKey(Halt h) {
+  final lat = h.lat, lng = h.lng;
+  if (lat == null || lng == null) return null;
+  return h.typ == HaltTyp.betrieb ? betriebKey(h.id) : punktKey(lat, lng);
 }
 
 /// Eingabe je Einsatz, vor der Zeit-Auflösung.
@@ -181,26 +195,14 @@ class Fahrt {
   final String? kmQuelle;
 
   /// Mindestens ein Halt ohne Koordinaten (Einsatz ohne Betrieb, Betrieb
-  /// ohne lat/lng) — dann lässt sich auch keine Route holen.
+  /// ohne lat/lng) — dann lässt sich auch keine Route holen. Jede andere
+  /// Fahrt ist routbar (seit Migration 213 auch mit Startort oder
+  /// GPS-Position an einem Ende, [fehlendeRoutenPaare]).
   bool get ohneKoordinaten =>
       von.lat == null ||
       von.lng == null ||
       nach.lat == null ||
       nach.lng == null;
-
-  /// Mindestens ein Ende ist kein Betrieb (Startort oder Arbeitsbeginn/
-  /// Feierabend unterwegs). Solche Fahrten routet das Nachrouten nie — es
-  /// holt nur Betrieb→Betrieb; km gibt es höchstens aus `anfahrtszeiten`.
-  bool get startortFahrt =>
-      von.typ != HaltTyp.betrieb || nach.typ != HaltTyp.betrieb;
-
-  /// Von/zu einer GPS-Position (Arbeitsbeginn/Feierabend unterwegs,
-  /// [kGpsStartId]/[kGpsEndeId]). WARUM eigens: Für eine GPS-Position gibt
-  /// es weder einen Eintrag in `anfahrtszeiten` (Schlüssel: Startort →
-  /// Betrieb) noch eine Route — `fahrzeit-route` kennt nur Betriebe. Solche
-  /// Fahrten bleiben also ohne km; «Anfahrtszeiten fehlen» wäre ein
-  /// Auftrag, den niemand erfüllen kann.
-  bool get gpsFahrt => von.id == kGpsStartId || nach.id == kGpsEndeId;
 }
 
 /// Ergebnis eines Tages.
@@ -286,9 +288,10 @@ typedef KmNachschlag =
 /// keine Fahrt dorthin. Befund 27.09.2026: An 6 von 33 Tagen lag die
 /// Startposition > 5 km von beiden Startorten, an 4 davon ≤ 0,8 km vom
 /// ersten Betrieb; mit Domat/Ems als Annahme entstanden ~100 km erfundene
-/// Anfahrt. km für Fahrten von/zu diesen Halten gibt es keine (kein Eintrag
-/// in `anfahrtszeiten`, und das Nachrouten holt nur Betrieb→Betrieb) — ein
-/// solcher Tag bleibt ohne Zähler-Kontrolle.
+/// Anfahrt. km für Fahrten von/zu diesen Halten gibt es nicht aus
+/// `anfahrtszeiten` (dort nur Startort → Betrieb), aber seit Migration 213
+/// aus dem Punkt-Cache `routen_punkte`: Das Nachrouten schickt die Position
+/// als lat/lng an `fahrzeit-route` ([fehlendeRoutenPaare]).
 List<Halt> halteAusKette({
   required String? arbeitsbeginn,
   required String? arbeitsende,
@@ -444,12 +447,13 @@ List<Fahrt> fahrtenAusHalten(List<Halt> halte, KmNachschlag km) {
 ///
 /// Die Zähler-Kontrolle (Zähler − Fahrten) gibt es nur, wenn JEDE Fahrt eine
 /// Strecke hat ([TagesFahrten.kmVollstaendig]); sonst ein Hinweis, dass sie
-/// wartet. Fahrten ohne km werden nach Ursache getrennt gemeldet, weil jede
-/// etwas anderes verlangt: Koordinaten fehlen / Betrieb→Betrieb noch nicht
-/// geroutet (Kandidat fürs Nachrouten, [fehlendeRoutenPaare]) / Anfahrt oder
-/// Heimweg ohne Eintrag in `anfahrtszeiten` / von/zu einer GPS-Position
-/// ([Fahrt.gpsFahrt]) / zwischen zwei Startorten — die letzten beiden
-/// lassen sich weder erfassen noch routen.
+/// wartet. Fahrten ohne km kennen zwei Ursachen, weil nur zwei etwas
+/// Verschiedenes verlangen: Koordinaten fehlen (Stammdaten nachtragen) oder
+/// noch keine geroutete Strecke (Auftrag fürs Nachrouten,
+/// [fehlendeRoutenPaare]). Seit Migration 213 (29.09.2026) ist jede Fahrt
+/// mit Koordinaten routbar — auch von/zu einer GPS-Position, zwischen den
+/// Startorten und Startort ↔ Betrieb ohne Eintrag in `anfahrtszeiten`;
+/// die Sonderbefunde dafür aus v0.152.0 sind entfallen.
 TagesFahrten tagesFahrten({
   required List<Halt> halte,
   required List<EinsatzHalt> ohneZeit,
@@ -467,25 +471,10 @@ TagesFahrten tagesFahrten({
     for (final f in fahrten)
       if (f.km == null) f,
   ];
-  // Je Ursache ein Befund — jede verlangt etwas anderes. Reihenfolge der
-  // Prüfung: Koordinaten → GPS-Position → zwischen Startorten → Anfahrt/
-  // Heimweg (genau EIN Ende ist ein Betrieb) → Rest = Betrieb→Betrieb.
-  var ohneKoordinaten = 0, ohneGps = 0, ohneStartorte = 0, ohneAnfahrt = 0;
-  var ohneRoute = 0;
-  for (final f in ohneKm) {
-    final betriebe = [f.von, f.nach].where((h) => h.typ == HaltTyp.betrieb);
-    if (f.ohneKoordinaten) {
-      ohneKoordinaten++;
-    } else if (f.gpsFahrt) {
-      ohneGps++;
-    } else if (betriebe.isEmpty) {
-      ohneStartorte++;
-    } else if (betriebe.length == 1) {
-      ohneAnfahrt++;
-    } else {
-      ohneRoute++;
-    }
-  }
+  // Je Ursache ein Befund: ohne Koordinaten lässt sich nichts routen, alles
+  // andere wartet aufs Nachrouten (Migration 213: auch Punkte).
+  final ohneKoordinaten = ohneKm.where((f) => f.ohneKoordinaten).length;
+  final ohneRoute = ohneKm.length - ohneKoordinaten;
   final zaehler = tagesKm(kmStart: kmStart, kmEnde: kmEnde);
 
   final befunde = <String>[];
@@ -586,26 +575,6 @@ TagesFahrten tagesFahrten({
     final n = ohneRoute;
     befunde.add(
       '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} noch ohne geroutete Strecke',
-    );
-  }
-  if (ohneAnfahrt > 0) {
-    final n = ohneAnfahrt;
-    befunde.add(
-      '$n ${n == 1 ? 'Anfahrt/Heimweg' : 'Anfahrten/Heimwege'} ohne '
-      'erfasste Strecke (Anfahrtszeiten fehlen)',
-    );
-  }
-  if (ohneGps > 0) {
-    final n = ohneGps;
-    befunde.add(
-      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} von/zu einer GPS-Position ohne '
-      'Strecke (Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
-    );
-  }
-  if (ohneStartorte > 0) {
-    final n = ohneStartorte;
-    befunde.add(
-      '$n ${n == 1 ? 'Fahrt' : 'Fahrten'} zwischen Startorten ohne Strecke',
     );
   }
 
@@ -712,33 +681,50 @@ bool stoerungWarVorOrt(String status) => status != 'offen';
 bool montageWarVorOrt(String status, String? montageTyp) =>
     status != 'geplant' && !_montageTypenOhneBesuch.contains(montageTyp);
 
-/// km-Nachschlag aus den gespeicherten Distanzen.
+/// km-Nachschlag aus den gespeicherten Distanzen, in dieser Reihenfolge:
 ///
-/// - Startort ↔ Betrieb: [anfahrten] (`anfahrtszeiten.distanz_km`, Schlüssel
-///   Startort → betriebId), Richtung egal — Heimweg = Anfahrt rückwärts.
-/// - Betrieb ↔ Betrieb: [routen] (`fahrzeiten.distanz_km`, Schlüssel
-///   `'von>nach'`), beide Richtungen wie `FahrzeitRepository.ausMap`.
-/// - Sonst `null` → die Fahrt bleibt ohne km (keine Schätzung).
+/// 1. Startort ↔ Betrieb: [anfahrten] (`anfahrtszeiten.distanz_km`,
+///    Schlüssel Startort → betriebId), Richtung egal — Heimweg = Anfahrt
+///    rückwärts. Vorrang, weil dort teils Google-Werte stehen.
+/// 2. Betrieb ↔ Betrieb: [routen] (`fahrzeiten.distanz_km`, Schlüssel
+///    `'von>nach'`), beide Richtungen wie `FahrzeitRepository.ausMap`.
+/// 3. JEDES Paar mit Koordinaten an beiden Enden: [punkte]
+///    (`routen_punkte.distanz_km`, Migration 213, Schlüssel
+///    `'<haltKey von>><haltKey nach>'`), beide Richtungen — GPS-Position ↔
+///    Betrieb, Startort ↔ Startort, Startort ↔ Betrieb ohne Anfahrt.
+///    Runden beide Enden auf denselben Schlüssel (≤ ~11 m), ist das 0 km —
+///    ohne Eintrag und ohne Anfrage.
+/// 4. Sonst `null` → die Fahrt bleibt ohne km (keine Schätzung).
 KmNachschlag kmNachschlagAus({
   required Map<String, Map<String, double>> anfahrten,
   required Map<String, double> routen,
+  required Map<String, double> punkte,
 }) => (Halt von, Halt nach) {
   ({double km, String quelle})? anfahrt(Halt startort, Halt betrieb) {
     final km = anfahrten[startort.id]?[betrieb.id];
     return km == null ? null : (km: km, quelle: kKmQuelleAnfahrt);
   }
 
+  ({double km, String quelle})? treffer;
   if (von.typ == HaltTyp.startort && nach.typ == HaltTyp.betrieb) {
-    return anfahrt(von, nach);
-  }
-  if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.startort) {
-    return anfahrt(nach, von);
-  }
-  if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.betrieb) {
+    treffer = anfahrt(von, nach);
+  } else if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.startort) {
+    treffer = anfahrt(nach, von);
+  } else if (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.betrieb) {
     final km = routen['${von.id}>${nach.id}'] ?? routen['${nach.id}>${von.id}'];
-    return km == null ? null : (km: km, quelle: kKmQuelleRoute);
+    if (km != null) treffer = (km: km, quelle: kKmQuelleRoute);
   }
-  return null;
+  if (treffer != null) return treffer;
+
+  final vonKey = haltKey(von), nachKey = haltKey(nach);
+  if (vonKey == null || nachKey == null) return null;
+  // Beide Enden runden auf denselben Punkt (≤ ~11 m): keine Strecke, keine
+  // Anfrage — sonst fragte das Nachrouten OSRM nach einer Route A → A.
+  if (vonKey == nachKey) return (km: 0.0, quelle: kKmQuelleRoute);
+  final km =
+      punkte[punktRoutenSchluessel(vonKey, nachKey)] ??
+      punkte[punktRoutenSchluessel(nachKey, vonKey)];
+  return km == null ? null : (km: km, quelle: kKmQuelleRoute);
 };
 
 /// Baut die Tages-Fahrten eines Monats (Schlüssel: Datum ohne Uhrzeit).
@@ -762,6 +748,8 @@ KmNachschlag kmNachschlagAus({
 ///
 /// Leerfahrten (Wegpunkt `quelle='vergeblich'`) sind Punkt-Halte am
 /// Betrieb, nach derselben Ortsregel.
+///
+/// km aus [anfahrten], [routen] und [punkte] ([kmNachschlagAus]).
 Map<DateTime, TagesFahrten> monatsFahrtenBauen({
   required Map<DateTime, TagesplanRoh> tagesplaene,
   required List<EinsatzRoh> einsaetze,
@@ -769,6 +757,7 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
   required Map<String, BetriebOrt> betriebe,
   required Map<String, Map<String, double>> anfahrten,
   required Map<String, double> routen,
+  required Map<String, double> punkte,
   required Map<String, ({double lat, double lng})> startorte,
   required String? Function(({double lat, double lng})? position)
   startortFuer,
@@ -792,7 +781,11 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
     for (final e in stempelJeTag.entries)
       if (e.value.any((s) => s.quelle == kTypLeerfahrt)) e.key,
   };
-  final km = kmNachschlagAus(anfahrten: anfahrten, routen: routen);
+  final km = kmNachschlagAus(
+    anfahrten: anfahrten,
+    routen: routen,
+    punkte: punkte,
+  );
 
   final ergebnis = <DateTime, TagesFahrten>{};
   for (final tag in tage) {
@@ -839,8 +832,11 @@ Map<DateTime, TagesFahrten> monatsFahrtenBauen({
   return ergebnis;
 }
 
-/// Ein Betriebspaar fürs Nachrouten (Richtung wie in der Fahrt).
-typedef RoutenPaar = ({String von, String nach});
+/// Ein Auftrag fürs Nachrouten über `fahrzeit-route` (Richtung wie in der
+/// Fahrt): je Ende ein Betrieb (`betriebId`) oder ein Punkt (`lat`/`lng`),
+/// dazu der richtungslose [schluessel] aus den [haltKey]s beider Enden
+/// ([routenPaarSchluessel]) — er erkennt Doppel und schon Angefragtes.
+typedef RoutenAuftrag = ({RoutenEnde von, RoutenEnde nach, String schluessel});
 
 /// Deckel fürs Nachrouten über `fahrzeit-route`: je Lauf (ein Neuberechnen
 /// des Monats) und je Sitzung (bis die App neu geladen wird).
@@ -855,42 +851,47 @@ typedef RoutenPaar = ({String von, String nach});
 /// mehr gibt, zeigt eine Fahrt ohne Route gar keine km — der Rückstand muss
 /// schneller weg. Die Warteschlange hält ≥ 1,1 s Abstand, gemessen ab dem
 /// Ende der vorigen Antwort — 25 Paare dauern also ≥ 28 s je Lauf; der
-/// Server sieht nie mehr als eine Anfrage pro Sekunde. Jede Antwort landet dauerhaft in `fahrzeiten.distanz_km`, der
-/// Rückstand schrumpft also von Sitzung zu Sitzung von selbst. Was über dem
-/// Sitzungsdeckel liegt, bleibt «ohne Strecke», bis die App neu lädt.
+/// Server sieht nie mehr als eine Anfrage pro Sekunde. Jede Antwort landet
+/// dauerhaft in `fahrzeiten.distanz_km` bzw. (Punkte, Migration 213)
+/// `routen_punkte.distanz_km`, der Rückstand schrumpft also von Sitzung zu
+/// Sitzung von selbst. Was über dem Sitzungsdeckel liegt, bleibt «ohne
+/// Strecke», bis die App neu lädt. Punkt-Aufträge zählen gegen denselben
+/// Deckel — es ist derselbe Server.
 const kRoutenJeLauf = 25;
 const kRoutenJeSitzung = 100;
 
 /// Welche [kandidaten] dieser Lauf anfragt: ohne die [schonAngefragt]
-/// (richtungslose Schlüssel, [routenPaarSchluessel]) und ohne Doppel,
-/// höchstens [jeLauf] und nie mehr, als der Sitzungsdeckel [jeSitzung]
-/// noch zulässt. Ist er erreicht, bleibt die Liste leer — dann startet
-/// kein Lauf mehr. [schonAngefragt] wird nicht verändert (das tut der
-/// Aufrufer, sobald er die Paare wirklich anfragt).
-List<RoutenPaar> routenAuswahl({
-  required List<RoutenPaar> kandidaten,
+/// ([RoutenAuftrag.schluessel], richtungslos) und ohne Doppel, höchstens
+/// [jeLauf] und nie mehr, als der Sitzungsdeckel [jeSitzung] noch zulässt.
+/// Ist er erreicht, bleibt die Liste leer — dann startet kein Lauf mehr.
+/// [schonAngefragt] wird nicht verändert (das tut der Aufrufer, sobald er
+/// die Aufträge wirklich anfragt).
+List<RoutenAuftrag> routenAuswahl({
+  required List<RoutenAuftrag> kandidaten,
   required Set<String> schonAngefragt,
   int jeLauf = kRoutenJeLauf,
   int jeSitzung = kRoutenJeSitzung,
 }) {
   final deckel = math.min(jeLauf, jeSitzung - schonAngefragt.length);
-  final auswahl = <RoutenPaar>[];
+  final auswahl = <RoutenAuftrag>[];
   if (deckel <= 0) return auswahl;
   final gesehen = <String>{};
   for (final p in kandidaten) {
     if (auswahl.length >= deckel) break;
-    final schluessel = routenPaarSchluessel(p.von, p.nach);
-    if (schonAngefragt.contains(schluessel)) continue;
-    if (gesehen.add(schluessel)) auswahl.add(p);
+    if (schonAngefragt.contains(p.schluessel)) continue;
+    if (gesehen.add(p.schluessel)) auswahl.add(p);
   }
   return auswahl;
 }
 
-/// Betrieb→Betrieb-Fahrten ohne km, obwohl beide Betriebe Koordinaten haben
-/// — Kandidaten fürs Nachrouten über die Edge Function `fahrzeit-route`. Je
-/// Paar nur eine Richtung (der Nachschlag prüft beide). Fahrten mit einem
-/// Ende, das kein Betrieb ist (Anfahrt, Heimweg, GPS-Position, Startort ↔
-/// Startort), sind nie Kandidaten — `fahrzeit-route` kennt nur Betriebe.
+/// Fahrten ohne km, deren beide Enden Koordinaten haben — Aufträge fürs
+/// Nachrouten über die Edge Function `fahrzeit-route`. Seit Migration 213
+/// (29.09.2026) ALLE solchen Fahrten: Betrieb → Betrieb (Cache
+/// `fahrzeiten`), aber auch Anfahrt/Heimweg ohne Eintrag in
+/// `anfahrtszeiten`, von/zu einer GPS-Position und Startort ↔ Startort
+/// (Cache `routen_punkte`). Ein Betriebs-Ende geht als `betriebId` hinaus
+/// (die Function liest dieselben Stammdaten), jedes andere als `lat`/`lng`.
+/// Je Paar nur eine Richtung (der Nachschlag prüft beide).
 ///
 /// Reihenfolge: zuerst die Tage mit Zählerstand ([TagesFahrten.kmZaehler]),
 /// dann die übrigen — je in der übergebenen Folge. Dort wartet eine
@@ -899,14 +900,21 @@ List<RoutenPaar> routenAuswahl({
 /// Bis 28.09.2026 wurden NUR diese Tage geroutet (die übrigen hatten ja die
 /// Luftlinie); seit es keine Luftlinien-km mehr gibt, zeigt eine Fahrt ohne
 /// Route überhaupt keine km — routen lohnt sich also überall.
-List<RoutenPaar> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
+List<RoutenAuftrag> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
   final gesehen = <String>{};
-  final paare = <RoutenPaar>[];
+  final auftraege = <RoutenAuftrag>[];
   void sammeln(TagesFahrten t) {
     for (final f in t.fahrten) {
-      if (f.km != null || f.startortFahrt || f.ohneKoordinaten) continue;
-      if (gesehen.add(routenPaarSchluessel(f.von.id, f.nach.id))) {
-        paare.add((von: f.von.id, nach: f.nach.id));
+      if (f.km != null) continue;
+      final vonKey = haltKey(f.von), nachKey = haltKey(f.nach);
+      if (vonKey == null || nachKey == null) continue; // ohne Koordinaten
+      final schluessel = routenPaarSchluessel(vonKey, nachKey);
+      if (gesehen.add(schluessel)) {
+        auftraege.add((
+          von: _routenEnde(f.von),
+          nach: _routenEnde(f.nach),
+          schluessel: schluessel,
+        ));
       }
     }
   }
@@ -918,12 +926,19 @@ List<RoutenPaar> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
   for (final t in liste) {
     if (t.kmZaehler == null) sammeln(t);
   }
-  return paare;
+  return auftraege;
 }
 
-/// Richtungsloser Schlüssel eines Betriebspaars (`a|b` mit a < b).
+/// Richtungsloser Schlüssel eines Paars (`a|b` mit a < b) — für Aufträge
+/// aus den [haltKey]s beider Enden.
 String routenPaarSchluessel(String a, String b) =>
     a.compareTo(b) <= 0 ? '$a|$b' : '$b|$a';
+
+/// Betrieb → `betriebId`, sonst die Koordinaten (der Aufrufer hat über
+/// [haltKey] geprüft, dass es welche gibt).
+RoutenEnde _routenEnde(Halt h) => h.typ == HaltTyp.betrieb
+    ? (betriebId: h.id, lat: null, lng: null)
+    : (betriebId: null, lat: h.lat, lng: h.lng);
 
 // ── intern ──────────────────────────────────────────────────────────────
 

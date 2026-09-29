@@ -42,12 +42,22 @@ final fahrtenEinsaetzeProvider = FutureProvider.autoDispose
       );
     });
 
+/// Geroutete Strecken zwischen Punkten (`routen_punkte`, Migration 213):
+/// `'<vonKey>><nachKey>'` → km. Deckt ab, was `fahrzeiten` (nur Betrieb →
+/// Betrieb) und `anfahrtszeiten` (nur Startort → Betrieb) nicht kennen:
+/// GPS-Position ↔ Betrieb, Startort ↔ Startort, Startort ↔ Betrieb ohne
+/// Anfahrt. App-weit (kein autoDispose) wie [fahrzeitenMapProvider] — das
+/// Nachrouten invalidiert ihn über den Container.
+final punktRoutenProvider = FutureProvider<Map<String, double>>(
+  (ref) => FahrzeitRepository.ladePunktRouten(),
+);
+
 /// Tages-Fahrten eines Monats (Schlüssel: Datum ohne Uhrzeit).
 ///
 /// Alle Quellen werden VOR dem ersten `await` beobachtet: Ändert sich eine
-/// (etwa die Fahrzeiten nach dem Nachrouten), rechnet der Provider neu, ohne
-/// die übrigen Abfragen zu wiederholen — die liegen in ihren eigenen
-/// Providern.
+/// (etwa die Fahrzeiten oder Punkt-Routen nach dem Nachrouten), rechnet der
+/// Provider neu, ohne die übrigen Abfragen zu wiederholen — die liegen in
+/// ihren eigenen Providern.
 ///
 /// Betriebe über `betriebeStreamProvider.future` statt
 /// `betriebLookupProvider`: Der Lookup liefert eine leere Map, solange die
@@ -62,6 +72,7 @@ final monatsFahrtenProvider = FutureProvider.autoDispose
         ref.watch(anfahrtsDistanzenProvider.future),
         ref.watch(fahrzeitenMapProvider.future),
         ref.watch(betriebeStreamProvider.future),
+        ref.watch(punktRoutenProvider.future),
       ]);
       final tage = quellen[0] as List<ArbeitstagRohdaten>;
       final einsaetze =
@@ -70,6 +81,7 @@ final monatsFahrtenProvider = FutureProvider.autoDispose
       final anfahrten = quellen[2] as Map<String, Map<String, double>>;
       final fahrzeiten = quellen[3] as Map<String, FahrzeitEintrag>;
       final betriebe = quellen[4] as List<BetriebLocal>;
+      final punkte = quellen[5] as Map<String, double>;
 
       final ergebnis = monatsFahrtenBauen(
         tagesplaene: {
@@ -91,6 +103,7 @@ final monatsFahrtenProvider = FutureProvider.autoDispose
           for (final e in fahrzeiten.entries)
             if (e.value.distanzKm != null) e.key: e.value.distanzKm!,
         },
+        punkte: punkte,
         startorte: kStartorte,
         startortFuer: startortSchluessel,
       );
@@ -126,6 +139,7 @@ void fahrtenNeuLaden(WidgetRef ref, AuswertungsMonat m) {
   // Die Abfrage selbst (die Distanzen sind nur eine Sicht darauf).
   ref.invalidate(anfahrtenProvider);
   ref.invalidate(fahrzeitenMapProvider);
+  ref.invalidate(punktRoutenProvider);
   if (ref.read(betriebeStreamProvider).hasError) {
     ref.invalidate(betriebeStreamProvider);
   }
@@ -144,7 +158,12 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
   return map;
 }
 
-// ── Fehlende Betrieb→Betrieb-Distanzen nachholen ──────────────────────────
+// ── Fehlende Strecken nachholen ───────────────────────────────────────────
+//
+// Seit Migration 213 (29.09.2026) nicht mehr nur Betrieb → Betrieb: Jede
+// Fahrt ohne km mit Koordinaten an beiden Enden ist ein Auftrag
+// (`fehlendeRoutenPaare`) — Startort und GPS-Position gehen als lat/lng an
+// `fahrzeit-route`, die sie in `routen_punkte` ablegt ([punktRoutenProvider]).
 //
 // WARUM gedeckelt und gedrosselt: Die Edge Function `fahrzeit-route` fragt
 // den öffentlichen OSRM-Demo-Server — höchstens eine Anfrage pro Sekunde,
@@ -156,30 +175,36 @@ Map<String, BetriebOrt> betriebOrte(List<BetriebLocal> betriebe) {
 //   Sitzung (`routenAuswahl`) — ist der Sitzungsdeckel erreicht, startet
 //   kein Lauf mehr; der Rest bleibt «ohne Strecke», bis die App neu lädt;
 // - alle Anfragen durch EINE serielle Warteschlange mit ≥ 1,1 s Pause ab
-//   dem Ende der vorigen Antwort (`FahrzeitRepository.routeAnfordern`); ein
-//   neuer Lauf stellt sich an — ein voller Lauf dauert ≥ `kRoutenJeLauf` ×
-//   1,1 s, der Server sieht nie mehr als eine Anfrage pro Sekunde;
+//   dem Ende der vorigen Antwort (`FahrzeitRepository.routeAnfordernEnden`);
+//   ein neuer Lauf stellt sich an — ein voller Lauf dauert ≥
+//   `kRoutenJeLauf` × 1,1 s, der Server sieht nie mehr als eine Anfrage
+//   pro Sekunde;
 // - Tage mit Zählerstand zuerst (`fehlendeRoutenPaare`), dann die übrigen.
 //
 // WARUM höhere Deckel und auch Tage ohne Zähler (29.09.2026): Seit es
 // keine Luftlinien-km mehr gibt (Entscheid Daniel — im Bündnerland sagt die
 // Luftlinie nichts), zeigt eine Fahrt ohne Route gar keine km. Jede Antwort
-// landet dauerhaft in `fahrzeiten.distanz_km`, der Rückstand schrumpft also
-// von Sitzung zu Sitzung von selbst.
+// landet dauerhaft in `fahrzeiten.distanz_km` bzw. `routen_punkte`, der
+// Rückstand schrumpft also von Sitzung zu Sitzung von selbst.
 
-/// Schon angefragte Paare dieser Sitzung (richtungslos) — jedes Paar geht
-/// höchstens einmal an die Edge Function, auch wenn der Monat neu rechnet
-/// oder das Routing scheitert. Seine Grösse ist der Sitzungszähler.
+/// Schon angefragte Aufträge dieser Sitzung ([RoutenAuftrag.schluessel],
+/// richtungslos) — jeder geht höchstens einmal an die Edge Function, auch
+/// wenn der Monat neu rechnet oder das Routing scheitert. Seine Grösse ist
+/// der Sitzungszähler.
 final _routeAngefragt = <String>{};
 
-/// Fire-and-forget: fragt die von [routenAuswahl] freigegebenen Paare nach
-/// und lädt bei mindestens einer gelieferten Distanz die Fahrzeiten neu.
+/// Fire-and-forget: fragt die von [routenAuswahl] freigegebenen Aufträge nach
+/// und lädt bei mindestens einer gelieferten Distanz den passenden Cache
+/// neu — Betrieb → Betrieb landet in `fahrzeiten` ([fahrzeitenMapProvider]),
+/// alles mit einem Punkt-Ende in `routen_punkte` ([punktRoutenProvider]).
+/// Nur den betroffenen: Die Fahrzeiten sind 3600+ Zeilen und rechnen auch
+/// den Tourenplan neu.
+///
 /// Über den Container statt `ref`, weil der (autoDispose-)Monats-Provider
-/// bis dahin schon verworfen sein kann; die Fahrzeiten sind app-weit (auch
-/// der Tourenplan profitiert).
+/// bis dahin schon verworfen sein kann; beide Caches sind app-weit.
 void _routenNachholen(
   ProviderContainer container,
-  List<RoutenPaar> kandidaten,
+  List<RoutenAuftrag> kandidaten,
 ) {
   final neu = routenAuswahl(
     kandidaten: kandidaten,
@@ -187,24 +212,39 @@ void _routenNachholen(
   );
   if (neu.isEmpty) return; // nichts Neues — oder Sitzungsdeckel erreicht
   for (final p in neu) {
-    _routeAngefragt.add(routenPaarSchluessel(p.von, p.nach));
+    _routeAngefragt.add(p.schluessel);
   }
 
   unawaited(() async {
-    // Alle Paare des Laufs auf einmal einreihen (kein await dazwischen):
+    // Alle Aufträge des Laufs auf einmal einreihen (kein await dazwischen):
     // So stellt sich ein späterer Lauf hinten an, statt sich einzuflechten.
     final antworten = await Future.wait([
-      for (final p in neu) FahrzeitRepository.routeAnfordern(p.von, p.nach),
+      for (final p in neu)
+        FahrzeitRepository.routeAnfordernEnden(p.von, p.nach),
     ]);
-    // routeAnfordern liefert bei Fehlern still null — die Fahrt bleibt dann
-    // ohne Strecke (keine km, keine Zähler-Kontrolle für den Tag).
-    if (!antworten.any((r) => r?.distanzKm != null)) return;
+    // routeAnfordernEnden liefert bei Fehlern still null — die Fahrt bleibt
+    // dann ohne Strecke (keine km, keine Zähler-Kontrolle für den Tag).
+    var betriebe = false, punkte = false;
+    for (var i = 0; i < neu.length; i++) {
+      if (antworten[i]?.distanzKm == null) continue;
+      if (_nurBetriebe(neu[i])) {
+        betriebe = true;
+      } else {
+        punkte = true;
+      }
+    }
     try {
-      container.invalidate(fahrzeitenMapProvider);
+      if (betriebe) container.invalidate(fahrzeitenMapProvider);
+      if (punkte) container.invalidate(punktRoutenProvider);
     } catch (e) {
       // StateError, wenn der Container inzwischen abgebaut ist (App neu
       // geladen, Test zu Ende) — dann gibt es nichts mehr neu zu rechnen.
-      debugPrint('[Fahrten] Fahrzeiten nicht neu geladen: $e');
+      debugPrint('[Fahrten] Strecken nicht neu geladen: $e');
     }
   }());
 }
+
+/// Beide Enden Betrieb → die Function legt die Strecke in `fahrzeiten` ab
+/// (sonst in `routen_punkte`).
+bool _nurBetriebe(RoutenAuftrag a) =>
+    a.von.betriebId != null && a.nach.betriebId != null;

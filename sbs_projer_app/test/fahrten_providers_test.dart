@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/fahrten_aus_kette.dart';
+import 'package:sbs_projer_app/core/util/routen_punkt_key.dart';
 import 'package:sbs_projer_app/data/local/betrieb_local_export.dart';
 import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/arbeitstag_providers.dart';
@@ -112,6 +113,7 @@ Map<DateTime, TagesFahrten> bauen({
   List<StempelRoh> stempelListe = const [],
   Map<String, Map<String, double>> anfahrten = const {},
   Map<String, double> routen = const {},
+  Map<String, double> punkte = const {},
 }) => monatsFahrtenBauen(
   tagesplaene: tagesplaene ?? {tag: plan()},
   einsaetze: einsaetze,
@@ -119,9 +121,27 @@ Map<DateTime, TagesFahrten> bauen({
   betriebe: betriebe,
   anfahrten: anfahrten,
   routen: routen,
+  punkte: punkte,
   startorte: startorte,
   startortFuer: startortFuer,
 );
+
+/// Schlüssel im Punkt-Cache (`routen_punkte`) — bewusst ausgeschrieben statt
+/// über `punktKey` gerechnet, damit das Format selbst geprüft ist.
+const keyDomat = 'p:46.8328,9.4530';
+const keyChur = 'p:46.8640,9.5279';
+const keyZuerich = 'p:47.3700,8.5400';
+
+/// Routen-Enden wie sie `fehlendeRoutenPaare` baut.
+RoutenEnde betriebEnde(String id) => (betriebId: id, lat: null, lng: null);
+RoutenEnde punktEnde(({double lat, double lng}) p) =>
+    (betriebId: null, lat: p.lat, lng: p.lng);
+
+/// Anfahrten ab Domat/Ems zu allen drei Betrieben mit Koordinaten — für
+/// Tests, die nur die Betrieb→Betrieb-Aufträge ansehen.
+const alleAnfahrten = {
+  'domat_ems': {'betrieb-a': 12.0, 'betrieb-b': 30.0, 'betrieb-c': 8.0},
+};
 
 void main() {
   group('monatsFahrtenBauen — Beispieltag', () {
@@ -547,23 +567,34 @@ void main() {
       expect(erste.von.lat, zuerich.lat);
       expect(erste.von.abfahrtMin, 7 * 60 + 30);
       expect(erste.nach.id, 'betrieb-a');
-      // Ab einer GPS-Position gibt es weder Anfahrtszeit noch Route → keine
-      // km, und der Befund sagt das (nicht «Anfahrtszeiten fehlen»).
+      // Ab einer GPS-Position gibt es keine Anfahrtszeit; ohne Punkt-Route
+      // bleibt die Fahrt ohne km (routbar ist sie seit Migration 213).
       expect(erste.km, isNull);
       expect(erste.kmQuelle, isNull);
-      expect(erste.gpsFahrt, isTrue);
       expect(t.befunde, contains('Arbeitsbeginn nicht am Startort'));
-      expect(
-        t.befunde,
-        contains(
-          '1 Fahrt von/zu einer GPS-Position ohne Strecke '
-          '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
-        ),
-      );
+      expect(t.befunde, contains('1 Fahrt noch ohne geroutete Strecke'));
       expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
       expect(t.differenz, isNull); // Zähler da, aber eine Strecke fehlt
       // Der Heimweg a → Domat/Ems hat seine Anfahrt (rückwärts).
       expect(t.fahrten.last.km, 12.0);
+    });
+
+    test('Arbeitsbeginn unterwegs mit Punkt-Route → km und Kontrolle', () {
+      final t = bauen(
+        tagesplaene: {tag: plan(start: zuerich, kmEnde: 50140)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0},
+        },
+        // Gespeichert in der Gegenrichtung — der Nachschlag prüft beide.
+        punkte: {'b:betrieb-a>$keyZuerich': 125.3},
+      )[tag]!;
+      expect(t.fahrten.first.km, 125.3);
+      expect(t.fahrten.first.kmQuelle, kKmQuelleRoute);
+      expect(t.kmVollstaendig, isTrue);
+      expect(t.kmFahrten, 137.3);
+      expect(t.differenz, closeTo(2.7, 1e-9));
+      expect(t.befunde, ['Arbeitsbeginn nicht am Startort']);
     });
 
     test('Arbeitsbeginn ≤ 300 m vom ersten Betrieb → keine Anfahrt', () {
@@ -693,8 +724,24 @@ void main() {
       expect(f.nach.id, 'chur');
       expect(f.km, isNull);
       expect(f.kmQuelle, isNull);
-      expect(t.befunde, contains('1 Fahrt zwischen Startorten ohne Strecke'));
+      expect(t.befunde, contains('1 Fahrt noch ohne geroutete Strecke'));
       expect(t.befunde.where((b) => b.contains('Anfahrtszeiten')), isEmpty);
+    });
+
+    test('Domat/Ems → Chur mit Punkt-Route: km aus routen_punkte', () {
+      final t = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: startorte['domat_ems'],
+            endPos: startorte['chur'],
+            kmEnde: 50010,
+          ),
+        },
+        punkte: {'$keyDomat>$keyChur': 9.8},
+      )[tag]!;
+      expect(t.fahrten.single.km, 9.8);
+      expect(t.fahrten.single.kmQuelle, kKmQuelleRoute);
+      expect(t.befunde, isEmpty); // Zähler 10, Fahrten 9.8
     });
   });
 
@@ -774,6 +821,7 @@ void main() {
         'chur': {'betrieb-a': 5.5},
       },
       routen: {'betrieb-a>betrieb-b': 31.2},
+      punkte: const {},
     );
     const chur = Halt(
       typ: HaltTyp.startort,
@@ -814,10 +862,102 @@ void main() {
       );
       expect(km(chur, domat), isNull);
     });
+
+    // Punkt-Routen (Migration 213): für JEDES Paar mit Koordinaten, nach
+    // Anfahrten und Betriebs-Routen. Schlüssel 'b:<id>' / 'p:<lat>,<lng>'.
+    group('Punkt-Routen', () {
+      Halt ort(
+        String id,
+        HaltTyp typ,
+        ({double lat, double lng}) p, [
+        String quelle = 'reinigung',
+      ]) => Halt(
+        typ: typ,
+        id: id,
+        name: id,
+        lat: p.lat,
+        lng: p.lng,
+        quelle: quelle,
+      );
+      final domat = ort(
+        'domat_ems',
+        HaltTyp.startort,
+        startorte['domat_ems']!,
+        'arbeitsbeginn',
+      );
+      final churP = ort(
+        'chur',
+        HaltTyp.startort,
+        startorte['chur']!,
+        'feierabend',
+      );
+      final gps = ort(kGpsStartId, HaltTyp.startort, zuerich, 'arbeitsbeginn');
+      final aP = ort('betrieb-a', HaltTyp.betrieb, ortVon('betrieb-a'));
+      final bP = ort('betrieb-b', HaltTyp.betrieb, ortVon('betrieb-b'));
+
+      final mitPunkten = kmNachschlagAus(
+        anfahrten: {
+          'domat_ems': {'betrieb-a': 12.0},
+        },
+        routen: {'betrieb-a>betrieb-b': 31.2},
+        punkte: {
+          '$keyZuerich>b:betrieb-a': 125.3,
+          '$keyDomat>$keyChur': 9.8,
+          '$keyChur>b:betrieb-b': 28.4,
+          // Konkurriert mit der Anfahrt Domat/Ems → a (die gewinnt).
+          '$keyDomat>b:betrieb-a': 99.9,
+          // Konkurriert mit der Betriebs-Route a → b (die gewinnt).
+          'b:betrieb-a>b:betrieb-b': 77.7,
+        },
+      );
+
+      test('GPS-Position → Betrieb', () {
+        expect(mitPunkten(gps, aP), (km: 125.3, quelle: kKmQuelleRoute));
+        // Gegenrichtung (Feierabend unterwegs am selben Ort).
+        expect(mitPunkten(aP, gps), (km: 125.3, quelle: kKmQuelleRoute));
+      });
+
+      test('Startort → Startort', () {
+        expect(mitPunkten(domat, churP), (km: 9.8, quelle: kKmQuelleRoute));
+        expect(mitPunkten(churP, domat), (km: 9.8, quelle: kKmQuelleRoute));
+      });
+
+      test('Startort → Betrieb ohne Anfahrt, aber mit Punkt-Route', () {
+        expect(mitPunkten(churP, bP), (km: 28.4, quelle: kKmQuelleRoute));
+        expect(mitPunkten(bP, churP), (km: 28.4, quelle: kKmQuelleRoute));
+      });
+
+      test('Anfahrt hat Vorrang vor der Punkt-Route', () {
+        expect(mitPunkten(domat, aP), (km: 12.0, quelle: kKmQuelleAnfahrt));
+        expect(mitPunkten(aP, domat), (km: 12.0, quelle: kKmQuelleAnfahrt));
+      });
+
+      test('Betriebs-Route hat Vorrang vor der Punkt-Route', () {
+        expect(mitPunkten(aP, bP), (km: 31.2, quelle: kKmQuelleRoute));
+      });
+
+      test('ohne Koordinaten kein Punkt-Nachschlag', () {
+        // Dieselben Ids, aber ohne lat/lng — der Schlüssel fehlt.
+        expect(mitPunkten(chur, b), isNull);
+      });
+
+      // Beide Enden runden auf denselben Punkt (≤ ~11 m): keine Strecke —
+      // und auch keine Anfrage an den OSRM-Server (A → A).
+      test('Punkt → fast derselbe Punkt: 0 km ohne Eintrag', () {
+        final gpsEnde = ort(kGpsEndeId, HaltTyp.startort, (
+          lat: zuerich.lat + 0.00002,
+          lng: zuerich.lng + 0.00001,
+        ), 'feierabend');
+        expect(mitPunkten(gps, gpsEnde), (km: 0.0, quelle: kKmQuelleRoute));
+      });
+    });
   });
 
+  // Seit Migration 213 routet `fahrzeit-route` auch Punkte: JEDE Fahrt ohne
+  // km mit Koordinaten an beiden Enden ist ein Auftrag — Betrieb als Id,
+  // Startort und GPS-Position als lat/lng.
   group('fehlendeRoutenPaare', () {
-    test('nur Betrieb→Betrieb ohne km, je Paar einmal', () {
+    test('Betrieb→Betrieb und Anfahrt ohne km, je Paar einmal', () {
       final ergebnis = bauen(
         einsaetze: [
           einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
@@ -828,15 +968,24 @@ void main() {
         ],
         routen: {'betrieb-c>betrieb-a': 4.0},
       );
-      final paare = fehlendeRoutenPaare(ergebnis.values);
-      // a→b und b→a sind dasselbe Paar; a→c ist geroutet; x hat keine
-      // Koordinaten; Startort-Fahrten laufen über die Anfahrten.
-      expect(paare, [(von: 'betrieb-a', nach: 'betrieb-b')]);
+      // domat→a: Anfahrt ohne Eintrag → Punkt → Betrieb; a→b und b→a sind
+      // dasselbe Paar; a→c ist geroutet; c→x und x→domat: x hat keine
+      // Koordinaten.
+      expect(fehlendeRoutenPaare(ergebnis.values), [
+        (
+          von: punktEnde(startorte['domat_ems']!),
+          nach: betriebEnde('betrieb-a'),
+          schluessel: 'b:betrieb-a|$keyDomat',
+        ),
+        (
+          von: betriebEnde('betrieb-a'),
+          nach: betriebEnde('betrieb-b'),
+          schluessel: 'b:betrieb-a|b:betrieb-b',
+        ),
+      ]);
     });
 
-    // GPS-Halte sind nie Kandidaten (`fahrzeit-route` kennt nur Betriebe),
-    // ein Leerfahrt-Halt schon — er ist ein Betrieb mit Koordinaten.
-    test('keine GPS-Fahrt, aber die Fahrt zur Leerfahrt', () {
+    test('GPS-Fahrt, Leerfahrt und Heimweg sind Aufträge', () {
       final ergebnis = bauen(
         tagesplaene: {tag: plan(start: zuerich)},
         einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
@@ -855,7 +1004,86 @@ void main() {
         'betrieb-c>domat_ems',
       ]);
       expect(fehlendeRoutenPaare(ergebnis.values), [
-        (von: 'betrieb-a', nach: 'betrieb-c'),
+        (
+          von: punktEnde(zuerich),
+          nach: betriebEnde('betrieb-a'),
+          schluessel: 'b:betrieb-a|$keyZuerich',
+        ),
+        (
+          von: betriebEnde('betrieb-a'),
+          nach: betriebEnde('betrieb-c'),
+          schluessel: 'b:betrieb-a|b:betrieb-c',
+        ),
+        (
+          von: betriebEnde('betrieb-c'),
+          nach: punktEnde(startorte['domat_ems']!),
+          schluessel: 'b:betrieb-c|$keyDomat',
+        ),
+      ]);
+    });
+
+    test('Startort → Startort ist ein Auftrag mit zwei Punkten', () {
+      final ergebnis = bauen(
+        tagesplaene: {
+          tag: plan(start: startorte['domat_ems'], endPos: startorte['chur']),
+        },
+      );
+      expect(fehlendeRoutenPaare(ergebnis.values), [
+        (
+          von: punktEnde(startorte['domat_ems']!),
+          nach: punktEnde(startorte['chur']!),
+          schluessel: '$keyDomat|$keyChur',
+        ),
+      ]);
+    });
+
+    test('Fahrten mit km und ohne Koordinaten sind keine Aufträge', () {
+      final ergebnis = bauen(
+        tagesplaene: {tag: plan(start: zuerich)},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          // Einsatz ohne Betrieb und Betrieb ohne Koordinaten.
+          einsatz('s1', null, typ: 'stoerung', von: '10:00'),
+          einsatz('r2', 'betrieb-x', von: '11:00', bis: '11:30'),
+        ],
+        punkte: {'$keyZuerich>b:betrieb-a': 125.3},
+      );
+      expect(ergebnis[tag]!.fahrten.first.km, 125.3);
+      expect(fehlendeRoutenPaare(ergebnis.values), isEmpty);
+    });
+
+    test('GPS-Start → GPS-Ende am fast selben Ort: 0 km, kein Auftrag', () {
+      final ergebnis = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: zuerich,
+            // ~2 m daneben — rundet auf denselben Schlüssel.
+            endPos: (lat: zuerich.lat + 0.00002, lng: zuerich.lng + 0.00001),
+            kmEnde: null,
+          ),
+        },
+      );
+      final f = ergebnis[tag]!.fahrten.single;
+      expect(f.von.id, kGpsStartId);
+      expect(f.nach.id, kGpsEndeId);
+      expect(f.km, 0.0);
+      expect(f.kmQuelle, kKmQuelleRoute);
+      expect(fehlendeRoutenPaare(ergebnis.values), isEmpty);
+    });
+
+    test('ein Auftrag je Paar, auch in beiden Richtungen', () {
+      final ergebnis = bauen(
+        // Beginn und Feierabend an derselben GPS-Position.
+        tagesplaene: {tag: plan(start: zuerich, endPos: zuerich)},
+        einsaetze: [einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00')],
+      );
+      expect(ergebnis[tag]!.fahrten, hasLength(2));
+      expect(fehlendeRoutenPaare(ergebnis.values), [
+        (
+          von: punktEnde(zuerich),
+          nach: betriebEnde('betrieb-a'),
+          schluessel: 'b:betrieb-a|$keyZuerich',
+        ),
       ]);
     });
 
@@ -869,10 +1097,11 @@ void main() {
           einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
           einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
         ],
+        anfahrten: alleAnfahrten,
       );
       expect(ohneZaehler[tag]!.kmZaehler, isNull);
-      expect(fehlendeRoutenPaare(ohneZaehler.values), [
-        (von: 'betrieb-a', nach: 'betrieb-b'),
+      expect(fehlendeRoutenPaare(ohneZaehler.values).map((p) => p.schluessel), [
+        'b:betrieb-a|b:betrieb-b',
       ]);
     });
 
@@ -892,6 +1121,7 @@ void main() {
           einsatz('r5', 'betrieb-c', von: '08:00', bis: '09:00', datum: t27),
           einsatz('r6', 'betrieb-a', von: '10:00', bis: '11:00', datum: t27),
         ],
+        anfahrten: alleAnfahrten,
       );
       // Neueste zuerst übergeben (wie der Provider).
       final paare = fehlendeRoutenPaare([
@@ -899,10 +1129,10 @@ void main() {
         ergebnis[t26]!,
         ergebnis[tag]!,
       ]);
-      expect(paare, [
-        (von: 'betrieb-b', nach: 'betrieb-c'), // 26. — mit Zähler
-        (von: 'betrieb-c', nach: 'betrieb-a'), // 27.
-        (von: 'betrieb-a', nach: 'betrieb-b'), // 25.
+      expect(paare.map((p) => (p.von.betriebId, p.nach.betriebId)), [
+        ('betrieb-b', 'betrieb-c'), // 26. — mit Zähler
+        ('betrieb-c', 'betrieb-a'), // 27.
+        ('betrieb-a', 'betrieb-b'), // 25.
       ]);
     });
 
@@ -916,9 +1146,15 @@ void main() {
           einsatz('r3', 'betrieb-b', von: '08:00', bis: '09:00', datum: t26),
           einsatz('r4', 'betrieb-a', von: '10:00', bis: '11:00', datum: t26),
         ],
+        anfahrten: alleAnfahrten,
       );
       expect(fehlendeRoutenPaare([ergebnis[tag]!, ergebnis[t26]!]), [
-        (von: 'betrieb-b', nach: 'betrieb-a'), // vom Tag mit Zähler
+        // Vom Tag mit Zähler, in dessen Richtung.
+        (
+          von: betriebEnde('betrieb-b'),
+          nach: betriebEnde('betrieb-a'),
+          schluessel: 'b:betrieb-a|b:betrieb-b',
+        ),
       ]);
     });
   });
@@ -928,11 +1164,18 @@ void main() {
   // Seit 29.09.2026 25 je Lauf (≥ 28 s bei ≥ 1,1 s Abstand) und 100 je
   // Sitzung: Ohne Route zeigt eine Fahrt keine km mehr.
   group('routenAuswahl', () {
-    List<RoutenPaar> paare(int n, [String p = 'a']) => [
-      for (var i = 0; i < n; i++) (von: '$p$i', nach: 'z$i'),
+    /// Auftrag Betrieb [von] → Betrieb [nach] mit richtungslosem Schlüssel
+    /// (wie `fehlendeRoutenPaare` ihn baut).
+    RoutenAuftrag auftrag(String von, String nach) => (
+      von: betriebEnde(von),
+      nach: betriebEnde(nach),
+      schluessel: routenPaarSchluessel('b:$von', 'b:$nach'),
+    );
+    List<RoutenAuftrag> paare(int n, [String p = 'a']) => [
+      for (var i = 0; i < n; i++) auftrag('$p$i', 'z$i'),
     ];
     Set<String> angefragt(int n) => {
-      for (var i = 0; i < n; i++) routenPaarSchluessel('alt$i', 'z$i'),
+      for (var i = 0; i < n; i++) routenPaarSchluessel('b:alt$i', 'b:z$i'),
     };
 
     test('Standard: 25 je Lauf, 100 je Sitzung', () {
@@ -968,29 +1211,39 @@ void main() {
 
     test('keine Doppel: schon angefragt, Gegenrichtung, zweimal gelistet', () {
       final auswahl = routenAuswahl(
-        kandidaten: const [
-          (von: 'a', nach: 'b'),
-          (von: 'b', nach: 'a'),
-          (von: 'e', nach: 'f'),
-          (von: 'c', nach: 'd'),
-          (von: 'c', nach: 'd'),
+        kandidaten: [
+          auftrag('a', 'b'),
+          auftrag('b', 'a'),
+          auftrag('e', 'f'),
+          auftrag('c', 'd'),
+          auftrag('c', 'd'),
         ],
-        schonAngefragt: {routenPaarSchluessel('f', 'e')},
+        schonAngefragt: {routenPaarSchluessel('b:f', 'b:e')},
       );
-      expect(auswahl, const [(von: 'a', nach: 'b'), (von: 'c', nach: 'd')]);
+      expect(auswahl, [auftrag('a', 'b'), auftrag('c', 'd')]);
     });
 
     test('Doppel zählen nicht gegen den Deckel je Lauf', () {
       final auswahl = routenAuswahl(
-        kandidaten: const [
-          (von: 'a', nach: 'b'),
-          (von: 'a', nach: 'b'),
-          (von: 'c', nach: 'd'),
-        ],
+        kandidaten: [auftrag('a', 'b'), auftrag('a', 'b'), auftrag('c', 'd')],
         schonAngefragt: {},
         jeLauf: 2,
       );
-      expect(auswahl, const [(von: 'a', nach: 'b'), (von: 'c', nach: 'd')]);
+      expect(auswahl, [auftrag('a', 'b'), auftrag('c', 'd')]);
+    });
+
+    test('Punkt-Aufträge laufen unter demselben Deckel', () {
+      final punkt = (
+        von: punktEnde(zuerich),
+        nach: betriebEnde('betrieb-a'),
+        schluessel: 'b:betrieb-a|$keyZuerich',
+      );
+      final auswahl = routenAuswahl(
+        kandidaten: [punkt, ...paare(30)],
+        schonAngefragt: {},
+      );
+      expect(auswahl, hasLength(kRoutenJeLauf));
+      expect(auswahl.first, punkt);
     });
 
     test('die Menge der schon angefragten bleibt unverändert', () {
@@ -1076,6 +1329,7 @@ void main() {
                 ),
               },
             ),
+            punktRoutenProvider.overrideWith((ref) async => const {}),
             betriebeStreamProvider.overrideWith(
               (ref) => Stream.value([
                 BetriebLocal()
@@ -1127,6 +1381,70 @@ void main() {
         );
       },
     );
+
+    // Migration 213: Die Punkt-Routen fliessen in den Monat ein — hier die
+    // Anfahrt ab einer GPS-Position, die es in `anfahrtszeiten` nie gibt.
+    test('Punkt-Routen füllen die Fahrt ab der GPS-Position', () async {
+      final container = ProviderContainer(
+        overrides: [
+          arbeitstageProvider.overrideWith(
+            (ref, m) async => [
+              (
+                datum: DateTime(2026, 9, 25),
+                beginn: '07:30',
+                ende: '17:00',
+                kmStart: 50000,
+                kmEnde: 50140,
+                startPosition: zuerich,
+                endPosition: null,
+              ),
+            ],
+          ),
+          fahrtenEinsaetzeProvider.overrideWith(
+            (ref, m) async => (
+              einsaetze: [
+                einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+              ],
+              stempel: const <StempelRoh>[],
+            ),
+          ),
+          anfahrtsDistanzenProvider.overrideWith(
+            (ref) async => {
+              'domat_ems': {'betrieb-a': 12.0},
+            },
+          ),
+          fahrzeitenMapProvider.overrideWith(
+            (ref) async => const <String, FahrzeitEintrag>{},
+          ),
+          punktRoutenProvider.overrideWith(
+            (ref) async => {'$keyZuerich>b:betrieb-a': 125.3},
+          ),
+          betriebeStreamProvider.overrideWith(
+            (ref) => Stream.value([
+              BetriebLocal()
+                ..serverId = 'betrieb-a'
+                ..name = 'Peppino'
+                ..latitude = 46.85
+                ..longitude = 9.53,
+            ]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final abo = container.listen(
+        tagesFahrtenProvider(DateTime(2026, 9, 25)),
+        (_, _) {},
+      );
+      addTearDown(abo.close);
+
+      final t = (await container.read(
+        tagesFahrtenProvider(DateTime(2026, 9, 25)).future,
+      ))!;
+      expect(t.fahrten.map((f) => f.km).toList(), [125.3, 12.0]);
+      expect(t.fahrten.first.kmQuelle, kKmQuelleRoute);
+      expect(t.kmVollstaendig, isTrue);
+      expect(t.befunde, ['Arbeitsbeginn nicht am Startort']);
+    });
   });
 
   group('Einsatz vor Ort?', () {

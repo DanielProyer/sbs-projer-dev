@@ -335,9 +335,9 @@ void main() {
         expect(h.first.id, kGpsStartId);
         final f = fahrtenAusHalten(h, keinTreffer);
         expect(f.first.von.id, kGpsStartId);
-        // Keine Anfahrtszeit ab einer GPS-Position → keine km.
+        // Ohne Nachschlag-Treffer keine km; routbar ist sie über den Punkt.
         expect(f.first.km, isNull);
-        expect(f.first.startortFahrt, isTrue);
+        expect(haltKey(f.first.von), startsWith('p:'));
       });
 
       test('Feierabend fern vom letzten Betrieb → GPS-Halt', () {
@@ -485,7 +485,9 @@ void main() {
       expect(gemischt.map((x) => x.ohneKoordinaten), [false, true, true]);
     });
 
-    test('startortFahrt: Anfahrt, Heimweg und GPS-Halte, nicht B→B', () {
+    // Seit Migration 213 routet `fahrzeit-route` auch Punkte: Jede Fahrt mit
+    // Koordinaten an beiden Enden hat Schlüssel für den Punkt-Cache.
+    test('haltKey: Startort und GPS als Punkt, Betrieb als Id', () {
       final f = fahrtenAusHalten(
         halte([
           einsatz('r1', a, von: '08:00', bis: '08:30'),
@@ -493,24 +495,11 @@ void main() {
         ], endeUnterwegs: zuerich),
         keinTreffer,
       );
-      expect(f.map((x) => '${x.von.id}>${x.nach.id}'), [
-        'domat_ems>${a.id}',
-        '${a.id}>${b.id}',
-        '${b.id}>$kGpsEndeId',
+      expect(f.map((x) => '${haltKey(x.von)}>${haltKey(x.nach)}'), [
+        'p:46.8328,9.4530>b:${a.id}',
+        'b:${a.id}>b:${b.id}',
+        'b:${b.id}>p:47.3700,8.5400',
       ]);
-      expect(f.map((x) => x.startortFahrt), [true, false, true]);
-      // Nur die Fahrt zur GPS-Position ist eine GPS-Fahrt.
-      expect(f.map((x) => x.gpsFahrt), [false, false, true]);
-    });
-
-    test('gpsFahrt: Arbeitsbeginn unterwegs → erster Betrieb', () {
-      final f = fahrtenAusHalten(
-        halte([
-          einsatz('r1', a, von: '08:00', bis: '08:30'),
-        ], beginnUnterwegs: zuerich),
-        keinTreffer,
-      );
-      expect(f.map((x) => x.gpsFahrt), [true, false]);
     });
 
     test('ohne Koordinaten keine km (und keine Quelle)', () {
@@ -650,7 +639,10 @@ void main() {
       expect(t.befunde.where((x) => x.contains('wird geholt')), isEmpty);
     });
 
-    test('Anfahrt/Heimweg ohne Anfahrtszeit: «Anfahrtszeiten fehlen»', () {
+    // Seit Migration 213 lässt sich auch eine Anfahrt ohne Eintrag in
+    // `anfahrtszeiten` routen (Startort als Punkt) — dieselbe Meldung wie
+    // Betrieb→Betrieb, kein Auftrag «Anfahrtszeiten erfassen» mehr.
+    test('Anfahrt/Heimweg ohne Strecke: «ohne geroutete Strecke»', () {
       ({double km, String quelle})? nurRouten(Halt von, Halt nach) =>
           (von.typ == HaltTyp.betrieb && nach.typ == HaltTyp.betrieb)
           ? (km: 31.2, quelle: kKmQuelleRoute)
@@ -665,13 +657,10 @@ void main() {
         feierabendErfasst: true,
       );
       expect(zwei.fahrtenOhneKm, 2);
-      expect(
-        zwei.befunde,
-        contains(
-          '2 Anfahrten/Heimwege ohne erfasste Strecke '
-          '(Anfahrtszeiten fehlen)',
-        ),
-      );
+      expect(zwei.befunde, [
+        'Zählerstand fehlt — keine Kontrolle möglich',
+        '2 Fahrten noch ohne geroutete Strecke',
+      ]);
 
       final eine = tagesFahrten(
         halte: halte([
@@ -681,15 +670,10 @@ void main() {
         km: nurRouten,
         feierabendErfasst: false,
       );
-      expect(
-        eine.befunde,
-        contains(
-          '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
-        ),
-      );
+      expect(eine.befunde, contains('1 Fahrt noch ohne geroutete Strecke'));
     });
 
-    test('Fahrten ohne km: Ursachen getrennt gezählt', () {
+    test('Fahrten ohne km: Koordinaten fehlen / noch ohne Route', () {
       final t = tagesFahrten(
         halte: halte([
           einsatz('r1', a, von: '08:00', bis: '08:30'),
@@ -701,14 +685,14 @@ void main() {
         km: keinTreffer,
         feierabendErfasst: true,
       );
-      // domat>a (Anfahrt), a>b (Route), b>Störung (Koordinaten).
+      // domat>a (Anfahrt) und a>b (Route) sind routbar, b>Störung nicht
+      // (Koordinaten fehlen).
       expect(t.fahrten, hasLength(3));
       expect(t.fahrtenOhneKm, 3);
       expect(t.befunde, [
         'Zählerstand fehlt — keine Kontrolle möglich',
         '1 Fahrt ohne Distanz (Koordinaten fehlen)',
-        '1 Fahrt noch ohne geroutete Strecke',
-        '1 Anfahrt/Heimweg ohne erfasste Strecke (Anfahrtszeiten fehlen)',
+        '2 Fahrten noch ohne geroutete Strecke',
       ]);
     });
 
@@ -726,10 +710,11 @@ void main() {
       expect(t.befunde, contains('2 Fahrten noch ohne geroutete Strecke'));
     });
 
-    // GPS-Halte (Arbeitsbeginn/Feierabend unterwegs) haben weder einen
-    // Eintrag in `anfahrtszeiten` noch eine Route — `fahrzeit-route` kennt
-    // nur Betriebe. «Anfahrtszeiten fehlen» wäre dort ein falscher Auftrag.
-    test('Betrieb → GPS-Ende mit Zähler: kein Δ, GPS-Befund', () {
+    // GPS-Halte (Arbeitsbeginn/Feierabend unterwegs) haben keinen Eintrag
+    // in `anfahrtszeiten`, lassen sich seit Migration 213 aber routen
+    // (Punkt-Cache `routen_punkte`) — bis die Strecke da ist, dieselbe
+    // Meldung wie jede andere Fahrt ohne Route.
+    test('Betrieb → GPS-Ende mit Zähler: kein Δ, «ohne Strecke»', () {
       final t = tagesFahrten(
         halte: halte([
           einsatz('r1', a, von: '08:00', bis: '08:30'),
@@ -750,14 +735,38 @@ void main() {
       expect(t.befunde, [
         'Zähler-Kontrolle erst, wenn alle Fahrten eine Strecke haben',
         'Feierabend nicht am Startort',
-        '1 Fahrt von/zu einer GPS-Position ohne Strecke '
-            '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
+        '1 Fahrt noch ohne geroutete Strecke',
       ]);
       expect(t.befunde.where((x) => x.contains('unerklärt')), isEmpty);
       expect(t.befunde.where((x) => x.contains('Anfahrtszeiten')), isEmpty);
     });
 
-    test('GPS-Befund in der Mehrzahl (Beginn und Ende unterwegs)', () {
+    test('Betrieb → GPS-Ende MIT Punkt-Route: Zähler-Kontrolle läuft', () {
+      final t = tagesFahrten(
+        halte: halte([
+          einsatz('r1', a, von: '08:00', bis: '08:30'),
+        ], endeUnterwegs: zuerich),
+        ohneZeit: const [],
+        km: kmNachschlagAus(
+          anfahrten: {
+            'domat_ems': {a.id: 5.0},
+          },
+          routen: const {},
+          punkte: {'b:${a.id}>p:47.3700,8.5400': 140.0},
+        ),
+        kmStart: 50000,
+        kmEnde: 50148,
+        feierabendErfasst: true,
+        feierabendUnterwegs: true,
+      );
+      expect(t.fahrten.last.km, 140.0);
+      expect(t.fahrten.last.kmQuelle, kKmQuelleRoute);
+      expect(t.kmVollstaendig, isTrue);
+      expect(t.differenz, 3);
+      expect(t.befunde, ['Feierabend nicht am Startort']);
+    });
+
+    test('GPS-Fahrten in der Mehrzahl (Beginn und Ende unterwegs)', () {
       final t = tagesFahrten(
         halte: halte(
           [einsatz('r1', a, von: '08:00', bis: '08:30')],
@@ -768,20 +777,15 @@ void main() {
         km: keinTreffer,
         feierabendErfasst: true,
       );
-      expect(
-        t.befunde,
-        contains(
-          '2 Fahrten von/zu einer GPS-Position ohne Strecke '
-          '(Arbeitsbeginn/Feierabend unterwegs — keine Route möglich)',
-        ),
-      );
+      expect(t.befunde, [
+        'Zählerstand fehlt — keine Kontrolle möglich',
+        '2 Fahrten noch ohne geroutete Strecke',
+      ]);
     });
 
-    // Domat/Ems → Chur ohne Einsätze: kein Betrieb an einem Ende, also
-    // weder Anfahrtszeit noch Route möglich. Eigener Befund statt
-    // «Anfahrtszeiten fehlen» (Entscheid Review 29.09.: getrennt vom
-    // GPS-Befund, damit klar ist, welcher Fall vorliegt).
-    test('Startort → Startort: eigener Befund, nicht «Anfahrtszeiten»', () {
+    // Domat/Ems → Chur ohne Einsätze: kein Betrieb an einem Ende. Seit
+    // Migration 213 routbar (zwei Punkte) — kein Sonderbefund mehr.
+    test('Startort → Startort: «ohne geroutete Strecke»', () {
       final t = tagesFahrten(
         halte: halte(const [], startortAbend: 'chur'),
         ohneZeit: const [],
@@ -792,7 +796,7 @@ void main() {
       expect(t.fahrten.single.nach.id, 'chur');
       expect(t.befunde, [
         'Zählerstand fehlt — keine Kontrolle möglich',
-        '1 Fahrt zwischen Startorten ohne Strecke',
+        '1 Fahrt noch ohne geroutete Strecke',
       ]);
     });
 
@@ -1072,6 +1076,35 @@ void main() {
       'luftlinieStreckeKm',
       'fahrtenNurLuftlinie',
       '≈ Luftlinie',
+    ];
+    final verstoesse = <String>[];
+    final dateien = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'));
+    for (final f in dateien) {
+      final text = f.readAsStringSync();
+      for (final v in verboten) {
+        if (text.contains(v)) {
+          verstoesse.add('${f.path.replaceAll('\\', '/')}: $v');
+        }
+      }
+    }
+    expect(verstoesse, isEmpty, reason: verstoesse.join('\n'));
+  });
+
+  // Wächter (29.09.2026, Migration 213): Seit `fahrzeit-route` auch Punkte
+  // routet, sind Fahrten von/zu einer GPS-Position, zwischen Startorten und
+  // Anfahrten ohne `anfahrtszeiten` routbar. Die Sonderbefunde von v0.152.0
+  // («keine Route möglich», «Anfahrtszeiten fehlen») wären jetzt falsch —
+  // sie dürfen nicht zurückkommen.
+  test('Wächter: keine GPS-/Startort-/Anfahrts-Sonderbefunde in lib/', () {
+    const verboten = [
+      'von/zu einer GPS-Position ohne',
+      'keine Route möglich',
+      'zwischen Startorten ohne Strecke',
+      'Anfahrtszeiten fehlen',
+      'ohne erfasste Strecke',
     ];
     final verstoesse = <String>[];
     final dateien = Directory('lib')
