@@ -496,7 +496,8 @@ class _ArbeitstagKarteState extends ConsumerState<ArbeitstagKarte> {
   /// an Tagen ohne Erfassung — nie eine erfundene «0 km».
   ///
   /// Nachrouten: [tagesFahrtenProvider] liest den Monats-Provider, und der
-  /// fragt fehlende Betrieb→Betrieb-Distanzen nach (gedeckelt je Lauf und
+  /// fragt fehlende Strecken nach — seit Migration 213 auch Anfahrt und
+  /// Heimweg von/zu Startort oder GPS-Position (gedeckelt je Lauf und
   /// Sitzung — `kRoutenJeLauf`/`kRoutenJeSitzung` —, seriell gedrosselt,
   /// `fahrten_providers.dart`). Das ist
   /// erwünscht, aber nur einmal: Der Provider wird erst beobachtet, wenn der

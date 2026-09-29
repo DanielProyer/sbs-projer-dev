@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:sbs_projer_app/core/util/fahrzeit.dart';
+import 'package:sbs_projer_app/core/util/routen_punkt_key.dart';
 import 'package:sbs_projer_app/core/util/routen_warteschlange.dart';
 import 'package:sbs_projer_app/services/supabase/supabase_service.dart';
 
@@ -30,34 +31,11 @@ class FahrzeitRepository {
   /// 1000 Zeilen, bei denen PostgREST eine einzelne Abfrage abschneidet
   /// (3594 am 27.09.2026) — ohne Seiten fehlte still der Grossteil der Paare.
   static Future<Map<String, FahrzeitEintrag>> ladeAlle() async {
-    const seite = 1000;
-    Future<List<Map<String, dynamic>>> holeSeite(int nr) => SupabaseService
-        .client
-        .from('fahrzeiten')
-        .select(
-          'id, von_betrieb_id, nach_betrieb_id, minuten, quelle, '
+    final rows = await _alleZeilen(
+      'fahrzeiten',
+      'id, von_betrieb_id, nach_betrieb_id, minuten, quelle, '
           'distanz_km, distanz_quelle',
-        )
-        .order('id')
-        .range(nr * seite, (nr + 1) * seite - 1)
-        .then((rows) => List<Map<String, dynamic>>.from(rows));
-
-    final rows = <Map<String, dynamic>>[];
-    final erste = await holeSeite(0);
-    rows.addAll(erste);
-    // Folgeseiten in Wellen zu vier parallel (Muster der Repositories).
-    var naechste = 1;
-    var letzteVoll = erste.length == seite;
-    while (letzteVoll) {
-      final wellen = await Future.wait([
-        for (var i = 0; i < 4; i++) holeSeite(naechste + i),
-      ]);
-      for (final w in wellen) {
-        rows.addAll(w);
-      }
-      letzteVoll = wellen.last.length == seite;
-      naechste += 4;
-    }
+    );
 
     final map = <String, FahrzeitEintrag>{};
     for (final r in rows) {
@@ -72,6 +50,64 @@ class FahrzeitRepository {
       );
     }
     return map;
+  }
+
+  /// Geroutete Strecken zwischen Punkten (`routen_punkte`, Migration 213):
+  /// `'<vonKey>><nachKey>'` → km, Schlüssel wie `punktRoutenSchluessel`
+  /// (`'b:<uuid>'` / `'p:<lat>,<lng>'`). Richtung wie gespeichert — der
+  /// Nachschlag (`kmNachschlagAus`) prüft auch die Gegenrichtung. Gefüllt
+  /// nur von der Edge Function `fahrzeit-route`.
+  ///
+  /// Seitenweise mit `.order('id')` wie [ladeAlle]: Die Tabelle wächst mit
+  /// jedem Tag, der unterwegs beginnt oder endet.
+  static Future<Map<String, double>> ladePunktRouten() async {
+    final rows = await _alleZeilen(
+      'routen_punkte',
+      'id, von_key, nach_key, distanz_km',
+    );
+    final map = <String, double>{};
+    for (final r in rows) {
+      final km = _zahl(r['distanz_km']);
+      if (km == null) continue;
+      final von = r['von_key'] as String, nach = r['nach_key'] as String;
+      map[punktRoutenSchluessel(von, nach)] = km;
+    }
+    return map;
+  }
+
+  /// Alle Zeilen einer Tabelle, seitenweise (PostgREST schneidet bei 1000
+  /// ab) — sortiert nach `id`, damit keine Zeile zwischen zwei Seiten
+  /// verloren geht. Folgeseiten in Wellen zu vier parallel (Muster der
+  /// Repositories).
+  static Future<List<Map<String, dynamic>>> _alleZeilen(
+    String tabelle,
+    String spalten,
+  ) async {
+    const seite = 1000;
+    Future<List<Map<String, dynamic>>> holeSeite(int nr) => SupabaseService
+        .client
+        .from(tabelle)
+        .select(spalten)
+        .order('id')
+        .range(nr * seite, (nr + 1) * seite - 1)
+        .then((rows) => List<Map<String, dynamic>>.from(rows));
+
+    final rows = <Map<String, dynamic>>[];
+    final erste = await holeSeite(0);
+    rows.addAll(erste);
+    var naechste = 1;
+    var letzteVoll = erste.length == seite;
+    while (letzteVoll) {
+      final wellen = await Future.wait([
+        for (var i = 0; i < 4; i++) holeSeite(naechste + i),
+      ]);
+      for (final w in wellen) {
+        rows.addAll(w);
+      }
+      letzteVoll = wellen.last.length == seite;
+      naechste += 4;
+    }
+    return rows;
   }
 
   static double? _zahl(Object? v) => switch (v) {
@@ -116,25 +152,53 @@ class FahrzeitRepository {
   /// (Logs 27.09.2026).
   static final _routenSchlange = RoutenWarteschlange();
 
-  /// Fordert eine geroutete Fahrzeit von der Edge-Function `fahrzeit-route`
-  /// an (OSRM-Proxy mit Cache). Fire-and-forget aus Sicht der Aufrufer:
-  /// Fehler/Timeouts liefern still `null` zurueck — die App zeigt derweil die
-  /// Heuristik, ein Provider stoesst den Aufruf an und invalidiert bei Erfolg.
+  /// Fordert eine geroutete Fahrzeit zwischen zwei BETRIEBEN von der
+  /// Edge-Function `fahrzeit-route` an (OSRM-Proxy mit Cache `fahrzeiten`)
+  /// — der Tourenplan. Kurzform von [routeAnfordernEnden].
+  static Future<FahrzeitEintrag?> routeAnfordern(String vonId, String nachId) =>
+      routeAnfordernEnden(
+        (betriebId: vonId, lat: null, lng: null),
+        (betriebId: nachId, lat: null, lng: null),
+      );
+
+  /// Fordert eine geroutete Strecke von der Edge-Function `fahrzeit-route`
+  /// an. Jedes Ende ist ein Betrieb (`betriebId`) oder — seit Migration 213
+  /// — ein Punkt (`lat`/`lng`: Startort, GPS-Position); die Function legt
+  /// Betrieb→Betrieb in `fahrzeiten` ab, alles andere in `routen_punkte`
+  /// ([ladePunktRouten]).
+  ///
+  /// Fire-and-forget aus Sicht der Aufrufer: Fehler/Timeouts liefern still
+  /// `null` zurueck — ein Provider stoesst den Aufruf an und invalidiert bei
+  /// Erfolg.
   ///
   /// Läuft durch [_routenSchlange]: nacheinander, mit mindestens
   /// `kRoutenAbstand` Pause. Wer mehrere Paare auf einmal aufruft (ohne
   /// dazwischen zu warten), reiht sie als Block ein.
-  static Future<FahrzeitEintrag?> routeAnfordern(String vonId, String nachId) =>
-      _routenSchlange.einreihen(() => _routeJetztAnfordern(vonId, nachId));
+  static Future<FahrzeitEintrag?> routeAnfordernEnden(
+    RoutenEnde von,
+    RoutenEnde nach,
+  ) => _routenSchlange.einreihen(() => _routeJetztAnfordern(von, nach));
+
+  /// Body für `fahrzeit-route`: `{von: {...}, nach: {...}}`, je Ende nur die
+  /// gesetzten Felder (die Function lehnt Betrieb UND Punkt zugleich ab).
+  @visibleForTesting
+  static Map<String, Object> anfrageBody(RoutenEnde von, RoutenEnde nach) {
+    Map<String, Object> ende(RoutenEnde e) => {
+      if (e.betriebId case final id?) 'betriebId': id,
+      if (e.lat case final lat?) 'lat': lat,
+      if (e.lng case final lng?) 'lng': lng,
+    };
+    return {'von': ende(von), 'nach': ende(nach)};
+  }
 
   static Future<FahrzeitEintrag?> _routeJetztAnfordern(
-    String vonId,
-    String nachId,
+    RoutenEnde von,
+    RoutenEnde nach,
   ) async {
     try {
       final res = await SupabaseService.client.functions.invoke(
         'fahrzeit-route',
-        body: {'vonBetriebId': vonId, 'nachBetriebId': nachId},
+        body: anfrageBody(von, nach),
       );
       final data = res.data;
       if (data is Map && data['ok'] == true) {
@@ -143,7 +207,7 @@ class FahrzeitRepository {
           minuten: (data['minuten'] as num).toInt(),
           quelle: data['quelle'] as String,
           distanzKm: distanzKm,
-          // Die Edge Function routet nur über OSRM (Migration 210).
+          // Die Edge Function routet nur über OSRM (Migration 210/213).
           distanzQuelle: distanzKm == null ? null : 'osrm',
         );
       }

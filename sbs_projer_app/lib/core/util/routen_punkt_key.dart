@@ -19,6 +19,13 @@
 /// gegenseitig).
 library;
 
+/// Ein Ende einer Routen-Anfrage an `fahrzeit-route`: ENTWEDER ein Betrieb
+/// ([betriebId], die Function liest die Koordinaten aus den Stammdaten)
+/// ODER ein Punkt ([lat]/[lng]: Startort, GPS-Position). Hier statt im
+/// Repository, damit die reinen Regeln (`fahrten_aus_kette.dart`) Aufträge
+/// bauen können, ohne Supabase zu kennen.
+typedef RoutenEnde = ({String? betriebId, double? lat, double? lng});
+
 /// Schlüssel eines Punkts: `p:<lat>,<lng>`, je vier Nachkommastellen.
 String punktKey(double lat, double lng) =>
     'p:${lat.toStringAsFixed(4)},${lng.toStringAsFixed(4)}';
