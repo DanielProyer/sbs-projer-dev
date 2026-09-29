@@ -833,27 +833,74 @@ void main() {
       expect(paare, [(von: 'betrieb-a', nach: 'betrieb-b')]);
     });
 
-    test('nur Tage mit Zählerstand — nur dort zählen die km', () {
-      final zweiBetriebe = [
-        einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
-        einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
-      ];
+    // Seit 29.09.2026 zeigt eine Fahrt ohne Route gar keine km — routen
+    // lohnt sich also überall. Die Tage mit Zählerstand kommen zuerst: Dort
+    // wartet eine Kontrolle auf die Strecke.
+    test('auch Tage ohne Zählerstand', () {
       final ohneZaehler = bauen(
         tagesplaene: {tag: plan(kmEnde: null)},
-        einsaetze: zweiBetriebe,
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+        ],
       );
       expect(ohneZaehler[tag]!.kmZaehler, isNull);
-      expect(fehlendeRoutenPaare(ohneZaehler.values), isEmpty);
-
-      final mitZaehler = bauen(einsaetze: zweiBetriebe);
-      expect(fehlendeRoutenPaare(mitZaehler.values), [
+      expect(fehlendeRoutenPaare(ohneZaehler.values), [
         (von: 'betrieb-a', nach: 'betrieb-b'),
+      ]);
+    });
+
+    test('Tage mit Zählerstand zuerst, sonst in der übergebenen Folge', () {
+      final t26 = DateTime(2026, 9, 26), t27 = DateTime(2026, 9, 27);
+      final ergebnis = bauen(
+        tagesplaene: {
+          tag: plan(kmEnde: null), // 25.: ohne Zähler
+          t26: plan(), // 26.: mit Zähler
+          t27: plan(kmEnde: null), // 27.: ohne Zähler
+        },
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+          einsatz('r3', 'betrieb-b', von: '08:00', bis: '09:00', datum: t26),
+          einsatz('r4', 'betrieb-c', von: '10:00', bis: '11:00', datum: t26),
+          einsatz('r5', 'betrieb-c', von: '08:00', bis: '09:00', datum: t27),
+          einsatz('r6', 'betrieb-a', von: '10:00', bis: '11:00', datum: t27),
+        ],
+      );
+      // Neueste zuerst übergeben (wie der Provider).
+      final paare = fehlendeRoutenPaare([
+        ergebnis[t27]!,
+        ergebnis[t26]!,
+        ergebnis[tag]!,
+      ]);
+      expect(paare, [
+        (von: 'betrieb-b', nach: 'betrieb-c'), // 26. — mit Zähler
+        (von: 'betrieb-c', nach: 'betrieb-a'), // 27.
+        (von: 'betrieb-a', nach: 'betrieb-b'), // 25.
+      ]);
+    });
+
+    test('ein Paar nur einmal, auch über Tage mit und ohne Zähler', () {
+      final t26 = DateTime(2026, 9, 26);
+      final ergebnis = bauen(
+        tagesplaene: {tag: plan(kmEnde: null), t26: plan()},
+        einsaetze: [
+          einsatz('r1', 'betrieb-a', von: '08:00', bis: '09:00'),
+          einsatz('r2', 'betrieb-b', von: '10:00', bis: '11:00'),
+          einsatz('r3', 'betrieb-b', von: '08:00', bis: '09:00', datum: t26),
+          einsatz('r4', 'betrieb-a', von: '10:00', bis: '11:00', datum: t26),
+        ],
+      );
+      expect(fehlendeRoutenPaare([ergebnis[tag]!, ergebnis[t26]!]), [
+        (von: 'betrieb-b', nach: 'betrieb-a'), // vom Tag mit Zähler
       ]);
     });
   });
 
   // OSRM-Demo-Server: höchstens 1 Anfrage/s, keine Massenabfragen. Vorher
   // holte jeder Erfolg die nächsten zehn, bis der ganze Monat durch war.
+  // Seit 29.09.2026 25 je Lauf (≈ 28 s bei 1,1 s Abstand) und 100 je
+  // Sitzung: Ohne Route zeigt eine Fahrt keine km mehr.
   group('routenAuswahl', () {
     List<RoutenPaar> paare(int n, [String p = 'a']) => [
       for (var i = 0; i < n; i++) (von: '$p$i', nach: 'z$i'),
@@ -862,33 +909,33 @@ void main() {
       for (var i = 0; i < n; i++) routenPaarSchluessel('alt$i', 'z$i'),
     };
 
-    test('Standard: 10 je Lauf, 30 je Sitzung', () {
-      expect(kRoutenJeLauf, 10);
-      expect(kRoutenJeSitzung, 30);
+    test('Standard: 25 je Lauf, 100 je Sitzung', () {
+      expect(kRoutenJeLauf, 25);
+      expect(kRoutenJeSitzung, 100);
     });
 
     test('Deckel je Lauf', () {
       expect(
-        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}),
-        paare(10),
+        routenAuswahl(kandidaten: paare(40), schonAngefragt: {}),
+        paare(25),
       );
       expect(
-        routenAuswahl(kandidaten: paare(25), schonAngefragt: {}, jeLauf: 3),
+        routenAuswahl(kandidaten: paare(40), schonAngefragt: {}, jeLauf: 3),
         paare(3),
       );
     });
 
     test('Deckel je Sitzung zählt die schon angefragten mit', () {
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(25)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(95)),
         paare(5),
       );
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(30)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(100)),
         isEmpty,
       );
       expect(
-        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(31)),
+        routenAuswahl(kandidaten: paare(10), schonAngefragt: angefragt(101)),
         isEmpty,
       );
     });

@@ -808,13 +808,21 @@ typedef RoutenPaar = ({String von, String nach});
 /// Deckel fürs Nachrouten über `fahrzeit-route`: je Lauf (ein Neuberechnen
 /// des Monats) und je Sitzung (bis die App neu geladen wird).
 ///
-/// WARUM: Die Edge Function fragt den öffentlichen OSRM-Demo-Server — der
-/// erlaubt höchstens eine Anfrage pro Sekunde und ist nicht für
-/// Massenabfragen gedacht. Ungedeckelt holte jeder Erfolg die nächsten zehn
-/// Paare, bis der ganze Monat durch war; Zurückblättern löste 80–130
-/// Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s).
-const kRoutenJeLauf = 10;
-const kRoutenJeSitzung = 30;
+/// WARUM ein Deckel: Die Edge Function fragt den öffentlichen
+/// OSRM-Demo-Server — der erlaubt höchstens eine Anfrage pro Sekunde und
+/// ist nicht für Massenabfragen gedacht. Ungedeckelt holte jeder Erfolg die
+/// nächsten zehn Paare, bis der ganze Monat durch war; Zurückblättern löste
+/// 80–130 Anfragen je Monat aus (Logs 27.09.2026: 3 Anfragen/s).
+///
+/// WARUM 25/100 (29.09.2026, vorher 10/30): Seit es keine Luftlinien-km
+/// mehr gibt, zeigt eine Fahrt ohne Route gar keine km — der Rückstand muss
+/// schneller weg. Die Warteschlange hält ≥ 1,1 s Abstand, 25 Paare dauern
+/// also ≈ 28 s je Lauf; der Server sieht nie mehr als eine Anfrage pro
+/// Sekunde. Jede Antwort landet dauerhaft in `fahrzeiten.distanz_km`, der
+/// Rückstand schrumpft also von Sitzung zu Sitzung von selbst. Was über dem
+/// Sitzungsdeckel liegt, bleibt «ohne Strecke», bis die App neu lädt.
+const kRoutenJeLauf = 25;
+const kRoutenJeSitzung = 100;
 
 /// Welche [kandidaten] dieser Lauf anfragt: ohne die [schonAngefragt]
 /// (richtungslose Schlüssel, [routenPaarSchluessel]) und ohne Doppel,
@@ -843,24 +851,34 @@ List<RoutenPaar> routenAuswahl({
 
 /// Betrieb→Betrieb-Fahrten ohne km, obwohl beide Betriebe Koordinaten haben
 /// — Kandidaten fürs Nachrouten über die Edge Function `fahrzeit-route`. Je
-/// Paar nur eine Richtung (der Nachschlag prüft beide), in der Reihenfolge
-/// der übergebenen Tage. Anfahrten/Heimwege sind nie Kandidaten (deren km
-/// kommen aus `anfahrtszeiten`).
+/// Paar nur eine Richtung (der Nachschlag prüft beide). Anfahrten/Heimwege
+/// sind nie Kandidaten (deren km kommen aus `anfahrtszeiten`).
 ///
-/// Nur Tage mit Zählerstand ([TagesFahrten.kmZaehler]): Nur dort gibt es
-/// eine Kontrolle, bei der die genaueren km etwas ändern — alles andere
-/// wären Anfragen ohne Nutzen.
+/// Reihenfolge: zuerst die Tage mit Zählerstand ([TagesFahrten.kmZaehler]),
+/// dann die übrigen — je in der übergebenen Folge. Dort wartet eine
+/// Zähler-Kontrolle auf die Strecke; weil die Deckel ([kRoutenJeLauf],
+/// [kRoutenJeSitzung]) vorne abschneiden, kommen diese Tage zuerst dran.
+/// Bis 28.09.2026 wurden NUR diese Tage geroutet (die übrigen hatten ja die
+/// Luftlinie); seit es keine Luftlinien-km mehr gibt, zeigt eine Fahrt ohne
+/// Route überhaupt keine km — routen lohnt sich also überall.
 List<RoutenPaar> fehlendeRoutenPaare(Iterable<TagesFahrten> tage) {
   final gesehen = <String>{};
   final paare = <RoutenPaar>[];
-  for (final t in tage) {
-    if (t.kmZaehler == null) continue;
+  void sammeln(TagesFahrten t) {
     for (final f in t.fahrten) {
       if (f.km != null || f.startortFahrt || f.ohneKoordinaten) continue;
       if (gesehen.add(routenPaarSchluessel(f.von.id, f.nach.id))) {
         paare.add((von: f.von.id, nach: f.nach.id));
       }
     }
+  }
+
+  final liste = tage.toList();
+  for (final t in liste) {
+    if (t.kmZaehler != null) sammeln(t);
+  }
+  for (final t in liste) {
+    if (t.kmZaehler == null) sammeln(t);
   }
   return paare;
 }
