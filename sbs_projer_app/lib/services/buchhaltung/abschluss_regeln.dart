@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:sbs_projer_app/core/util/bank_waechter.dart';
 import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/delkredere.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
@@ -332,7 +333,9 @@ class DelkredereRegel extends AbschlussRegel {
   Pruefbefund pruefe(AbschlussKontext k) {
     final deb = k.saldo(1100);
     final wb = -k.saldo(1109);
-    final soll = rundeAufRappen(deb * 0.05);
+    // Dieselbe Zielrechnung wie der Buchungsschritt (Schritt E), damit Regel
+    // und Buchung nie um einen Rappen auseinanderlaufen.
+    final soll = delkredereZiel(deb);
     if (deb <= _toleranz) {
       return befund(
         wb > _toleranz ? PruefStatus.gelb : PruefStatus.gruen,
