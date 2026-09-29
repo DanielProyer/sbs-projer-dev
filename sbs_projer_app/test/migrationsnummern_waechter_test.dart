@@ -17,11 +17,9 @@ void main() {
   const bekannteLuecken = {8, 9};
 
   // Nummern, die in einem parallel entwickelten Branch liegen und erst mit
-  // dessen Merge hierher kommen: 215 (Abschreibungsläufe, 29.09.2026) — 216
-  // (Jahressperre per 31.12.) entstand gleichzeitig im Branch der
-  // Abschluss-Schritte D/E. Nach dem Merge ist die Datei da und der Eintrag
-  // wirkungslos; dann entfernen.
-  const imParallelBranch = {215};
+  // dessen Merge hierher kommen (29.09.2026: 215 war so ein Fall, seit dem
+  // Merge leer — nur befüllen, solange ein Branch wirklich offen ist).
+  const imParallelBranch = <int>{};
 
   final migrationsOrdner = Directory('../Datenbank/migrations');
 
