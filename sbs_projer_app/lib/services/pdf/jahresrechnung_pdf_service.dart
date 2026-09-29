@@ -1,6 +1,7 @@
 // lib/services/pdf/jahresrechnung_pdf_service.dart
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -60,16 +61,43 @@ class JahresrechnungPdfService {
       mwstZeile: mwstZeile,
     );
 
+    // Fuss auf jeder Seite: Die Jahresrechnung geht als Stapel ans
+    // Steueramt — ohne Seitenzahl lässt sich eine lose Seite nicht mehr
+    // zuordnen (Review 29.09.2026, K1).
+    pw.Widget fuss(pw.Context c) => pw.Container(
+      alignment: pw.Alignment.centerRight,
+      margin: const pw.EdgeInsets.only(top: 8),
+      child: pw.Text(
+        fussText(jahr, c.pageNumber, c.pagesCount),
+        style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700),
+      ),
+    );
+
+    // Spaltenkopf ab der zweiten Seite eines Abschnitts: Auf einer
+    // Folgeseite ohne Kopf wusste man nicht, welche Spalte das Vorjahr ist.
+    // Die erste Seite trägt ihn im Inhalt, direkt unter dem Titel.
+    pw.Widget Function(pw.Context) folgeKopf(String spalte, String? vorjahr) {
+      int? ersteSeite;
+      return (c) {
+        ersteSeite ??= c.pageNumber;
+        if (c.pageNumber == ersteSeite) return pw.SizedBox();
+        return pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 4),
+          child: _spaltenKopf(spalte, vorjahr),
+        );
+      };
+    }
+
     // ── Seite 1: Bilanz mit Vorjahr ──────────────────────────────────────
     final mitBilanzVj = bilanzVorjahr != null;
-    final aktiven = _vergleich(bilanz.aktiven, bilanzVorjahr?.aktiven);
-    final passiven = _vergleich(bilanz.passiven, bilanzVorjahr?.passiven);
+    final aktiven = vergleich(bilanz.aktiven, bilanzVorjahr?.aktiven);
+    final passiven = vergleich(bilanz.passiven, bilanzVorjahr?.passiven);
     final diffJ = bilanz.differenz;
     final diffV = bilanzVorjahr?.differenz ?? 0;
 
     List<pw.Widget> seite(
       String titel,
-      List<_Gruppe> gruppen,
+      List<VergleichsGruppe> gruppen,
       double total,
       double? totalVj,
     ) => [
@@ -114,6 +142,11 @@ class JahresrechnungPdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        header: folgeKopf(
+          '31.12.$jahr',
+          mitBilanzVj ? '31.12.${jahr - 1}' : null,
+        ),
+        footer: fuss,
         build: (context) => [
           kopf('Bilanz', 'per 31.12.$jahr'),
           pw.SizedBox(height: 8),
@@ -176,6 +209,8 @@ class JahresrechnungPdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        header: folgeKopf('$jahr', mitErVj ? '${jahr - 1}' : null),
+        footer: fuss,
         build: (context) => [
           kopf('Erfolgsrechnung', '01.01.–31.12.$jahr'),
           pw.SizedBox(height: 8),
@@ -218,7 +253,7 @@ class JahresrechnungPdfService {
             'Konten',
             style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
           ),
-          for (final kl in _klassenVergleich(konten, kontenVorjahr)) ...[
+          for (final kl in klassenVergleich(konten, kontenVorjahr)) ...[
             pw.SizedBox(height: 6),
             _zeile(
               'Klasse ${kl.klasse} – ${kontenklasseBeschreibung[kl.klasse] ?? ''}',
@@ -248,72 +283,18 @@ class JahresrechnungPdfService {
 
     // ── Seite 3: Anhang OR 959c ──────────────────────────────────────────
     final anlage = _anlagevermoegen(bilanz);
-    final abschreibungen = k.abschreibungen.isEmpty
-        ? 'im Abschluss des Verjährungsjahres abgeschrieben; $jahr keine.'
-        : 'im Abschluss des Verjährungsjahres abgeschrieben: '
-              '${k.abschreibungen.join('; ')}.';
-    final ereignisse =
-        k.ereignisse ??
-        (k.abschreibungen.isEmpty
-            ? 'Keine wesentlichen Ereignisse nach dem Bilanzstichtag.'
-            : 'Die Abschreibung der verjährten Jahrgänge wurde nach dem '
-                  'Bilanzstichtag beschlossen und per 31.12.$jahr verbucht; '
-                  'die Mehrwertsteuer-Rückholung erfolgt in der Periode des '
-                  'Entscheids.');
-    final punkte = <(String, String)>[
-      (
-        'Firma, Rechtsform, Sitz',
-        '$firma, Gesellschaft mit beschränkter Haftung, $sitz GR. '
-            'Zapfanlagen-Service (Reinigung, Störungsbehebung, Montage) als '
-            'Heineken-Franchisenehmerin.',
-      ),
-      (
-        'Rechnungslegung',
-        'Nach den Vorschriften des Schweizer Obligationenrechts '
-            '(Art. 957 ff. OR). Die Jahresrechnung wird in Schweizer Franken '
-            'geführt.',
-      ),
-      (
-        'Vollzeitstellen',
-        'Im Jahresdurchschnitt nicht mehr als 10 Vollzeitstellen '
-            '(eine Person).',
-      ),
-      (
-        'Forderungen aus Lieferungen und Leistungen',
-        'Nominalwert CHF ${chf(k.debitoren)} abzüglich pauschale '
-            'Wertberichtigung (Delkredere) von 5 %, CHF ${chf(k.delkredere)}. '
-            'Verjährte Forderungen (Art. 128 Ziff. 3 OR) werden jahrgangsweise '
-            '$abschreibungen',
-      ),
-      (
-        'Rückstellungen',
-        'Rückstellung für Gewinn- und Kapitalsteuern $jahr: '
-            'CHF ${chf(k.rueckstellung)}.',
-      ),
-      (
-        'Flüssige Mittel',
-        'Bank CHF ${chf(k.bank)} (Kontoauszug per 31.12.$jahr), '
-            'Kasse CHF ${chf(k.kasse)}.',
-      ),
-      (
-        'Anlagevermögen, Beteiligungen',
-        anlage.abs() < 0.005
-            ? 'Kein Anlagevermögen, keine Beteiligungen, keine Liegenschaften.'
-            : 'Anlagevermögen gemäss Bilanz CHF ${chf(anlage)}; keine '
-                  'Beteiligungen, keine Liegenschaften.',
-      ),
-      (
-        'Eventualverbindlichkeiten, Leasing',
-        'Keine Bürgschaften, keine Garantieverpflichtungen, keine '
-            'Leasingverbindlichkeiten.',
-      ),
-      ('Ereignisse nach dem Bilanzstichtag', ereignisse),
-    ];
+    final punkte = anhangPunkte(
+      k: k,
+      anlagevermoegen: anlage,
+      firma: firma,
+      sitz: sitz,
+    );
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        footer: fuss,
         build: (context) => [
           kopf('Anhang', 'zur Jahresrechnung $jahr (Art. 959c OR)'),
           pw.SizedBox(height: 8),
@@ -403,12 +384,14 @@ class JahresrechnungPdfService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(40),
+        footer: fuss,
         build: (context) => [
           kopf('Beilage zur Steuererklärung $jahr', 'Kennzahlen'),
           pw.SizedBox(height: 10),
           wert('Reingewinn laut Erfolgsrechnung $jahr', chf(k.gewinn)),
           wert(
-            '+ Aufrechnung: nicht abzugsfähige Bussen (Konten 6280/6281)',
+            '+ Aufrechnung: nicht abzugsfähige Bussen (6280/6281, '
+                'Steuerbussen 8900)',
             chf(k.aufrechnungenAuto),
           ),
           if (k.aufrechnungenManuell.abs() >= 0.005)
@@ -462,6 +445,90 @@ class JahresrechnungPdfService {
     );
 
     return pdf.save();
+  }
+
+  /// Fusszeile jeder Seite, Seitenzahlen über das ganze Dokument.
+  @visibleForTesting
+  static String fussText(int jahr, int seite, int seiten) =>
+      'Jahresrechnung $jahr · Seite $seite/$seiten';
+
+  /// Die Punkte des Anhangs (Art. 959c OR) als (Titel, Text). Texte aus
+  /// `Datenbank/wartung/jahresrechnung_beilage.py`, Zahlen aus [k].
+  @visibleForTesting
+  static List<(String, String)> anhangPunkte({
+    required JahresrechnungKennzahlen k,
+    required double anlagevermoegen,
+    required String firma,
+    required String sitz,
+  }) {
+    final jahr = k.jahr;
+    final abschreibungen = k.abschreibungen.isEmpty
+        ? 'im Abschluss des Verjährungsjahres abgeschrieben; $jahr keine.'
+        : 'im Abschluss des Verjährungsjahres abgeschrieben: '
+              '${k.abschreibungen.join('; ')}.';
+    // Der Skript-Text «nach dem Bilanzstichtag beschlossen» stimmt nur,
+    // wenn die Abschreibung zurückdatiert wurde — erkennbar an der
+    // MWST-Rückholung im Folgejahr (K8). Ein Lauf, der im Abschlussjahr
+    // selbst gebucht und zurückgeholt wurde, ist kein Ereignis danach.
+    final ereignisse =
+        k.ereignisse ??
+        (k.abschreibungNachStichtag
+            ? 'Die Abschreibung der verjährten Jahrgänge wurde nach dem '
+                  'Bilanzstichtag beschlossen und per 31.12.$jahr verbucht; '
+                  'die Mehrwertsteuer-Rückholung erfolgt in der Periode des '
+                  'Entscheids.'
+            : 'Keine wesentlichen Ereignisse nach dem Bilanzstichtag.');
+    return [
+      (
+        'Firma, Rechtsform, Sitz',
+        '$firma, Gesellschaft mit beschränkter Haftung, $sitz GR. '
+            'Zapfanlagen-Service (Reinigung, Störungsbehebung, Montage) als '
+            'Heineken-Franchisenehmerin.',
+      ),
+      (
+        'Rechnungslegung',
+        'Nach den Vorschriften des Schweizer Obligationenrechts '
+            '(Art. 957 ff. OR). Die Jahresrechnung wird in Schweizer Franken '
+            'geführt.',
+      ),
+      (
+        'Vollzeitstellen',
+        'Im Jahresdurchschnitt nicht mehr als 10 Vollzeitstellen '
+            '(eine Person).',
+      ),
+      (
+        'Forderungen aus Lieferungen und Leistungen',
+        // Der gebuchte Satz, nicht die Pauschale: Nach einer Abschreibung
+        // ohne Nachführung weicht er ab (K7).
+        'Nominalwert CHF ${chf(k.debitoren)} abzüglich pauschale '
+            'Wertberichtigung (Delkredere) von ${k.delkredereSatzText}, '
+            'CHF ${chf(k.delkredere)}. Verjährte Forderungen (Art. 128 '
+            'Ziff. 3 OR) werden jahrgangsweise $abschreibungen',
+      ),
+      (
+        'Rückstellungen',
+        'Rückstellung für Gewinn- und Kapitalsteuern $jahr: '
+            'CHF ${chf(k.rueckstellung)}.',
+      ),
+      (
+        'Flüssige Mittel',
+        'Bank CHF ${chf(k.bank)} (Kontoauszug per 31.12.$jahr), '
+            'Kasse CHF ${chf(k.kasse)}.',
+      ),
+      (
+        'Anlagevermögen, Beteiligungen',
+        anlagevermoegen.abs() < 0.005
+            ? 'Kein Anlagevermögen, keine Beteiligungen, keine Liegenschaften.'
+            : 'Anlagevermögen gemäss Bilanz CHF ${chf(anlagevermoegen)}; '
+                  'keine Beteiligungen, keine Liegenschaften.',
+      ),
+      (
+        'Eventualverbindlichkeiten, Leasing',
+        'Keine Bürgschaften, keine Garantieverpflichtungen, keine '
+            'Leasingverbindlichkeiten.',
+      ),
+      ('Ereignisse nach dem Bilanzstichtag', ereignisse),
+    ];
   }
 
   /// Eine Betragszeile mit Spalte Jahr und optional Vorjahr.
@@ -590,10 +657,11 @@ class JahresrechnungPdfService {
     'Eigenkapital',
   ];
 
-  /// Gruppen beider Jahre nach Titel zusammengeführt, Posten nach
-  /// Kontonummer. Eine Gruppe, die nur im Vorjahr vorkommt (Coronakredit
+  /// Gruppen beider Jahre nach Titel zusammengeführt, Posten nach Nummer
+  /// und Bezeichnung. Eine Gruppe, die nur im Vorjahr vorkommt (Coronakredit
   /// 2024 getilgt), steht an ihrem gewohnten Platz, nicht hinten.
-  static List<_Gruppe> _vergleich(
+  @visibleForTesting
+  static List<VergleichsGruppe> vergleich(
     List<BilanzGruppe> jahr,
     List<BilanzGruppe>? vorjahr,
   ) {
@@ -615,34 +683,58 @@ class JahresrechnungPdfService {
     });
     return [
       for (final t in titel)
-        _Gruppe(t, _posten(
-          jahr.where((g) => g.titel == t).expand((g) => g.posten),
-          (vorjahr ?? const []).where((g) => g.titel == t).expand((g) => g.posten),
-        )),
+        VergleichsGruppe(
+          t,
+          _posten(
+            jahr.where((g) => g.titel == t).expand((g) => g.posten),
+            (vorjahr ?? const []).where((g) => g.titel == t).expand((g) => g.posten),
+          ),
+        ),
     ];
   }
 
-  static List<_Posten> _posten(
+  /// Schlüssel (Nummer, Bezeichnung), nicht nur die Nummer (K2): Die
+  /// Bilanz hängt Gewinnvortrag (2970) und Jahresergebnis (2980) als
+  /// berechnete Posten an. Führt der Kontenplan ein echtes Konto mit
+  /// derselben Nummer, würde sonst der eine Posten den anderen
+  /// überschreiben. Doppelte Schlüssel innerhalb eines Jahrs werden addiert.
+  static List<VergleichsPosten> _posten(
     Iterable<BilanzPosten> jahr,
     Iterable<BilanzPosten> vorjahr,
   ) {
-    final zeilen = <int, _Posten>{};
+    final zeilen = <(int, String), VergleichsPosten>{};
     for (final p in jahr) {
-      zeilen[p.kontonummer] = _Posten(p.kontonummer, p.bezeichnung, p.summe, 0);
+      final key = (p.kontonummer, p.bezeichnung);
+      final da = zeilen[key];
+      zeilen[key] = VergleichsPosten(
+        p.kontonummer,
+        p.bezeichnung,
+        (da?.jahr ?? 0) + p.summe,
+        0,
+      );
     }
     for (final p in vorjahr) {
-      final da = zeilen[p.kontonummer];
-      zeilen[p.kontonummer] = da == null
-          ? _Posten(p.kontonummer, p.bezeichnung, 0, p.summe)
-          : _Posten(da.nr, da.bezeichnung, da.jahr, p.summe);
+      final key = (p.kontonummer, p.bezeichnung);
+      final da = zeilen[key];
+      zeilen[key] = VergleichsPosten(
+        p.kontonummer,
+        p.bezeichnung,
+        da?.jahr ?? 0,
+        (da?.vorjahr ?? 0) + p.summe,
+      );
     }
-    return zeilen.values.toList()..sort((a, b) => a.nr.compareTo(b.nr));
+    return zeilen.values.toList()..sort((a, b) {
+      final n = a.nr.compareTo(b.nr);
+      return n != 0 ? n : a.bezeichnung.compareTo(b.bezeichnung);
+    });
   }
 
   static BilanzPosten _alsPosten(ErKonto k) =>
       BilanzPosten(k.nr, k.bezeichnung ?? '—', k.summe);
 
-  static List<_Klasse> _klassenVergleich(
+  /// Konten der Erfolgsrechnung beider Jahre je Klasse.
+  @visibleForTesting
+  static List<VergleichsKlasse> klassenVergleich(
     ErKontenAufstellung jahr,
     ErKontenAufstellung? vorjahr,
   ) {
@@ -656,7 +748,7 @@ class JahresrechnungPdfService {
     ];
     return [
       for (final kl in klassen)
-        _Klasse(
+        VergleichsKlasse(
           kl,
           _posten(
             konten(jahr, kl).map(_alsPosten),
@@ -667,25 +759,26 @@ class JahresrechnungPdfService {
   }
 }
 
-class _Posten {
+/// Ein Posten mit Betrag im Jahr und im Vorjahr (fehlt er: 0).
+class VergleichsPosten {
   final int nr;
   final String bezeichnung;
   final double jahr, vorjahr;
-  const _Posten(this.nr, this.bezeichnung, this.jahr, this.vorjahr);
+  const VergleichsPosten(this.nr, this.bezeichnung, this.jahr, this.vorjahr);
 }
 
-class _Gruppe {
+class VergleichsGruppe {
   final String titel;
-  final List<_Posten> posten;
-  const _Gruppe(this.titel, this.posten);
+  final List<VergleichsPosten> posten;
+  const VergleichsGruppe(this.titel, this.posten);
   double get summeJahr => posten.fold(0.0, (s, p) => s + p.jahr);
   double get summeVorjahr => posten.fold(0.0, (s, p) => s + p.vorjahr);
 }
 
-class _Klasse {
+class VergleichsKlasse {
   final int klasse;
-  final List<_Posten> konten;
-  const _Klasse(this.klasse, this.konten);
+  final List<VergleichsPosten> konten;
+  const VergleichsKlasse(this.klasse, this.konten);
   double get summeJahr => konten.fold(0.0, (s, p) => s + p.jahr);
   double get summeVorjahr => konten.fold(0.0, (s, p) => s + p.vorjahr);
 }
