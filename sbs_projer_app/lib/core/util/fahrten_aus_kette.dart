@@ -692,6 +692,8 @@ bool montageWarVorOrt(String status, String? montageTyp) =>
 ///    (`routen_punkte.distanz_km`, Migration 213, Schlüssel
 ///    `'<haltKey von>><haltKey nach>'`), beide Richtungen — GPS-Position ↔
 ///    Betrieb, Startort ↔ Startort, Startort ↔ Betrieb ohne Anfahrt.
+///    Runden beide Enden auf denselben Schlüssel (≤ ~11 m), ist das 0 km —
+///    ohne Eintrag und ohne Anfrage.
 /// 4. Sonst `null` → die Fahrt bleibt ohne km (keine Schätzung).
 KmNachschlag kmNachschlagAus({
   required Map<String, Map<String, double>> anfahrten,
@@ -716,6 +718,9 @@ KmNachschlag kmNachschlagAus({
 
   final vonKey = haltKey(von), nachKey = haltKey(nach);
   if (vonKey == null || nachKey == null) return null;
+  // Beide Enden runden auf denselben Punkt (≤ ~11 m): keine Strecke, keine
+  // Anfrage — sonst fragte das Nachrouten OSRM nach einer Route A → A.
+  if (vonKey == nachKey) return (km: 0.0, quelle: kKmQuelleRoute);
   final km =
       punkte[punktRoutenSchluessel(vonKey, nachKey)] ??
       punkte[punktRoutenSchluessel(nachKey, vonKey)];

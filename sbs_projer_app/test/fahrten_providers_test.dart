@@ -940,6 +940,16 @@ void main() {
         // Dieselben Ids, aber ohne lat/lng — der Schlüssel fehlt.
         expect(mitPunkten(chur, b), isNull);
       });
+
+      // Beide Enden runden auf denselben Punkt (≤ ~11 m): keine Strecke —
+      // und auch keine Anfrage an den OSRM-Server (A → A).
+      test('Punkt → fast derselbe Punkt: 0 km ohne Eintrag', () {
+        final gpsEnde = ort(kGpsEndeId, HaltTyp.startort, (
+          lat: zuerich.lat + 0.00002,
+          lng: zuerich.lng + 0.00001,
+        ), 'feierabend');
+        expect(mitPunkten(gps, gpsEnde), (km: 0.0, quelle: kKmQuelleRoute));
+      });
     });
   });
 
@@ -1039,6 +1049,25 @@ void main() {
         punkte: {'$keyZuerich>b:betrieb-a': 125.3},
       );
       expect(ergebnis[tag]!.fahrten.first.km, 125.3);
+      expect(fehlendeRoutenPaare(ergebnis.values), isEmpty);
+    });
+
+    test('GPS-Start → GPS-Ende am fast selben Ort: 0 km, kein Auftrag', () {
+      final ergebnis = bauen(
+        tagesplaene: {
+          tag: plan(
+            start: zuerich,
+            // ~2 m daneben — rundet auf denselben Schlüssel.
+            endPos: (lat: zuerich.lat + 0.00002, lng: zuerich.lng + 0.00001),
+            kmEnde: null,
+          ),
+        },
+      );
+      final f = ergebnis[tag]!.fahrten.single;
+      expect(f.von.id, kGpsStartId);
+      expect(f.nach.id, kGpsEndeId);
+      expect(f.km, 0.0);
+      expect(f.kmQuelle, kKmQuelleRoute);
       expect(fehlendeRoutenPaare(ergebnis.values), isEmpty);
     });
 

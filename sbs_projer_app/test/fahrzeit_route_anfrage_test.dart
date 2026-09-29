@@ -7,7 +7,11 @@ import 'package:sbs_projer_app/data/repositories/fahrzeit_repository.dart';
 /// Ende mit Betrieb UND Punkt als unklare Anfrage ab — deshalb gehen nur die
 /// gesetzten Felder hinaus.
 void main() {
-  test('Betrieb → Betrieb (Tourenplan): nur die Ids', () {
+  // Rollout-Entkopplung: Betrieb → Betrieb geht zusätzlich im Format vor
+  // Migration 213 hinaus, damit die neue App auch gegen die alte Function
+  // läuft. Die neue liest `von`/`nach` und prüft, dass das alte Format
+  // dasselbe sagt (`anfrage.ts`).
+  test('Betrieb → Betrieb (Tourenplan): neues UND altes Format', () {
     expect(
       FahrzeitRepository.anfrageBody(
         (betriebId: 'a', lat: null, lng: null),
@@ -16,6 +20,8 @@ void main() {
       {
         'von': {'betriebId': 'a'},
         'nach': {'betriebId': 'b'},
+        'vonBetriebId': 'a',
+        'nachBetriebId': 'b',
       },
     );
   });

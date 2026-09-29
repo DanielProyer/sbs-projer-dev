@@ -181,6 +181,12 @@ class FahrzeitRepository {
 
   /// Body für `fahrzeit-route`: `{von: {...}, nach: {...}}`, je Ende nur die
   /// gesetzten Felder (die Function lehnt Betrieb UND Punkt zugleich ab).
+  ///
+  /// Betrieb → Betrieb zusätzlich im Format vor Migration 213
+  /// (`vonBetriebId`/`nachBetriebId`): So läuft diese App auch gegen die
+  /// alte Function, falls sie im Rollout-Fenster noch live ist — der
+  /// Tourenplan fällt dann nicht aus. Die neue Function liest `von`/`nach`
+  /// und weist einen Widerspruch zum alten Format ab (`anfrage.ts`).
   @visibleForTesting
   static Map<String, Object> anfrageBody(RoutenEnde von, RoutenEnde nach) {
     Map<String, Object> ende(RoutenEnde e) => {
@@ -188,7 +194,16 @@ class FahrzeitRepository {
       if (e.lat case final lat?) 'lat': lat,
       if (e.lng case final lng?) 'lng': lng,
     };
-    return {'von': ende(von), 'nach': ende(nach)};
+    return {
+      'von': ende(von),
+      'nach': ende(nach),
+      // Betrieb → Betrieb auch im Format vor 213 (alte Function im
+      // Rollout-Fenster).
+      if (von.betriebId != null && nach.betriebId != null) ...{
+        'vonBetriebId': von.betriebId!,
+        'nachBetriebId': nach.betriebId!,
+      },
+    };
   }
 
   static Future<FahrzeitEintrag?> _routeJetztAnfordern(
