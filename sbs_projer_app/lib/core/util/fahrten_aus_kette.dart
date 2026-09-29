@@ -26,6 +26,7 @@ import 'dart:math' as math;
 import 'package:sbs_projer_app/core/util/arbeitstag_auswertung.dart'
     show tagesKm;
 import 'package:sbs_projer_app/core/util/fahrzeit.dart' show haversineKm;
+import 'package:sbs_projer_app/core/util/routen_punkt_key.dart';
 import 'package:sbs_projer_app/core/util/touren_anzeige.dart'
     show hhmmAusMinuten, minutenAusHhmm;
 
@@ -110,6 +111,17 @@ class Halt {
 
   @override
   String toString() => 'Halt($id $ankunftMin–$abfahrtMin $quelle)';
+}
+
+/// Schlüssel eines Halts im Punkt-Routen-Cache (`routen_punkte`, Migration
+/// 213): Betrieb → [betriebKey], jedes andere Ende (Startort, GPS-Position
+/// unterwegs) → [punktKey] seiner Koordinaten. `null` ohne Koordinaten —
+/// auch bei einem Betrieb: Ohne Koordinaten routet die Edge Function nicht
+/// (sie liest dieselben Stammdaten).
+String? haltKey(Halt h) {
+  final lat = h.lat, lng = h.lng;
+  if (lat == null || lng == null) return null;
+  return h.typ == HaltTyp.betrieb ? betriebKey(h.id) : punktKey(lat, lng);
 }
 
 /// Eingabe je Einsatz, vor der Zeit-Auflösung.
