@@ -69,9 +69,13 @@ Buchung, Schweizer Datum):
   Rechnung → `zahlungsstatus = 'abgeschrieben'`.
 - Sammelbuchung: `beleg_typ = 'abschreibung'`, **ohne** `beleg_id`,
   Belegnummer `JA<Geschäftsjahr>_A_MWST_<Satz>` (z. B. `JA2026_A_MWST_7_7`); hat
-  das Geschäftsjahr schon einen gebuchten Lauf, mit `_L<n>` (Abschluss 2025,
-  Jahrgang 2020: `JA2025_A_MWST_7_7_L2`). Die Ids stehen in
+  das Geschäftsjahr schon einen Lauf, mit `_L<n>` (Abschluss 2025, Jahrgang
+  2020: `JA2025_A_MWST_7_7_L2`). `n` zählt auch zurückgenommene Läufe — die
+  Nummer bleibt fortlaufend. Die Ids stehen in
   `abschreibung_laeufe.buchung_mwst_ids`.
+- Mischt ein Lauf Sätze (z. B. 2023 zu 7.7 % und 2024 zu 8.1 %), gibt es je
+  Satz eine Sammelbuchung; die MWST-Abrechnung zeigt je Satz eine Zeile mit
+  den Jahrgängen dieses Satzes, die Lauf-Karte «mehrere Sätze».
 - Lauf: `buchungsdatum` = 31.12. des Geschäftsjahrs, `mwst_jahr/mwst_quartal`
   = Quartal des Entscheidtags. `view_entgeltsminderung` zeigt Ziff. 235 dort,
   je Satz aus den Positionen gerechnet.

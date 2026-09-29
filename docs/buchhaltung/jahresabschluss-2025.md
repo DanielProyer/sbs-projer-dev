@@ -123,18 +123,21 @@ Erfolgsrechnung unter «Abschlüsse und Steuern»), Skript
 
 Mehr → Abschlüsse und Steuern → Abschlussprüfung → Jahr 2025 → rote Zeile
 «Offene Rechnungen älter als 5 Jahre» → «Jahrgang abschreiben». Vorschau:
-76 Rg / 7'216.30 / 6'699.87 / 516.43 (Jahrgänge bis 2020). Ergebnis: Lauf L2
-(`geschaeftsjahr` 2025, `jahrgaenge` {2020}), je Rechnung `3805 an 1100 netto`
-und `2200 an 1100 mwst`, beide per 31.12.2025, Lauf `mwst_jahr/quartal` 2025/4.
+76 Rg / 7'216.30 / 6'699.87 / 516.43 (Jahrgänge bis 2020).
 
-**Mit Migration 215** (vor dem 01.10.2026 anwenden) bucht der App-Schritt
-direkt das 2019-Muster: je Rechnung `3805 an 1100 brutto` per 31.12.2025,
-EINE Sammelbuchung `JA2025_A_MWST_7_7_L2` (`2200 an 3805`, 516.43) datiert auf
-den Buchungstag, Lauf `mwst_jahr/quartal` = Quartal des Buchungstags (am
-01.10.2026: 2026/4). Der Screen zeigt seit 215 alle Läufe des Jahres und den
-Knopf auch neben dem 2019er-Lauf — vorher blendete er ihn aus. 215 entfernt
-ausserdem den eindeutigen Index `abschreibung_laeufe_ein_gebuchter` (194):
-den hatte 214 übersehen, L2 wäre sonst an «duplicate key» gescheitert.
+**Erwartetes Ergebnis (Migration 215, vor dem 01.10.2026 anwenden):** Lauf L2
+(`geschaeftsjahr` 2025, `jahrgaenge` {2020}), je Rechnung `3805 an 1100
+brutto` per 31.12.2025, EINE Sammelbuchung `JA2025_A_MWST_7_7_L2` (`2200 an
+3805`, 516.43) datiert auf den Buchungstag, Lauf `mwst_jahr/quartal` =
+Quartal des Buchungstags (am 01.10.2026: 2026/4). Der Screen zeigt seit 215
+alle Läufe des Jahres und den Knopf auch neben dem 2019er-Lauf — vorher
+blendete er ihn aus. 215 entfernt ausserdem den eindeutigen Index
+`abschreibung_laeufe_ein_gebuchter` (194): den hatte 214 übersehen, L2 wäre
+sonst an «duplicate key» gescheitert.
+
+*Nur ohne 215 (gilt nicht mehr als Erwartung):* je Rechnung `3805 an 1100
+netto` und `2200 an 1100 mwst`, beide per 31.12.2025, Lauf
+`mwst_jahr/quartal` 2025/4 — dann Umbau per 9b.
 
 ### 9b. Umbau auf das 2019-Muster (Claude, SQL, direkt nach 9a)
 
