@@ -214,7 +214,7 @@ kostete in vier Jahren 3'138.65 unnötige Vorauszahlungen.
 
 ### 📱 Klicktests am Handy (offen)
 
-- **v0.151.1** — Material-Karte: Foto ganz sichtbar (nicht beschnitten), z. B. Bierhahn Celli 55mm.
+- ~~**v0.151.1** — Material-Karte: Foto ganz sichtbar~~ ✓ Daniel 29.09.2026 («Fotos passen so»).
 - **v0.151.0** — Material: Chip-Zeile scrollt, gewählter Chip sichtbar; Karten
   per Swipe, Zähler stimmt; Tipp auf Listenzeile öffnet die richtige Karte;
   «+»/«−» auf der Karte ändert den Bestand (auch in der Liste nachher);
