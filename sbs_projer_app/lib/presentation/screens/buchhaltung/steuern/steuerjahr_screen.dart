@@ -316,7 +316,20 @@ class _SteuerjahrScreenState extends ConsumerState<SteuerjahrScreen> {
                           jahr: widget.jahr,
                           buchungen: zahlungen.value ?? const [],
                         );
-                        if (d != null && mounted) invalidateSteuern(ref);
+                        if (d == null || !mounted) return;
+                        invalidateSteuern(ref);
+                        // Die Erkennung kann das Jahr umsetzen (Zinsausweis
+                        // 2025 aus dem Dossier 2024) — dann taucht das
+                        // Dokument hier nicht auf.
+                        final hinweis = ablageJahrHinweis(
+                          dossierJahr: widget.jahr,
+                          dokumentJahr: d.jahr,
+                        );
+                        if (hinweis != null) {
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(hinweis)));
+                        }
                       },
               ),
               const SizedBox(height: 24),
