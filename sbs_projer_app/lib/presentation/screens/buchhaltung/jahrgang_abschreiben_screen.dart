@@ -9,6 +9,8 @@ import 'package:sbs_projer_app/data/repositories/abschreibung_lauf_repository.da
 import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/rechnung_providers.dart'
+    show rechnungenStreamProvider;
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/jahrgang_abschreibung.dart';
@@ -268,6 +270,10 @@ class _JahrgangAbschreibenScreenState
     // Journal VOR der Abschreibung — die Regel «Offene Rechnungen älter als
     // 5 Jahre» wird grün, 1100/3805 stehen aber noch auf dem alten Stand.
     ref.invalidate(buchungenStreamProvider);
+    // Der Lauf setzt die Rechnungen auf «abgeschrieben»; der Rechnungsstrom
+    // ist auf Web einmalig — ohne Neuladen zeigte die Rechnungsliste die
+    // Rechnungen weiter als offen (Regel «speichern lädt neu»).
+    ref.invalidate(rechnungenStreamProvider);
   }
 }
 
