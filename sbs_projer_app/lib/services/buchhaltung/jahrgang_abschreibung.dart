@@ -10,6 +10,11 @@ import 'package:sbs_projer_app/data/models/rechnung.dart';
 /// damit 160 Rechnungen nie halb abgeschrieben stehen bleiben. Diese Datei
 /// zeigt vorher, was die Funktion tun wird, aus denselben Spalten.
 ///
+/// Buchungsmuster seit Migration 215 (2019-Muster): je Rechnung
+/// `3805 an 1100` brutto per 31.12. des Geschäftsjahrs, je MWST-Satz eine
+/// Sammelbuchung `2200 an 3805` am Entscheidtag — Ziff. 235 im laufenden
+/// Quartal ([rueckholungsQuartal]).
+///
 /// Konzept und Entscheide: docs/buchhaltung/abschreibungen-jahrgaenge.md.
 
 /// Verjährung von Forderungen aus Dienstleistung — Art. 128 Ziff. 3 OR.
@@ -316,6 +321,15 @@ class AbschreibVorschau {
   /// «2020, 2021» — für Knopf und Dialog.
   String get jahrgangText => jahrgaenge.map((j) => '${j.jahrgang}').join(', ');
 }
+
+/// MWST-Periode der Rückholung seit Migration 215: das Quartal des
+/// Entscheidtags, «Q4/2026». WARUM nicht Q4 des Geschäftsjahrs: Der
+/// Abschluss läuft im Folgejahr, Q4 ist dann meist eingereicht — eine
+/// Rückholung dort erzwänge eine Korrekturabrechnung. Die Entgeltsminderung
+/// gehört in die Periode des Entscheids (Art. 41 Abs. 2 MWSTG); die
+/// SQL-Funktion rechnet mit dem Schweizer Datum dasselbe.
+String rueckholungsQuartal(DateTime entscheidtag) =>
+    'Q${(entscheidtag.month + 2) ~/ 3}/${entscheidtag.year}';
 
 /// Text der Buchung, wie ihn die SQL-Funktion schreibt — damit Vorschau und
 /// Journal dasselbe sagen und ein Test beide zusammenhält.

@@ -1,5 +1,7 @@
 /// Ein Abschreibungslauf: jahrgangsweise Abschreibung verjährter
-/// Kundenrechnungen im Abschluss eines Geschäftsjahres (Migration 194).
+/// Kundenrechnungen im Abschluss eines Geschäftsjahres (Migration 194,
+/// Buchungsmuster seit 215: brutto per 31.12., MWST-Rückholung am
+/// Entscheidtag).
 class AbschreibungLauf {
   final String id;
   final int geschaeftsjahr;
@@ -17,6 +19,11 @@ class AbschreibungLauf {
   final String? notizen;
   final DateTime? createdAt;
 
+  /// Seit Migration 215: die Sammelbuchungen der MWST-Rückholung
+  /// (`2200 an 3805`, je Satz eine, am Entscheidtag). Leer bei Läufen vor
+  /// 215 — und solange 215 nicht angewendet ist (Spalte fehlt).
+  final List<String> buchungMwstIds;
+
   const AbschreibungLauf({
     required this.id,
     required this.geschaeftsjahr,
@@ -33,6 +40,7 @@ class AbschreibungLauf {
     this.zurueckgenommenAm,
     this.notizen,
     this.createdAt,
+    this.buchungMwstIds = const [],
   });
 
   bool get gebucht => status == 'gebucht';
@@ -40,6 +48,22 @@ class AbschreibungLauf {
   /// Satz der Rückholung aus den Summen — ein Lauf umfasst nur Jahrgänge
   /// mit einem Satz (7.7 % bis 2023, 8.1 % ab 2024).
   double get satz => netto > 0 ? (mwst / netto * 1000).round() / 10 : 0;
+
+  /// Lauf nach dem Muster vor Migration 215: je Rechnung `3805 an 1100`
+  /// netto UND `2200 an 1100` MWST per 31.12., Ziff. 235 in Q4 des
+  /// Geschäftsjahrs. Seit 215 — und beim per SQL gebuchten 2019er — steht
+  /// per 31.12. nur die Brutto-Buchung; die Rückholung liegt als
+  /// Sammelbuchung am Entscheidtag.
+  bool get rueckholungJeRechnung =>
+      buchungMwstIds.isEmpty &&
+      ruecknahmeMoeglich &&
+      mwst > 0 &&
+      mwstJahr == geschaeftsjahr &&
+      mwstQuartal == 4;
+
+  /// Buchungen per 31.12., die eine Rücknahme löscht — ohne die
+  /// Sammelbuchungen der Rückholung ([buchungMwstIds]).
+  int get buchungenPer31Dez => rueckholungJeRechnung ? anzahl * 2 : anzahl;
 
   factory AbschreibungLauf.fromJson(Map<String, dynamic> j) => AbschreibungLauf(
     id: j['id'] as String,
@@ -63,6 +87,11 @@ class AbschreibungLauf {
     createdAt: j['created_at'] != null
         ? DateTime.parse(j['created_at'] as String)
         : null,
+    // Fehlt die Spalte (App vor Migration 215 ausgeliefert), bleibt die
+    // Liste leer — der Screen muss trotzdem laden.
+    buchungMwstIds: [
+      for (final x in (j['buchung_mwst_ids'] as List? ?? const [])) x as String,
+    ],
   );
 }
 
