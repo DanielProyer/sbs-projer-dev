@@ -71,6 +71,31 @@ void main() {
     });
   });
 
+  group('Satz in der Lauf-Karte', () {
+    // WARUM: Seit 215 steht je Satz eine Sammelbuchung. Ein Lauf über 2023
+    // (7.7 %) und 2024 (8.1 %) hätte aus den Summen einen Mischsatz wie
+    // 7.9 % — den gibt es im Formular nicht.
+    test('eine Sammelbuchung → Satz aus den Summen', () {
+      final l = AbschreibungLauf.fromJson(_json());
+      expect(l.mehrereSaetze, isFalse);
+      expect(l.satzText, '7.7 %');
+    });
+
+    test('mehrere Sammelbuchungen → «mehrere Sätze», kein Mischsatz', () {
+      final l = AbschreibungLauf.fromJson(_json(mwstIds: ['m1', 'm2']));
+      expect(l.mehrereSaetze, isTrue);
+      expect(l.satzText, 'mehrere Sätze');
+    });
+
+    test('Lauf vor 215 oder per SQL (keine Sammelbuchungen) → Satz', () {
+      final l = AbschreibungLauf.fromJson(
+        _json(mitIds: false, mwstQuartal: 3, ruecknahme: false),
+      );
+      expect(l.mehrereSaetze, isFalse);
+      expect(l.satzText, '7.7 %');
+    });
+  });
+
   group('Buchungsmuster', () {
     test('seit 215: Sammelbuchung vorhanden → Rückholung am Entscheidtag', () {
       final l = AbschreibungLauf.fromJson(_json());

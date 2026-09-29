@@ -8,6 +8,7 @@ import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
 import 'package:sbs_projer_app/data/repositories/abschreibung_lauf_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/abschreibung_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/buchhaltung_providers.dart';
+import 'package:sbs_projer_app/presentation/providers/buchung_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_filter_bar.dart';
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/jahrgang_abschreibung.dart';
@@ -262,6 +263,11 @@ class _JahrgangAbschreibenScreenState
     // Geschäftsjahr — beide MWST-Jahre neu lesen.
     ref.invalidate(mwstQuartalDetailProvider);
     ref.invalidate(entgeltsminderungProvider);
+    // Die Abschlussprüfung rechnet ihre Saldi aus `buchungenStreamProvider`
+    // (nicht selbst geladen). Ohne Neuladen zeigt sie nach dem Lauf das
+    // Journal VOR der Abschreibung — die Regel «Offene Rechnungen älter als
+    // 5 Jahre» wird grün, 1100/3805 stehen aber noch auf dem alten Stand.
+    ref.invalidate(buchungenStreamProvider);
   }
 }
 
@@ -421,7 +427,7 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
             chf(l.netto),
           ),
           _zeile(
-            'MWST-Rückholung ${l.satz} % → Ziff. 235 in Q${l.mwstQuartal}/${l.mwstJahr}',
+            'MWST-Rückholung ${l.satzText} → Ziff. 235 in Q${l.mwstQuartal}/${l.mwstJahr}',
             chf(l.mwst),
           ),
         ] else ...[
@@ -430,7 +436,9 @@ class JahrgangAbschreibenInhalt extends StatelessWidget {
             chf(l.brutto),
           ),
           _zeile(
-            'MWST-Rückholung ${l.satz} % (2200 an 3805) → Ziff. 235 in '
+            // Mischt der Lauf Sätze, zeigt die Karte keinen Mischsatz —
+            // die Aufteilung steht in der MWST-Abrechnung (je Satz).
+            'MWST-Rückholung ${l.satzText} (2200 an 3805) → Ziff. 235 in '
             'Q${l.mwstQuartal}/${l.mwstJahr}',
             chf(l.mwst),
           ),

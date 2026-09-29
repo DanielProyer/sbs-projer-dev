@@ -45,9 +45,20 @@ class AbschreibungLauf {
 
   bool get gebucht => status == 'gebucht';
 
-  /// Satz der Rückholung aus den Summen — ein Lauf umfasst nur Jahrgänge
-  /// mit einem Satz (7.7 % bis 2023, 8.1 % ab 2024).
+  /// Satz der Rückholung aus den Summen (7.7 % bis 2023, 8.1 % ab 2024).
+  /// Umfasst der Lauf Jahrgänge mit verschiedenen Sätzen, ist das ein
+  /// Mischwert — siehe [mehrereSaetze].
   double get satz => netto > 0 ? (mwst / netto * 1000).round() / 10 : 0;
+
+  /// Seit Migration 215 steht je Satz eine Sammelbuchung — mehr als eine
+  /// heisst: der Lauf mischt Sätze (z. B. 2023 zu 7.7 % und 2024 zu 8.1 %
+  /// im Abschluss 2029). Läufe vor 215 und der 2019er per SQL haben keine
+  /// Sammelbuchungen in der Liste; sie umfassen je nur einen Satz.
+  bool get mehrereSaetze => buchungMwstIds.length > 1;
+
+  /// Für die Lauf-Karte: «7.7 %» — oder «mehrere Sätze» statt eines
+  /// Mischsatzes, den es im MWST-Formular nicht gibt.
+  String get satzText => mehrereSaetze ? 'mehrere Sätze' : '$satz %';
 
   /// Lauf nach dem Muster vor Migration 215: je Rechnung `3805 an 1100`
   /// netto UND `2200 an 1100` MWST per 31.12., Ziff. 235 in Q4 des
