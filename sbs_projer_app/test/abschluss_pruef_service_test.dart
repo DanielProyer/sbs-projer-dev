@@ -35,6 +35,7 @@ AbschlussKontext k({
   Set<String> offeneRechnungenMitZahlung = const {},
   List<UnverbuchteReinigung> unverbuchteReinigungen = const [],
   int buchungenFalschesJahr = 0,
+  double? rueckstellungGebucht,
 }) => AbschlussKontext(
   jahr: jahr,
   heute: heute ?? DateTime(2026, 9, 2),
@@ -48,6 +49,7 @@ AbschlussKontext k({
   offeneRechnungenMitZahlung: offeneRechnungenMitZahlung,
   unverbuchteReinigungen: unverbuchteReinigungen,
   buchungenFalschesJahr: buchungenFalschesJahr,
+  rueckstellungGebucht: rueckstellungGebucht,
 );
 
 Pruefbefund f(List<Pruefbefund> l, String id) =>
@@ -339,6 +341,71 @@ void main() {
       );
     },
   );
+  group('Steuerrückstellung mit Abschlussbuchung des Jahres (seit 29.09.2026)',
+      () {
+    // Ertrag 2025 20'000, Rückstellung 4'000 per 31.12. → Gewinn vor
+    // Rückstellung 20'000 → Vorschlag 0.182 · 20'000 / 1.182 = 3'079.5
+    // → 3'100.
+    final ertrag = b(1100, 3400, 20000, d);
+    final rueck = b(8900, 2208, 4000, DateTime(2025, 12, 31));
+
+    test('gebucht → grün, Ist = Rückstellung, Vorschlag im Hinweis, keine '
+        'Route (Knopf in der Zeile)', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(buchungen: [ertrag, rueck], rueckstellungGebucht: 4000),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gruen);
+      expect(x.ist, "4'000.00");
+      expect(x.hinweis, contains("Vorschlag ≈ 3'100.00 (18.2 %"));
+      expect(x.aktionRoute, isNull);
+    });
+
+    test('abgeschlossenes Jahr ohne Rückstellung → rot mit Vorschlag', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(buchungen: [ertrag], rueckstellungGebucht: 0),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.rot);
+      expect(x.hinweis, contains("Vorschlag ≈ 3'100.00"));
+      expect(x.hinweis, contains('Rückstellung buchen'));
+    });
+
+    test('laufendes Jahr → gelb, Vorschlag nach heutigem Stand', () {
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(
+            jahr: 2026,
+            buchungen: [b(1100, 3400, 20000, DateTime(2026, 3, 1))],
+            rueckstellungGebucht: 0,
+          ),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gelb);
+      expect(x.hinweis, contains('Jahr läuft noch'));
+      expect(x.hinweis, contains("3'100.00"));
+    });
+
+    test('Steuerzahlungen gegen 2208 zählen nicht als Rückstellung', () {
+      // Provisorische Steuern bezahlt (2208 an 1020) → 2208 im Soll. Früher
+      // las die Regel den 2208-Saldo und meldete rot, obwohl die
+      // Rückstellung gebucht ist.
+      final zahlung = b(2208, 1020, 5153.50, DateTime(2025, 12, 31));
+      final x = f(
+        AbschlussPruefService.pruefe(
+          k(buchungen: [ertrag, rueck, zahlung], rueckstellungGebucht: 4000),
+        ),
+        'rueckstellung',
+      );
+      expect(x.status, PruefStatus.gruen);
+      expect(x.ist, "4'000.00");
+    });
+  });
   test(
     'Negative Salden: 1109 ausgenommen (grün), Aktiv < 0 rot, Passiv im Soll rot',
     () {

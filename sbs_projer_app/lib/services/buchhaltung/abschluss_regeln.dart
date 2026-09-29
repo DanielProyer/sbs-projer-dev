@@ -4,6 +4,7 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/delkredere.dart';
 import 'package:sbs_projer_app/core/util/rechnung_status.dart';
 import 'package:sbs_projer_app/core/util/rundung.dart';
+import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart';
 import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/data/models/rechnung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
@@ -645,15 +646,61 @@ class RueckstellungRegel extends AbschlussRegel {
   String get gruppe => 'Abschluss';
   @override
   String get titel => 'Steuerrückstellung 2208';
+  // Keine Route: Gebucht wird über den Knopf «Rückstellung buchen» in der
+  // Zeile selbst (Abschlussprüfung, abgeschlossene Jahre). Bis 29.09.2026
+  // zeigte die Regel auf /buchhaltung/steuern — dort liess sich nichts
+  // buchen.
   @override
   Pruefbefund pruefe(AbschlussKontext k) {
-    final s = -k.saldo(2208); // Haben-Überhang = gebildete Rückstellung
-    if (s > _toleranz) return befund(PruefStatus.gruen, ist: chf(s));
+    final gebucht = k.rueckstellungGebucht;
+    if (gebucht == null) {
+      // Journal-Details nicht geladen: nur der 2208-Saldo ist bekannt.
+      final s = -k.saldo(2208); // Haben-Überhang = gebildete Rückstellung
+      if (s > _toleranz) return befund(PruefStatus.gruen, ist: chf(s));
+      return befund(
+        k.jahrAbgeschlossen ? PruefStatus.rot : PruefStatus.gelb,
+        ist: chf(s),
+        hinweis:
+            'Rückstellung für Gewinn-/Kapitalsteuern buchen (8900 an 2208).',
+      );
+    }
+    // WARUM nicht mehr der 2208-Saldo: Er vermischt die Rückstellung mit den
+    // Steuerzahlungen dagegen (2026: −4'000 + 5'153.50 provisorisch 2025 →
+    // 2208 im Soll). Massgebend ist die Abschlussbuchung des Jahres.
+    final lage = rueckstellungLageAusSaldi(
+      saldiBis: k.saldiPer(DateTime(k.jahr, 12, 31)),
+      saldiVor: k.saldiPer(DateTime(k.jahr - 1, 12, 31)),
+      gebucht: gebucht,
+    );
+    final vorschlag = rueckstellungVorschlag(
+      gewinnVorRueckstellung: lage.gewinnVorRueckstellung,
+      aufrechnungen: lage.aufrechnungenAuto,
+    );
+    final satz = (kSteuersatzEffektiv * 100).toStringAsFixed(1);
+    final vorschlagText =
+        'Vorschlag ≈ ${chf(vorschlag)} ($satz % auf steuerbaren Gewinn)';
+    if (gebucht > _toleranz) {
+      return befund(
+        PruefStatus.gruen,
+        ist: chf(gebucht),
+        hinweis: vorschlagText,
+      );
+    }
+    if (!k.jahrAbgeschlossen) {
+      return befund(
+        PruefStatus.gelb,
+        ist: chf(gebucht),
+        hinweis:
+            'Jahr läuft noch — nach heutigem Stand $vorschlagText. Gebucht '
+            'wird im Abschluss per 31.12.${k.jahr}.',
+      );
+    }
     return befund(
-      k.jahrAbgeschlossen ? PruefStatus.rot : PruefStatus.gelb,
-      ist: chf(s),
-      hinweis: 'Rückstellung für Gewinn-/Kapitalsteuern buchen (8900 an 2208).',
-      route: '/buchhaltung/steuern',
+      PruefStatus.rot,
+      ist: chf(gebucht),
+      hinweis:
+          '$vorschlagText — «Rückstellung buchen» (8900 an 2208 per '
+          '31.12.${k.jahr}).',
     );
   }
 }

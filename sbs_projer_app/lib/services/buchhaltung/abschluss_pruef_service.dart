@@ -103,6 +103,12 @@ class AbschlussKontext {
   /// mehr als Datum und Betrag brauchen (Status gegen Mahnstufe).
   final List<Rechnung> offeneRechnungenVoll;
 
+  /// Steuerrückstellung des Jahres netto (`rueckstellungGebucht`: Abschluss-
+  /// buchungen 8900 ↔ 2208 per 31.12.). Braucht `beleg_typ` und
+  /// Geschäftsjahr, die [buchungen] nicht tragen — deshalb vorab gerechnet.
+  /// `null` = nicht geladen → die Regel fällt auf den 2208-Saldo zurück.
+  final double? rueckstellungGebucht;
+
   AbschlussKontext({
     required this.jahr,
     required this.heute,
@@ -121,6 +127,7 @@ class AbschlussKontext {
     this.jahreskundenUnverrechnet = 0,
     this.kundenguthabenJeBetrieb,
     this.offeneRechnungenVoll = const [],
+    this.rueckstellungGebucht,
   });
 
   bool get jahrAbgeschlossen => jahr < heute.year;
