@@ -337,14 +337,17 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r"[0-9.,'’\s-]")),
               ],
+              // Kurze Labels: Auf 360 px bleiben im Dialog gut 230 px, ein
+              // längeres Label endete im Browser mit «…» (Sichtprüfung
+              // 29.09.2026). Die Erklärung steht im Helfertext.
               decoration: InputDecoration(
-                labelText: 'Weitere Aufrechnungen (CHF)',
+                labelText: 'Aufrechnungen (CHF)',
                 hintText: '0.00',
                 errorText: manuell == null ? 'Kein gültiger Betrag' : null,
                 helperText:
-                    'Bussen 6280/6281 ${chf(k.aufrechnungenAuto)} sind schon '
-                    'aufgerechnet. Hier z. B. Bussen, die auf 8900 liefen.',
-                helperMaxLines: 3,
+                    'Bussen 6280/6281 (${chf(k.aufrechnungenAuto)}) sind '
+                    'schon drin. Hier z. B. Bussen, die auf 8900 liefen.',
+                helperMaxLines: 4,
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -354,8 +357,11 @@ class _JahresrechnungDialogState extends State<JahresrechnungDialog> {
               minLines: 2,
               maxLines: 4,
               decoration: const InputDecoration(
-                labelText: 'Ereignisse nach dem Bilanzstichtag (optional)',
-                helperText: 'Leer: Standardtext im Anhang.',
+                labelText: 'Ereignisse (optional)',
+                helperText:
+                    'Nach dem Bilanzstichtag, für den Anhang. Leer: '
+                    'Standardtext.',
+                helperMaxLines: 3,
               ),
             ),
             const SizedBox(height: 16),

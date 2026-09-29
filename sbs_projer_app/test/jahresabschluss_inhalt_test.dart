@@ -196,7 +196,19 @@ void main() {
     testWidgets('zeigt 6280-Hinweis und Kennzahlen, rechnet mit', (tester) async {
       final ergebnis = await dialog(tester);
       expect(tester.takeException(), isNull);
-      expect(find.textContaining("Bussen 6280/6281 120.00"), findsOneWidget);
+      final hilfe = find.textContaining('Bussen 6280/6281 (120.00)');
+      expect(hilfe, findsOneWidget);
+      // Im Browser endeten zu lange Labels und Hilfetexte mit «…»
+      // (Sichtprüfung 29.09.2026).
+      for (final f in [
+        find.text('Aufrechnungen (CHF)'),
+        find.text('Ereignisse (optional)'),
+        hilfe,
+        find.textContaining('Nach dem Bilanzstichtag'),
+      ]) {
+        final absatz = tester.renderObject<RenderParagraph>(f);
+        expect(absatz.didExceedMaxLines, isFalse, reason: '$f');
+      }
       expect(find.text("15'355.70"), findsOneWidget); // steuerbar ohne Eingabe
       await tester.enterText(find.byType(TextField).first, '200');
       await tester.pump();
