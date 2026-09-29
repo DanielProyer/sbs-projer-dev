@@ -112,6 +112,25 @@ void main() {
     expect(hoehen, {kBereichZeileHoehe});
   });
 
+  testWidgets('Abschlüsse und Steuern: Jahresabschluss passt auf 360 px', (
+    tester,
+  ) async {
+    // Seit 29.09.2026 mit «Jahresabschluss» — sein Untertitel darf auf dem
+    // Pixel 9 nicht mit «…» enden. (Nur dieser Eintrag: «Monatsabschluss»
+    // war schon vorher gekürzt und gehört nicht zu dieser Änderung.)
+    final getippt = await pump(tester, gruppen: kBereichAbschluesse.gruppen);
+    expect(tester.takeException(), isNull);
+    final e = kBereichAbschluesse.alleEintraege.firstWhere(
+      (e) => e.ziel == '/buchhaltung/jahresabschluss',
+    );
+    for (final t in [e.titel, ?e.untertitel]) {
+      final absatz = tester.renderObject<RenderParagraph>(find.text(t));
+      expect(absatz.didExceedMaxLines, isFalse, reason: t);
+    }
+    await tester.tap(find.text('Jahresabschluss'));
+    expect(getippt, ['/buchhaltung/jahresabschluss']);
+  });
+
   testWidgets('Bereichsseiten ohne Gruppentitel zeichnen sich ebenso', (
     tester,
   ) async {

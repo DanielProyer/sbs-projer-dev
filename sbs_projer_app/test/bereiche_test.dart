@@ -38,6 +38,8 @@ void main() {
         '/buchhaltung/mwst',
         '/buchhaltung/monatsabschluss',
         '/buchhaltung/audit',
+        '/buchhaltung/jahresabschluss',
+        '/buchhaltung/jahresabschluss?jahr=2025',
         '/buchhaltung/abschreibung',
         '/buchhaltung/steuern',
         '/buchhaltung/steuern/2025',

@@ -70,6 +70,7 @@ import 'package:sbs_projer_app/presentation/screens/buchhaltung/berichte_screen.
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/auswertung_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/audit_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/jahrgang_abschreiben_screen.dart';
+import 'package:sbs_projer_app/presentation/screens/buchhaltung/jahresabschluss_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/monatsabschluss_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuerjahr_screen.dart';
 import 'package:sbs_projer_app/presentation/screens/buchhaltung/steuern/steuern_screen.dart';
@@ -617,6 +618,14 @@ final router = GoRouter(
     GoRoute(
       path: '/buchhaltung/monatsabschluss',
       builder: (context, state) => const MonatsabschlussScreen(),
+    ),
+    GoRoute(
+      // Geführter Jahresabschluss (29.09.2026); ?jahr= wählt das Jahr vor,
+      // sonst das Vorjahr.
+      path: '/buchhaltung/jahresabschluss',
+      builder: (context, state) => JahresabschlussScreen(
+        jahr: int.tryParse(state.uri.queryParameters['jahr'] ?? ''),
+      ),
     ),
     GoRoute(
       path: '/buchhaltung/audit',

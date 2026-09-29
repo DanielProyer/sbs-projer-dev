@@ -91,6 +91,7 @@ const _bereichPraefixe = <(String, String)>[
   ('/buchhaltung/mwst', 'abschluesse'),
   ('/buchhaltung/monatsabschluss', 'abschluesse'),
   ('/buchhaltung/audit', 'abschluesse'),
+  ('/buchhaltung/jahresabschluss', 'abschluesse'),
   ('/buchhaltung/abschreibung', 'abschluesse'),
   ('/buchhaltung/steuern', 'abschluesse'),
   ('/dokumente', 'dokumente'),
@@ -292,6 +293,17 @@ const kBereichAbschluesse = Bereich(
           icon: Icons.assessment,
           ziel: '/buchhaltung/berichte',
           stichwoerter: ['jahresrechnung', 'bilanz', 'erfolgsrechnung'],
+        ),
+        // Der geführte Weg bis zur Steuererklärung (Entscheid Daniel
+        // 29.09.2026): Prüfung, Abschreibung, Delkredere, Rückstellung,
+        // Jahresrechnung ins Dossier, Einreichung.
+        BereichEintrag(
+          titel: 'Jahresabschluss',
+          untertitel: 'Schritt für Schritt bis zur Steuererklärung',
+          icon: Icons.checklist,
+          ziel: '/buchhaltung/jahresabschluss',
+          // Ohne Umlaut — die Suche vergleicht umlautfrei (bereiche_test).
+          stichwoerter: ['abschluss', 'jahresrechnung', 'steuererklaerung'],
         ),
         BereichEintrag(
           titel: 'Monatsabschluss',
