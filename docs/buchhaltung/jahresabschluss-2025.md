@@ -190,7 +190,11 @@ update abschreibung_laeufe
 -- 3805 (2025) 7'865.28 → 15'081.58 · 2200 unverändert gegenüber vor 9a
 ```
 
-### 9c. Delkredere nachziehen (Claude)
+### 9c. Delkredere nachziehen — in der App (seit v0.154.0)
+
+Abschlussprüfung 2025 → Zeile «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen» (`AbschreibungService.delkredereSetzenPerStichtag`, Belegnummer `JA2025_E2`). Die SQL unten ist NUR der Rückfall, falls der Knopf fehlt — nie beides.
+
+SQL-Rückfall:
 
 ```sql
 -- 5 % von 105'351.96 = 5'267.60; bisher 5'629.38 (JA2025_E) → 361.78 zurück
@@ -206,11 +210,13 @@ values ('1e1ec2dd-7836-4d8e-8256-c5649d994ee2', '2025-12-31', 'JA2025_E2',
 Falls vorher die 10 Tresen-Rechnungen Dez 2025 (1'036.70) auf «bezahlt»
 gesetzt werden: Basis 104'315.26 → Delkredere 5'215.76 → Betrag 413.62.
 
-### 9d. Steuerrückstellung (Entscheid Daniel)
+### 9d. Steuerrückstellung — in der App (seit v0.154.0), Entscheid Daniel
+
+Abschlussprüfung 2025 → Zeile «Steuerrückstellung 2208» → Knopf «Rückstellung buchen»: Dialog mit Gewinn vor Rückstellung, Aufrechnungen automatisch (6280/6281 netto 111.01 + 8900 `steuerart='busse'` 200.00 = 311.01), Satz 18.2 %, Vorschlag 2'800, Differenz → `JA2025_D2`. Die SQL unten ist NUR der Rückfall — nie beides.
 
 Vom gebuchten Gewinn 20'890.22 aus: − 7'216.30 (2020) + 361.78 (Delkredere)
-= **14'035.70** mit Rückstellung 4'000. Steuerbar + 320 Bussen. Rückstellung
-R so, dass R ≈ 18.2 % × (18'355.70 − R): R ≈ 2'826 → **2'800**. Buchung, wenn
+= **14'035.70** mit Rückstellung 4'000. Steuerbar + 311.01 Bussen. Rückstellung
+R so, dass R ≈ 18.2 % × (18'346.71 − R): R ≈ 2'825 → **2'800**. Buchung, wenn
 Daniel zustimmt:
 ```sql
 insert into buchungen (user_id, datum, belegnummer, soll_konto, haben_konto,

@@ -59,17 +59,24 @@ SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
        **76 Rechnungen · 7'216.30 brutto · 6'699.87 netto · 516.43 MWST**
        (Jahrgänge bis 2020; 2019 ist schon abgeschrieben). Migration 214
        erlaubt den zweiten Lauf im selben Jahr.
-2. [ ] **Claude: Umbau auf das 2019-Muster** (SQL in §9b): Die Rückholung der
-       MWST gehört nicht in Q4/2025 (eingereicht und viermal berichtigt),
-       sondern in die Periode des Entscheids (Art. 41 Abs. 2 MWSTG) — also
-       brutto auf 3805 per 31.12.2025 und **2200 an 3805 516.43 per
-       01.10.2026 → Ziff. 235 in Q4/2026**, Lauf auf MWST 2026/Q4.
-3. [ ] **Claude: Delkredere nachziehen** — 5 % von 105'351.96 = **5'267.60**
-       (bisher 5'629.38): `1109 an 3805 361.78` per 31.12.2025 (`JA2025_E2`).
-4. [ ] **Entscheid Daniel: Steuerrückstellung** — bisher 4'000 auf 2208. Mit
-       dem tieferen Gewinn reichen ≈ **2'800** (18.2 % auf ≈ 15'556 steuerbar).
-       Wenn ja: `2208 an 8900 1'200.00` per 31.12.2025 (`JA2025_D2`).
-       Provisorisch bezahlt sind 5'153.50 → Rückerstattung ≈ 2'300 zu erwarten.
+2. [ ] **MWST-Rückholung nach dem 2019-Muster — macht der App-Schritt seit
+       Migration 215 selbst:** Verlust brutto auf 3805 per 31.12.2025, EINE
+       Sammelbuchung `2200 an 3805 516.43` am Entscheidtag (01.10.2026) →
+       **Ziff. 235 in Q4/2026** (Art. 41 Abs. 2 MWSTG; Q4/2025 ist eingereicht
+       und viermal berichtigt). Nichts mehr per SQL — §9b nur als Rückfall.
+3. [ ] **Delkredere nachziehen — in der App:** Abschlussprüfung 2025 → Zeile
+       «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen». Erwartet:
+       5 % von 105'351.96 = **5'267.60** (bisher 5'629.38) → `1109 an 3805
+       361.78` per 31.12.2025 als `JA2025_E2`. Nach Schritt 1 die Prüfung neu
+       laden (die Zeile wird erst dann gelb).
+4. [ ] **Steuerrückstellung — in der App, Entscheid Daniel:** Abschlussprüfung
+       2025 → Zeile «Steuerrückstellung 2208» (grüne zeigen, falls
+       eingeklappt) → Knopf «Rückstellung buchen». Der Dialog schlägt vor:
+       Gewinn vor Rückstellung ≈ 18'035.70, Aufrechnungen automatisch
+       **311.01** (Bussen 111.01 auf 6280/6281 + 200.00 «Busse Kanton» auf
+       8900), Satz 18.2 % → **2'800** (bisher 4'000) → `2208 an 8900 1'200.00`
+       per 31.12.2025 als `JA2025_D2`. Provisorisch bezahlt 5'153.50 →
+       Rückerstattung ≈ 2'300.
 5. [ ] **Abschlussprüfung 2025** in der App durchgehen — alles grün oder
        erklärt (Bank = camt 12'202.73, Delkredere 5 %, Rückstellung 2208,
        Steuerzuordnung, Steuererklärung vorhanden).
@@ -83,8 +90,9 @@ SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
 8. [ ] **Steuererklärung 2025 ausfüllen** (juristische Personen, Kanton GR):
-       Reingewinn laut ER, **Aufrechnung Bussen 320.00** (120.00 Verkehrsbusse
-       auf 6280 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig),
+       Reingewinn laut ER, **Aufrechnung Bussen 311.01** (111.01 netto auf
+       6280/6281 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig — die
+       Steuerbeilage aus der App rechnet das automatisch),
        steuerbarer Gewinn ≈ **15'555.70**, steuerbares Kapital = EK ≈
        **70'296.41**; keine Beteiligungen, kein Anlagevermögen, keine
        Liegenschaften, keine Verrechnungssteuer. Beilagen: Jahresrechnung 2025
