@@ -171,9 +171,12 @@ class AbschreibungService {
           'Delkredere auf 5 % von ${chf(debitoren)} = ${chf(ziel)} '
           'per 31.12.$jahr',
       'zahlungsweg': 'intern',
-      // «abschluss» wie die SQL-Buchungen JA2025_B–E: Die Entgeltsminderung
+      // «abschluss» wie die Rückstellung JA2025_D: Die Entgeltsminderung
       // (view_entgeltsminderung) lässt sie aus, und das Jahr gilt damit als
-      // abgeschlossen (geschaeftsjahr_abgeschlossen, Migration 209).
+      // abgeschlossen (geschaeftsjahr_abgeschlossen, Migration 209/216).
+      // Die SQL-Buchung JA2025_E trägt in der DB noch «abschreibung» — für
+      // das Delkredere (ohne MWST, ohne Rechnung) ändert das an keiner
+      // Auswertung etwas.
       'beleg_typ': 'abschluss',
       'geschaeftsjahr': jahr,
       'notizen': 'Jahresabschluss $jahr Schritt E (App)',
