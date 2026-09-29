@@ -156,6 +156,24 @@ class BuchungRepository {
     return rows.map((r) => Buchung.fromJson(r)).toList();
   }
 
+  /// Belegnummern, die mit [praefix] beginnen (auch stornierte) — für die
+  /// laufende Nummer der Abschlussbuchungen (`JA2025_E`, `JA2025_E2` …,
+  /// `naechsteAbschlussBelegnummer`). Das `_` in `JA2025_E` ist für LIKE ein
+  /// Platzhalter; zu viel Gefundenes sortiert der exakte Vergleich in
+  /// `naechsteAbschlussBelegnummer` wieder aus. Wenige Zeilen, daher ohne
+  /// Pagination.
+  static Future<List<String>> belegnummernMitPraefix(String praefix) async {
+    final rows = await SupabaseService.client
+        .from('buchungen')
+        .select('belegnummer')
+        .eq('user_id', _userId)
+        .like('belegnummer', '$praefix%');
+    return [
+      for (final r in rows)
+        if (r['belegnummer'] != null) r['belegnummer'] as String,
+    ];
+  }
+
   /// Alle Beleg-Ids, zu denen im Zeitraum eine nicht stornierte
   /// Ertragsbuchung existiert (`beleg_typ = 'rechnung'`, siehe
   /// `reinigung_buchung_service.dart`).

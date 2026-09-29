@@ -1,3 +1,6 @@
+import 'package:sbs_projer_app/core/util/abschluss_belegnummer.dart';
+import 'package:sbs_projer_app/core/util/chf_format.dart';
+import 'package:sbs_projer_app/core/util/delkredere.dart';
 import 'package:sbs_projer_app/data/repositories/buchung_repository.dart';
 import 'package:sbs_projer_app/services/buchhaltung/mwst_satz_service.dart';
 import 'package:sbs_projer_app/services/rechnung/buchung_service.dart';
@@ -111,5 +114,72 @@ class AbschreibungService {
       'geschaeftsjahr': datum.year,
       'notizen': 'Phase2c Delkredere',
     });
+  }
+
+  /// Jahresabschluss Schritt E: Delkredere per 31.12.[jahr] auf 5 % der
+  /// Debitoren per 31.12.[jahr].
+  ///
+  /// WARUM neben [delkredereSetzen]: Jene nimmt den HEUTIGEN Saldo und bucht
+  /// heute — für den Abschluss eines Vorjahres die falsche Basis und die
+  /// falsche Periode. Die Werte per Stichtag kommen aus dem Journal
+  /// (`delkredereStichtag`), dieselben, die die Abschlussprüfung zeigt.
+  static Future<void> delkredereSetzenPerStichtag({
+    required int jahr,
+    required double debitorenPerStichtag,
+    required double wertberichtigungPerStichtag,
+  }) async {
+    if (delkredereBuchung(
+          debitoren: debitorenPerStichtag,
+          bisher: wertberichtigungPerStichtag,
+        ).betrag <
+        0.01) {
+      return;
+    }
+    final basis = abschlussBelegBasis(jahr, 'E');
+    final vorhandene = await BuchungRepository.belegnummernMitPraefix(basis);
+    final zeile = delkredereStichtagBuchung(
+      jahr: jahr,
+      debitoren: debitorenPerStichtag,
+      bisher: wertberichtigungPerStichtag,
+      belegnummer: naechsteAbschlussBelegnummer(basis, vorhandene),
+    );
+    if (zeile != null) await BuchungRepository.create(zeile);
+  }
+
+  /// Buchungszeile zu [delkredereSetzenPerStichtag] — rein, damit Konten,
+  /// Datum und Texte testbar sind. `null`, wenn nichts zu buchen ist.
+  static Map<String, dynamic>? delkredereStichtagBuchung({
+    required int jahr,
+    required double debitoren,
+    required double bisher,
+    required String belegnummer,
+  }) {
+    final b = delkredereBuchung(debitoren: debitoren, bisher: bisher);
+    if (b.betrag < 0.01) return null;
+    final ziel = delkredereZiel(debitoren);
+    return {
+      'datum': '$jahr-12-31',
+      'belegnummer': belegnummer,
+      // Aufbau: Aufwand 3805 an Wertberichtigung 1109; Abbau umgekehrt.
+      'soll_konto': b.aufbau ? 3805 : 1109,
+      'haben_konto': b.aufbau ? 1109 : 3805,
+      'betrag_netto': b.betrag,
+      'mwst_satz': 0,
+      'mwst_betrag': 0,
+      'betrag_brutto': b.betrag,
+      'beschreibung':
+          'Delkredere auf 5 % von ${chf(debitoren)} = ${chf(ziel)} '
+          'per 31.12.$jahr',
+      'zahlungsweg': 'intern',
+      // «abschluss» wie die Rückstellung JA2025_D: Die Entgeltsminderung
+      // (view_entgeltsminderung) lässt sie aus, und das Jahr gilt damit als
+      // abgeschlossen (geschaeftsjahr_abgeschlossen, Migration 209/216).
+      // Die SQL-Buchung JA2025_E trägt in der DB noch «abschreibung» — für
+      // das Delkredere (ohne MWST, ohne Rechnung) ändert das an keiner
+      // Auswertung etwas.
+      'beleg_typ': 'abschluss',
+      'geschaeftsjahr': jahr,
+      'notizen': 'Jahresabschluss $jahr Schritt E (App)',
+    };
   }
 }

@@ -1,3 +1,5 @@
+import 'package:sbs_projer_app/data/models/buchung.dart';
+
 import 'saldo_expansion.dart';
 
 /// Leichtgewichtige Buchungs-Eingabe für die reine Saldo-Berechnung.
@@ -22,6 +24,21 @@ class BuchungSaldo {
     this.betragNetto,
     this.mwstBetrag = 0,
   });
+
+  /// Journalzeile → Saldo-Eingabe. Hier statt nur in den Providern
+  /// (`toSaldoInput`), damit auch Services aus dem schon geladenen Journal
+  /// rechnen können, ohne die Presentation-Schicht zu importieren.
+  factory BuchungSaldo.ausBuchung(Buchung b) => BuchungSaldo(
+    sollKonto: b.sollKonto,
+    habenKonto: b.habenKonto,
+    betrag: b.betragBrutto,
+    datum: b.datum,
+    storniert: b.istStorniert,
+    istGegenbuchung: b.stornoVonId != null,
+    mwstKonto: b.mwstKonto,
+    betragNetto: b.betragNetto,
+    mwstBetrag: b.mwstBetrag,
+  );
 }
 
 /// Konto-Stammdaten für die Gruppierung.

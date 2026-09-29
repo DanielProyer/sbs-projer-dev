@@ -13,6 +13,8 @@ import 'package:sbs_projer_app/data/repositories/steuerjahr_repository.dart';
 import 'package:sbs_projer_app/data/repositories/steuerzahlung_repository.dart';
 import 'package:sbs_projer_app/core/util/anfrage_bloecke.dart';
 import 'package:sbs_projer_app/core/util/guthaben.dart';
+import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart'
+    show bussenAuf8900, rueckstellungGebucht;
 import 'package:sbs_projer_app/core/util/zahlungsstatus.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_regeln.dart'
@@ -109,19 +111,8 @@ double _toDouble(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
 
 /// Buchungen → Saldo-Input für Bilanz/Erfolgsrechnung.
 /// Öffentlich, weil auch die Steuern-Provider die ER je Jahr rechnen.
-List<BuchungSaldo> toSaldoInput(List<Buchung> buchungen) => buchungen
-    .map((b) => BuchungSaldo(
-          sollKonto: b.sollKonto,
-          habenKonto: b.habenKonto,
-          betrag: b.betragBrutto,
-          datum: b.datum,
-          storniert: b.istStorniert,
-          istGegenbuchung: b.stornoVonId != null,
-          mwstKonto: b.mwstKonto,
-          betragNetto: b.betragNetto,
-          mwstBetrag: b.mwstBetrag,
-        ))
-    .toList();
+List<BuchungSaldo> toSaldoInput(List<Buchung> buchungen) =>
+    buchungen.map(BuchungSaldo.ausBuchung).toList();
 
 /// Bank-Wächter fürs Dashboard: Journal 1020 gegen den letzten
 /// Bank-Schlusssaldo + Soll-Überhänge auf Verbindlichkeitskonten
@@ -297,6 +288,9 @@ final abschlussPruefungProvider =
     jahreskundenUnverrechnet: jahreskunden,
     kundenguthabenJeBetrieb: kundenguthaben,
     offeneRechnungenVoll: offene,
+    // Aus dem schon geladenen Journal — kostet keine Abfrage.
+    rueckstellungGebucht: rueckstellungGebucht(buchungen, jahr),
+    bussenAuf8900: bussenAuf8900(buchungen, jahr),
   ));
 });
 
