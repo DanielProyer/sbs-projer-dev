@@ -10,10 +10,13 @@ import 'package:sbs_projer_app/core/util/chf_format.dart';
 import 'package:sbs_projer_app/core/util/jahresabschluss_schritte.dart';
 import 'package:sbs_projer_app/core/util/jahresrechnung_kennzahlen.dart';
 import 'package:sbs_projer_app/data/models/geschaeft_einstellungen.dart';
+import 'package:sbs_projer_app/data/repositories/dokument_repository.dart';
 import 'package:sbs_projer_app/presentation/providers/geschaeft_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/jahresabschluss_providers.dart';
 import 'package:sbs_projer_app/presentation/providers/steuern_providers.dart';
 import 'package:sbs_projer_app/presentation/widgets/filter/app_jahr_leiste.dart';
+import 'package:sbs_projer_app/presentation/widgets/pdf_oeffnen.dart'
+    show pdfHerunterladen;
 import 'package:sbs_projer_app/presentation/widgets/tap_knopf.dart';
 import 'package:sbs_projer_app/services/buchhaltung/abschluss_pruef_service.dart';
 import 'package:sbs_projer_app/services/pdf/jahresrechnung_pdf_service.dart';
@@ -537,8 +540,38 @@ class _JahresabschlussScreenState extends ConsumerState<JahresabschlussScreen> {
         if (lage != null) _vorschau(lage);
       case SchrittAktion.erzeugen:
         if (lage != null) _erzeugen(lage);
+      case SchrittAktion.jahresrechnungLaden:
+        if (lage != null) _jahresrechnungLaden(lage);
     }
   }
+
+  /// Die neueste Fassung aus dem Dossier als Datei — dieselbe, die Daniel
+  /// unterschreibt, nicht ein frisch gerechnetes PDF (das könnte nach einer
+  /// späteren Buchung abweichen). Download per Anker, nicht als Fenster: fällt
+  /// nicht unter den Popup-Blocker.
+  Future<void> _jahresrechnungLaden(JahresabschlussLage lage) =>
+      _mitSperre(SchrittAktion.jahresrechnungLaden, () async {
+        final messenger = ScaffoldMessenger.of(context);
+        final f = neuesteFassung(lage.jahr, lage.dokumente);
+        if (f == null) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text('Keine Jahresrechnung im Dossier — zuerst Schritt 5.'),
+            ),
+          );
+          return;
+        }
+        try {
+          final bytes = await DokumentRepository.download(f.dokument.storagePfad);
+          await pdfHerunterladen(messenger, bytes, f.dokument.dateiname);
+        } catch (e) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Download fehlgeschlagen: ${kurzeFehlermeldung(e)}'),
+            ),
+          );
+        }
+      });
 
   Future<Uint8List> _pdf(
     JahresabschlussLage lage,

@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 01.10.2026 — v0.154.2 Jahresabschluss Schritt 6: Knopf «Jahresrechnung herunterladen» (neueste Fassung aus dem Dossier, für die Steuererklärung)
 - 01.10.2026 — v0.154.1 Anhang der Jahresrechnung: Punkt «Ausserordentliche, periodenfremde Positionen» (Art. 959c Abs. 2 Ziff. 12 OR) aus Konto 8000 je Beleg (`aoErtragZeilenAus`); Fassung 2 der Jahresrechnung 2025 schwieg zu 6'367.89
 - 01.10.2026 — Migrationen 219–221 (ohne App-Version): Debitoren Excel-Ära bereinigt — März-2023-Lücke nachgebucht (33 Rg), 19 Zahlungen verknüpft, Heineken 3 Monate, Rest ausgebucht (JA2025_F1–F5, F_MWST); Abschlussprüfung «1100 = offene Rechnungen» 0.00
 - 01.10.2026 — Migrationen 217/218 (ohne App-Version): Monatsabschlüsse 2025 grün — Heineken-Excel-Buchungen mit ihrer Monatsrechnung verknüpft (76 Monate 2019–11/2025), 14 Excel-Reinigungen 2025 als Monteur/Kulanz gekennzeichnet (Entscheid Daniel)

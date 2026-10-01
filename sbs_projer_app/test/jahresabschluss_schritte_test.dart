@@ -307,6 +307,21 @@ void main() {
     expect(ein.ist, 'Eingereicht am 30.09.2026');
   });
 
+  test('Steuererklärung: Jahresrechnung herunterladen, gesperrt ohne Fassung', () {
+    Map<SchrittAktion, bool> knoepfe(List<Dokument> dokumente) => {
+      for (final k in schritte(dokumente: dokumente)[5].knoepfe) k.aktion: k.aktiv,
+    };
+    final ohne = knoepfe(const []);
+    expect(ohne.keys, [SchrittAktion.steuerjahr, SchrittAktion.jahresrechnungLaden]);
+    expect(ohne[SchrittAktion.jahresrechnungLaden], isFalse);
+    // Fremdunterlagen (Bilanz/ER getrennt) sind keine Fassung → gesperrt.
+    expect(knoepfe([fremd(2025, 'Bilanz 31.12.2025')])[SchrittAktion.jahresrechnungLaden], isFalse);
+    expect(knoepfe([skriptFassung()])[SchrittAktion.jahresrechnungLaden], isTrue);
+    final f2 = dok('jahresrechnung', erstellt: DateTime(2026, 10, 1), titel: 'Jahresrechnung 2025 — … — Fassung 2');
+    expect(neuesteFassung(2025, [skriptFassung(), f2])?.dokument.titel, f2.titel);
+    expect(neuesteFassung(2025, const []), isNull);
+  });
+
   test('laufendes Jahr: Steuererklärung sagt «Jahr läuft noch»', () {
     final s = schritte(jahr: 2026)[5];
     expect(s.hinweis, contains('Jahr läuft noch'));

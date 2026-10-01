@@ -36,6 +36,11 @@ enum SchrittAktion {
 
   /// Steuerjahr (Dossier, Status, Veranlagung) öffnen.
   steuerjahr,
+
+  /// Neueste Fassung der Jahresrechnung aus dem Dossier herunterladen —
+  /// Daniel braucht Bilanz und Erfolgsrechnung beim Ausfüllen der
+  /// Steuererklärung als Datei (Wunsch 01.10.2026).
+  jahresrechnungLaden,
 }
 
 class SchrittKnopf {
@@ -122,6 +127,12 @@ List<JahresrechnungFassung> fassungenVon(int jahr, List<Dokument> dokumente) {
     return db.compareTo(da);
   });
   return liste;
+}
+
+/// Die neueste Fassung des Jahrs, `null` ohne App- oder Skript-Fassung.
+JahresrechnungFassung? neuesteFassung(int jahr, List<Dokument> dokumente) {
+  final f = fassungenVon(jahr, dokumente);
+  return f.isEmpty ? null : f.first;
 }
 
 /// Nummer der nächsten Fassung: höchste vorhandene + 1. Die Skript-Fassung
@@ -274,7 +285,18 @@ List<JahresabschlussSchritt> jahresabschlussSchritte({
               else
                 'Jahr läuft noch.',
             ].join(' '),
-      knoepfe: const [SchrittKnopf('Öffnen', SchrittAktion.steuerjahr)],
+      knoepfe: [
+        const SchrittKnopf('Öffnen', SchrittAktion.steuerjahr),
+        // Bilanz und Erfolgsrechnung liegen in der Jahresrechnung — beim
+        // Ausfüllen der Steuererklärung braucht Daniel sie als Datei, ohne
+        // Umweg über das Dossier. Gesperrt statt weg, solange keine Fassung
+        // da ist (gleiche Haltung wie «Erzeugen» im laufenden Jahr).
+        SchrittKnopf(
+          'Jahresrechnung herunterladen',
+          SchrittAktion.jahresrechnungLaden,
+          aktiv: neuesteFassung(jahr, dokumente) != null,
+        ),
+      ],
     ),
   ];
 }
