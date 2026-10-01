@@ -247,3 +247,22 @@ Positionen die Buchungs-Ids tragen); JA2025_A2_MWST, JA2025_E2, JA2025_D2
 löschen (`belegnummer in (…)`). **Mit 215 gebucht:** die Rücknahme löscht die
 76 Brutto-Zeilen UND die Sammelbuchung `JA2025_A_MWST_7_7_L2` selbst; von Hand
 bleiben nur JA2025_E2 und JA2025_D2.
+
+## 10. Vorprüfung 01.10.2026 — Monatsabschlüsse 2025 (Migrationen 217/218)
+
+Vor Schritt 9a wurden die zwölf Monatsabschlüsse 2025 durchgesehen (SQL,
+alle zehn Regeln). Zwei Ursachen für rote Zeilen, beide ohne neue Buchung und
+ohne Wirkung auf Gewinn, Bilanz oder MWST:
+
+| Regel | Monate | Ursache | Behebung |
+|---|---|---|---|
+| Heineken «ohne Ertragsbuchung» | Jan–Nov | Excel-Buchung 1100/3400 «Heineken Rechnung» je Monat (Belegordner 012) ohne `beleg_id`; Betrag = Monatsrechnung | 217: `beleg_id` + `beleg_typ 'rechnung'` auf 76 Buchungen 2019–11/2025, nur exakte Treffer |
+| «Jede Reinigung hat ihre Ertragsbuchung» | Jan, Feb, Mär, Jun, Jul, Okt, Nov | 14 Excel-Reinigungen mit Trigger-Preis 74.59, in Excel nie verrechnet | 218: 6 Heineken-Monteur (`service_typ` NULL), 8 Kulanz — Entscheid Daniel |
+
+Nicht verknüpft, weil Excel-Buchung und Rechnung abweichen (abgeschlossene
+Jahre, Entscheid offen): 2019-05 (3'237.70 / 3'237.68), 2019-08 (4'366.16 /
+4'204.61), 2022-05 (4'477.63 / 4'967.66). Die Rückwege stehen im Kopf der
+beiden Migrationen. Ertrag 3400 im Jahr 2025 vor und nach 217: 213'571.17.
+Die Falle dahinter: Der Hinweis «Im Detail der Rechnung nachholen» hätte den
+Monatsertrag ein zweites Mal gebucht — bei Rechnungen aus der Excel-Ära nie
+nachbuchen, sondern verknüpfen.

@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **216** · **3371 Tests grün**.
+**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **218** · **3371 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -62,6 +62,23 @@ SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
 - [x] **GKB Zins-/Kapitalausweis per 31.12.2025** — liegt seit 01.10. im
       Dossier (Typ «Zins-/Kapitalausweis», Jahr 2025); damit sind Lohnausweis,
       Jahresrechnung (Fassung 1) und Zinsausweis da.
+
+**Vorprüfung Monatsabschlüsse 2025 — ✅ erledigt 01.10.2026 (Migrationen 217/218, angewendet):**
+Alle zwölf Monate grün (SQL-Nachrechnung aller zehn Regeln). Rot waren zwei
+Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
+- Heineken «Monatsrechnung freigegeben — ohne Ertragsbuchung» Januar bis
+  November: Der Ertrag stand je Monat als Excel-Buchung 1100/3400 im
+  Hauptbuch (rappengenau = Monatsrechnung, Belegordner 012), nur ohne
+  `beleg_id`. **Nie «nachholen»** — das bucht den Ertrag doppelt. 217
+  verknüpft 76 Monate 2019–11/2025 (nur exakte Treffer). Offen bleiben drei
+  Monate in abgeschlossenen Jahren, weil Excel-Buchung und Rechnung
+  abweichen: 2019-05 (0.02), 2019-08 (−161.55), 2022-05 (+490.03).
+- «Jede Reinigung hat ihre Ertragsbuchung» in sieben Monaten: 14
+  Excel-Reinigungen mit Trigger-Preis 74.59, in Excel nie verrechnet.
+  Entscheid Daniel: 6 mit Notiz Monteur/Higeneie → Heineken-Monteur, 8 mit
+  Kontrolle/«-» → Kulanz (218, Preis 0 durch den Trigger).
+- Nebenbefund: September 2026 zeigt «3 ohne Buchung» — drei
+  Heineken-Reinigungen, die regulär auf die September-Monatsrechnung warten.
 
 **Donnerstag, in dieser Reihenfolge:**
 1. [ ] **Jahrgang 2020 abschreiben** — App: Mehr → Abschlüsse und Steuern →

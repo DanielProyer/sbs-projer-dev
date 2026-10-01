@@ -6,6 +6,7 @@ am 22.09.2026; die Abschnitte ab «Laufende Chronik» sind **wörtlich**
 Version (Begründung, Prüfung, Rückweg) stehen in `ToDo.md`, ältere im
 dortigen Archiv.
 
+- 01.10.2026 — Migrationen 217/218 (ohne App-Version): Monatsabschlüsse 2025 grün — Heineken-Excel-Buchungen mit ihrer Monatsrechnung verknüpft (76 Monate 2019–11/2025), 14 Excel-Reinigungen 2025 als Monteur/Kulanz gekennzeichnet (Entscheid Daniel)
 - 29.09.2026 — v0.154.0 Jahresabschluss in der App: Abschreibung nach dem 2019-Muster (215), Delkredere und Steuerrückstellung per 31.12. (216), geführter Jahresabschluss mit Jahresrechnungs-PDF ins Dossier, Dokument-Erkennung beim Upload (parse-dokument)
 - 29.09.2026 — v0.153.1 Vorbereitung Jahresabschluss 2025: Bilanz/ER unter «Abschlüsse und Steuern», Migration 214 (zweiter Abschreibungslauf je Jahr), Donnerstag-Liste, Beilage-Skript
 - 29.09.2026 — v0.153.0 fahrzeit-route routet Koordinaten: GPS-, Startort- und Anfahrts-Fahrten bekommen OSRM-Strecken (Migration 213 `routen_punkte`)
