@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **221** · **3371 Tests grün**.
+**Stand:** **v0.154.1 live** (Anhang: periodenfremde Positionen aus 8000; Migrationen 217–221 Debitoren Excel-Ära, Jahresabschluss 2025 Schritte 1–5 gebucht; davor v0.154.0 Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **221** · **3371 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -122,7 +122,7 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
 5. [ ] **Abschlussprüfung 2025** in der App durchgehen — alles grün oder
        erklärt (Bank = camt 12'202.73, Delkredere 5 %, Rückstellung 2208,
        Steuerzuordnung, Steuererklärung vorhanden).
-6. [ ] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — App: Mehr →
+6. [x] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — ✅ Fassung 2 am 01.10. erzeugt und per SQL geprüft (alle Positionen beider Jahre identisch); **Fassung 3 mit v0.154.1 erzeugen** (Anhang-Punkt periodenfremde Positionen 6'367.89). App: Mehr →
        Abschlüsse und Steuern → Bilanz und Erfolgsrechnung → 31.12.2025 → PDF
        (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Stand nach 1–4 und
        Schritt F, per SQL 01.10.2026 (Bilanz geht auf: Aktiven 125'025.23):**
@@ -130,7 +130,7 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
        35'060.71 + 18'616.70), Debitoren 109'562.91, Delkredere 5'478.15,
        Rückstellung 2208 3'400.00, Bank 12'202.73, Kasse 6'670.24, 2200 0.00.
        Das PDF muss diese Zahlen zeigen (`jahresabschluss-2025.md` §10c).
-7. [ ] **Claude: Anhang OR 959c und Steuerbeilage** mit den finalen Zahlen
+7. [x] **Claude: Anhang OR 959c und Steuerbeilage** — ✅ kommen seit v0.154.0 aus der App (kein Skript mehr); Anhang-Lücke periodenfremder Ertrag mit v0.154.1 geschlossen. Ursprünglich:
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
 8. [ ] **Steuererklärung 2025 ausfüllen** (juristische Personen, Kanton GR):

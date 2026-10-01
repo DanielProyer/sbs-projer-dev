@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sbs_projer_app/core/util/jahresrechnung_kennzahlen.dart';
 import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 
 AbschreibungLauf lauf({
   int geschaeftsjahr = 2025,
@@ -192,5 +193,77 @@ void main() {
     expect(m.aufrechnungen, 200);
     expect(m.ereignisse, 'Keine.');
     expect(m.gewinn, k.gewinn);
+  });
+
+  group('Ausserordentlicher Ertrag 8000 (Art. 959c Abs. 2 Ziff. 12 OR)', () {
+    Buchung b(
+      String nr,
+      int soll,
+      int haben,
+      double betrag,
+      String text, {
+      int jahr = 2025,
+      double mwst = 0,
+      int? mwstKonto,
+      bool storniert = false,
+    }) => Buchung(
+      id: '$nr $text',
+      userId: 'u',
+      datum: DateTime(jahr, 12, 31),
+      belegnummer: nr,
+      sollKonto: soll,
+      habenKonto: haben,
+      mwstKonto: mwstKonto,
+      betragNetto: betrag - mwst,
+      mwstBetrag: mwst,
+      betragBrutto: betrag,
+      beschreibung: text,
+      geschaeftsjahr: jahr,
+      istStorniert: storniert,
+    );
+
+    test('je Beleg eine Zeile: Vorzeichen, gemeinsamer Anfang, Fremdjahr und Storno nicht', () {
+      final zeilen = aoErtragZeilenAus([
+        b('JA2025_F1', 1100, 8000, 85.10, 'Nachtrag Forderung 011_2023_03_09_0224_00008510 BARacca (März-2023-Lücke, bezahlt 31.05.2023)'),
+        b('JA2025_B4', 2200, 8000, 2079.39, 'Auflösung MwSt-Altsaldo 2019–2024 (Journal-USt über ESTV-Saldi)'),
+        b('JA2025_F1', 1100, 8000, 67.85, 'Nachtrag Forderung 011_2023_03_14_0002_00006785 Fravi (März-2023-Lücke, bezahlt 24.03.2023)'),
+        b('JA2025_F3', 8000, 1100, 161.55, "Korrektur Heineken-Forderung 08/2019: Excel 4'366.16, Rechnung und Zahlung 4'204.61"),
+        // MWST am Entscheidtag im Folgejahr: zählt 2025 nicht.
+        b('JA2025_F_MWST', 8000, 2200, 218.50, 'MWST 7.7 % auf nachgebuchten Ertrag', jahr: 2026, mwst: 218.50, mwstKonto: 2200),
+        b('X', 1020, 8000, 50, 'Fremdjahr', jahr: 2024),
+        b('S', 1020, 8000, 999, 'Storniert', storniert: true),
+        b('N', 1020, 3400, 999, 'Anderes Konto'),
+      ], 2025);
+      expect(zeilen, [
+        "Auflösung MwSt-Altsaldo 2019–2024: 2'079.39",
+        'Nachtrag Forderung (2 Buchungen): 152.95',
+        'Korrektur Heineken-Forderung 08/2019: -161.55',
+      ]);
+    });
+
+    test('MWST-Aufteilung: Soll 8000 mit mwst_konto 2200 zählt brutto als Aufwand', () {
+      expect(
+        aoErtragZeilenAus([
+          b('JA2025_F_MWST', 8000, 2200, 218.50, 'MWST 7.7 % auf nachgebuchten Ertrag', jahr: 2026, mwst: 218.50, mwstKonto: 2200),
+        ], 2026),
+        ['MWST 7.7 % auf nachgebuchten Ertrag: -218.50'],
+      );
+    });
+
+    test('kennzahlenAus: Bewegung des Jahrs auf 8000, positiv = Ertrag, Zeilen aus dem Journal', () {
+      final k = kennzahlenAus(
+        jahr: 2025,
+        saldiJahr: {...jahr2025, 8000: -6367.89},
+        saldiVorjahr: {...vorjahr, 8000: -1000},
+        laeufe: const [],
+        journal: [b('JA2025_B5', 2000, 8000, 96.95, 'Auflösung Kreditoren-Altrest 96.95 (ohne Beleg)')],
+      );
+      expect(k.aoErtrag, closeTo(5367.89, 0.001));
+      expect(k.aoErtragZeilen, ['Auflösung Kreditoren-Altrest 96.95: 96.95']);
+      expect(k.mit(ereignisse: 'x').aoErtragZeilen, k.aoErtragZeilen);
+      final ohne = kennzahlenAus(jahr: 2025, saldiJahr: jahr2025, saldiVorjahr: vorjahr, laeufe: const []);
+      expect(ohne.aoErtrag, 0);
+      expect(ohne.aoErtragZeilen, isEmpty);
+    });
   });
 }

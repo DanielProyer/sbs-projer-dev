@@ -13,7 +13,14 @@ import 'package:sbs_projer_app/core/util/rundung.dart';
 import 'package:sbs_projer_app/core/util/steuerrueckstellung.dart'
     show kKontenBussen;
 import 'package:sbs_projer_app/data/models/abschreibung_lauf.dart';
+import 'package:sbs_projer_app/data/models/buchung.dart';
 import 'package:sbs_projer_app/services/buchhaltung/bilanz_service.dart';
+import 'package:sbs_projer_app/services/buchhaltung/saldo_expansion.dart';
+import 'package:sbs_projer_app/services/buchhaltung/storno_logik.dart';
+
+/// Konto «Ausserordentlicher Ertrag» — periodenfremde Korrekturen (Entscheid
+/// Daniel 02.09.2026: Vorjahres-Korrekturen laufen über 8000 im offenen Jahr).
+const int kKontoAoErtrag = 8000;
 
 class JahresrechnungKennzahlen {
   final int jahr;
@@ -62,6 +69,17 @@ class JahresrechnungKennzahlen {
   /// Freitext «Ereignisse nach dem Bilanzstichtag» (optional).
   final String? ereignisse;
 
+  /// Bewegung des Jahrs auf 8000 «Ausserordentlicher Ertrag», positiv =
+  /// Ertrag. Art. 959c Abs. 2 Ziff. 12 OR verlangt, dass ausserordentliche,
+  /// einmalige oder periodenfremde Positionen im Anhang erläutert werden —
+  /// 2025 waren das 6'367.89 (ein Drittel des Gewinns), und Fassung 2 der
+  /// Jahresrechnung schwieg dazu (Befund 01.10.2026).
+  final double aoErtrag;
+
+  /// Je Beleg eine Zeile «Auflösung MwSt-Altsaldo 2019–2024: 2'079.39»
+  /// ([aoErtragZeilenAus]).
+  final List<String> aoErtragZeilen;
+
   const JahresrechnungKennzahlen({
     required this.jahr,
     required this.gewinn,
@@ -77,6 +95,8 @@ class JahresrechnungKennzahlen {
     this.abschreibungen = const [],
     this.abschreibungNachStichtag = false,
     this.ereignisse,
+    this.aoErtrag = 0,
+    this.aoErtragZeilen = const [],
   });
 
   /// Tatsächlicher Satz des Delkredere auf den Debitoren, eine
@@ -113,7 +133,90 @@ class JahresrechnungKennzahlen {
     abschreibungen: abschreibungen,
     abschreibungNachStichtag: abschreibungNachStichtag,
     ereignisse: ereignisse ?? this.ereignisse,
+    aoErtrag: aoErtrag,
+    aoErtragZeilen: aoErtragZeilen,
   );
+}
+
+/// Die Buchungen des Jahrs [jahr] auf [kKontoAoErtrag], je Belegnummer eine
+/// Zeile mit ihrer Wirkung auf den Ertrag (positiv = Ertrag, Saldenlogik
+/// der App inkl. MWST-Aufteilung). Bezeichnung: die Beschreibung bis zum
+/// ersten «:» oder «(»; bei mehreren Buchungen je Beleg der gemeinsame
+/// Anfang der Beschreibungen, zum ganzen Wort gekürzt — aus «Nachtrag
+/// Forderung 011_2023_03_09_… BARacca» und «Nachtrag Forderung
+/// 011_2023_03_14_… Fravi» wird «Nachtrag Forderung (2 Buchungen)».
+List<String> aoErtragZeilenAus(Iterable<Buchung> journal, int jahr) {
+  final gruppen = <String, List<Buchung>>{};
+  for (final b in journal) {
+    if (b.datum.year != jahr) continue;
+    if (b.sollKonto != kKontoAoErtrag && b.habenKonto != kKontoAoErtrag) {
+      continue;
+    }
+    if (!zaehltFuerSaldo(
+      istStorniert: b.istStorniert,
+      stornoVonId: b.stornoVonId,
+    )) {
+      continue;
+    }
+    gruppen.putIfAbsent(b.belegnummer ?? b.beschreibung, () => []).add(b);
+  }
+  final schluessel = gruppen.keys.toList()..sort();
+  return [for (final s in schluessel) _aoZeile(gruppen[s]!)];
+}
+
+String _aoZeile(List<Buchung> buchungen) {
+  final saldi = <int, double>{};
+  for (final b in buchungen) {
+    SaldoExpansion.apply(
+      saldi,
+      sollKonto: b.sollKonto,
+      habenKonto: b.habenKonto,
+      mwstKonto: b.mwstKonto,
+      betragNetto: b.betragNetto,
+      mwstBetrag: b.mwstBetrag,
+      betragBrutto: b.betragBrutto,
+    );
+  }
+  final ertrag = rundeAufRappen(-(saldi[kKontoAoErtrag] ?? 0));
+  final label = buchungen.length == 1
+      ? _kurz(buchungen.single.beschreibung)
+      : _kurz(_gemeinsamerAnfang(buchungen.map((b) => b.beschreibung)));
+  final n = buchungen.length > 1 ? ' (${buchungen.length} Buchungen)' : '';
+  return '$label$n: ${chf(ertrag)}';
+}
+
+/// Beschreibung bis zum ersten «:» oder «(», ohne Rand.
+String _kurz(String s) {
+  final schnitt = [s.indexOf(':'), s.indexOf('(')].where((i) => i >= 0);
+  final kurz = schnitt.isEmpty
+      ? s
+      : s.substring(0, schnitt.reduce((a, b) => a < b ? a : b));
+  final t = kurz.trim();
+  return t.isEmpty ? s.trim() : t;
+}
+
+/// Gemeinsamer Anfang aller Texte, auf das letzte ganze Wort gekürzt.
+String _gemeinsamerAnfang(Iterable<String> texte) {
+  final liste = texte.toList();
+  if (liste.isEmpty) return '';
+  var p = liste.first;
+  for (final t in liste.skip(1)) {
+    var i = 0;
+    while (i < p.length && i < t.length && p[i] == t[i]) {
+      i++;
+    }
+    p = p.substring(0, i);
+  }
+  // Mitten im Wort abgeschnitten (bei mindestens einem Text geht es ohne
+  // Leerzeichen weiter): auf das letzte Leerzeichen zurück.
+  final mittenImWort = liste.any(
+    (t) => t.length > p.length && t[p.length] != ' ',
+  );
+  if (mittenImWort && p.contains(' ')) {
+    p = p.substring(0, p.lastIndexOf(' '));
+  }
+  final t = p.trim();
+  return t.isEmpty ? liste.first : t;
 }
 
 /// Eine Zeile je gebuchtem Abschreibungslauf des Geschäftsjahrs [jahr].
@@ -151,6 +254,7 @@ JahresrechnungKennzahlen kennzahlenAus({
   required List<AbschreibungLauf> laeufe,
   double aufrechnungenManuell = 0,
   String? ereignisse,
+  Iterable<Buchung> journal = const [],
 }) {
   double s(int konto) => saldiJahr[konto] ?? 0;
   final vortrag = BilanzService.kumuliertesErgebnis(saldiVorjahr);
@@ -179,5 +283,11 @@ JahresrechnungKennzahlen kennzahlenAus({
     ereignisse: (ereignisse == null || ereignisse.trim().isEmpty)
         ? null
         : ereignisse.trim(),
+    // Bewegung des Jahrs, nicht der kumulierte Saldo: 8000 wird wie alle
+    // Erfolgskonten nie abgeschlossen.
+    aoErtrag: rundeAufRappen(
+      -(s(kKontoAoErtrag) - (saldiVorjahr[kKontoAoErtrag] ?? 0)),
+    ),
+    aoErtragZeilen: aoErtragZeilenAus(journal, jahr),
   );
 }

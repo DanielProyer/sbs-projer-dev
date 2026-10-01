@@ -478,6 +478,19 @@ class JahresrechnungPdfService {
                   'die Mehrwertsteuer-Rückholung erfolgt in der Periode des '
                   'Entscheids.'
             : 'Keine wesentlichen Ereignisse nach dem Bilanzstichtag.');
+    // Art. 959c Abs. 2 Ziff. 12 OR: ausserordentliche, einmalige oder
+    // periodenfremde Positionen. Fassung 2 der Jahresrechnung 2025 schwieg
+    // zu 6'367.89 auf 8000 (ein Drittel des Gewinns) — Befund 01.10.2026.
+    final aoZusatz = k.aoErtragZeilen.isEmpty
+        ? ''
+        : ' — ${k.aoErtragZeilen.join('; ')}';
+    final ao = k.aoErtrag.abs() < 0.005 && k.aoErtragZeilen.isEmpty
+        ? 'Keine ausserordentlichen, einmaligen oder periodenfremden '
+              'Positionen.'
+        : 'Konto 8000 «Ausserordentlicher Ertrag»: CHF ${chf(k.aoErtrag)} '
+              '(${k.aoErtrag >= 0 ? 'Ertrag' : 'Aufwand'}), periodenfremd '
+              '(Art. 959c Abs. 2 Ziff. 12 OR). Korrekturen aus Vorjahren'
+              '$aoZusatz. Herleitung in der Abschlussdokumentation.';
     return [
       (
         'Firma, Rechtsform, Sitz',
@@ -527,6 +540,7 @@ class JahresrechnungPdfService {
         'Keine Bürgschaften, keine Garantieverpflichtungen, keine '
             'Leasingverbindlichkeiten.',
       ),
+      ('Ausserordentliche, periodenfremde Positionen', ao),
       ('Ereignisse nach dem Bilanzstichtag', ereignisse),
     ];
   }

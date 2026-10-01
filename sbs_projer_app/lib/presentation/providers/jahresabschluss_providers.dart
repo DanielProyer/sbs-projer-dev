@@ -172,6 +172,8 @@ final jahresabschlussLageProvider = FutureProvider.autoDispose
           // meinen.
           bussen8900: bussenAuf8900(buchungen, jahr),
           laeufe: laeufe,
+          // Für den Anhang-Punkt «periodenfremde Positionen» (8000 je Beleg).
+          journal: buchungen,
         ),
         bilanz: BilanzService.erstelle(saldoInput, infos, stichtag),
         bilanzVorjahr: BilanzService.erstelle(saldoInput, infos, stichtagVj),

@@ -285,5 +285,37 @@ void main() {
         'Keine.',
       );
     });
+
+    test('K12: periodenfremde Positionen aus 8000, sonst «Keine»', () {
+      const titel = 'Ausserordentliche, periodenfremde Positionen';
+      expect(text(k.mit(), titel), startsWith('Keine ausserordentlichen'));
+      const ao = JahresrechnungKennzahlen(
+        jahr: 2025,
+        gewinn: 0,
+        gewinnvortrag: 0,
+        stammkapital: 20000,
+        debitoren: 0,
+        delkredere: 0,
+        rueckstellung: 0,
+        bank: 0,
+        kasse: 0,
+        aufrechnungenAuto: 0,
+        aoErtrag: 6367.89,
+        aoErtragZeilen: [
+          "Auflösung MwSt-Altsaldo 2019–2024: 2'079.39",
+          "Nachtrag Forderung (27 Buchungen): 2'383.45",
+        ],
+      );
+      final t = text(ao, titel);
+      expect(t, contains("CHF 6'367.89 (Ertrag)"));
+      expect(t, contains('Art. 959c Abs. 2 Ziff. 12 OR'));
+      expect(t, contains("Auflösung MwSt-Altsaldo 2019–2024: 2'079.39; Nachtrag Forderung (27 Buchungen): 2'383.45."));
+      // Nur ein Saldo ohne Belege (z. B. Journal nicht geladen): trotzdem
+      // ausweisen, Aufwand mit Vorzeichen.
+      expect(
+        text(ao.mit(), titel),
+        contains("CHF 6'367.89 (Ertrag)"),
+      );
+    });
   });
 }
