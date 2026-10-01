@@ -266,3 +266,43 @@ beiden Migrationen. Ertrag 3400 im Jahr 2025 vor und nach 217: 213'571.17.
 Die Falle dahinter: Der Hinweis «Im Detail der Rechnung nachholen» hätte den
 Monatsertrag ein zweites Mal gebucht — bei Rechnungen aus der Excel-Ära nie
 nachbuchen, sondern verknüpfen.
+
+### 10a. Debitoren 1100 = offene Rechnungen: −4'315.85 zerlegt (01.10.2026, nach Lauf L2)
+
+Die Abschlussprüfung 2025 meldet heute 1100 = 121'281.79 gegen offene
+Rechnungen 125'597.64 (inkl. 658.35 Jahreskunden ohne Jahresrechnung). Per
+SQL rappengenau nachvollzogen (Saldenlogik der App, MWST-Aufteilung):
+
+| Teil | Befund |
+|---|---|
+| App-Ära ab 01.12.2025 | stimmt je Rechnung: 155 offene Kundenrechnungen 15'259.05 ↔ 1100-Soll 15'259.10; Heineken 08/2026 13'966.09 ↔ 13'966.09; 607 bezahlte ↔ Soll +0.60 / Haben +0.25 (Rundung). Beitrag **+0.40** |
+| Excel-Ära bis 30.11.2025 | 1100 per 30.11.2025 = 116'255.48, offene Excel-Rechnungen per 30.11.2025 = 120'571.73 (heute offen 95'714.15 + seither bezahlt 3'628.95 + Heineken 10/11 + Seeblick 11'776.43 + abgeschrieben 9'452.20). Beitrag **−4'316.25** |
+
+Innerhalb der Excel-Ära (Bestandteile, nicht additiv bis auf den Rappen):
+- **11 offene Rechnungen ohne Forderungsbuchung in Excel, 1'073.40:** Alte
+  Schwendi 01.01.2021 102.30 · Hotel Sport 18.10.2021 67.85 · Crestasee
+  01.06.2022 85.10 (Notiz «in MR») · Krone 17.03.2023 107.70 · IKIGAI 67.85,
+  Signina 85.10 (22.03.2023) · Il Pub 119.55, Indy Bar 142.15, Snake Bar
+  107.70 (23.03.2023) · Türmli 18.07. und 29.08.2025 je 94.05. Dazu
+  Preisabweichungen Spiga 2× (Excel 67.85, Rechnung 85.10) und Sunstar
+  (Excel 154.00 «beide Anlagen», Rechnung 85.10). 33 weitere Treffer waren
+  nur Namensvarianten (Arena Bar, WG Giovadin, Gipfelbar Setz Nair = Sezner,
+  Alpina = Seven Alpina, Me and All Hotel, Vieri Bar, Central).
+- **Excel-Zahlungen ohne Rechnung, ≈ 1'160:** «NOCH ABKLÄREN und Beleg»
+  978.20 (4×, 2024–2025), «Service nicht erfasst» 124.30, «falscher Betrag»
+  86.16/126.00/74.90, «Betrag in Euro» 86.15, Nachzahlung 100.00,
+  Teilzahlung 18.45, Einzahlungen ohne Zuordnung 67.85 (unverknüpfte
+  Zahlungseingänge 45'089.87 gegen 420 bezahlte Rechnungen ohne
+  Zahlungsbuchung 43'929.90).
+- **«KEIN BELEG, Pächter abgehauen» 271.40:** vier Excel-Ausbuchungen
+  3400/1100 (Weiss Kreuz Cazis, Neustadt Chur, Oktober 2020) ohne Rechnung.
+- **Heineken +161.55:** Monat 08/2019 in Excel 4'366.16 gebucht, Rechnung
+  und Zahlung 4'204.61 (die drei nicht verknüpften Monate aus 217).
+- Rest: Rundungen und kleine Doppel-/Fehlzuordnungen (z. B. 275.70 auf
+  201.40, Ecqua 3'877.20 hebt sich auf).
+
+**Einordnung:** Der Bilanzwert 1100 per 31.12.2025 (105'351.96) kommt aus
+dem Hauptbuch und ist davon nicht berührt; das Delkredere rechnet darauf.
+Betroffen ist nur die Rechnungsliste (Mahnwesen): rund 4'300 davon stehen
+offen, ohne dass das Hauptbuch je eine Forderung kannte. Die Jahrgangs-
+Abschreibung räumt sie mit den Jahrgängen ab (2021 im Abschluss 2026 usw.).
