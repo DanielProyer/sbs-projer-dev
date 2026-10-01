@@ -122,7 +122,7 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
 5. [ ] **Abschlussprüfung 2025** in der App durchgehen — alles grün oder
        erklärt (Bank = camt 12'202.73, Delkredere 5 %, Rückstellung 2208,
        Steuerzuordnung, Steuererklärung vorhanden).
-6. [x] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — ✅ Fassung 2 am 01.10. erzeugt und per SQL geprüft (alle Positionen beider Jahre identisch); **Fassung 3 mit v0.154.1 erzeugen** (Anhang-Punkt periodenfremde Positionen 6'367.89). App: Mehr →
+6. [x] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — ✅ Fassung 2 am 01.10. erzeugt und per SQL geprüft (alle Positionen beider Jahre identisch); **Fassung 3 (v0.154.1) am 01.10. erzeugt und geprüft: Anhang-Punkt periodenfremde Positionen 6'367.89 in sieben Zeilen, übrige Seiten identisch mit Fassung 2 — diese Fassung unterschreiben.** App: Mehr →
        Abschlüsse und Steuern → Bilanz und Erfolgsrechnung → 31.12.2025 → PDF
        (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Stand nach 1–4 und
        Schritt F, per SQL 01.10.2026 (Bilanz geht auf: Aktiven 125'025.23):**

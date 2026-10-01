@@ -355,3 +355,13 @@ Gewinn nach Steuern, gerundet) — beide über die App.
 
 Fassung 1 (02.09.) ist damit überholt; Fassung 2 über den App-Schritt
 «Jahresrechnung» (Mehr → Abschlüsse und Steuern → Jahresabschluss → 2025).
+
+### 10d. Fassung 3 (01.10.2026, v0.154.1)
+
+Anhang um «Ausserordentliche, periodenfremde Positionen» ergänzt (Art. 959c
+Abs. 2 Ziff. 12 OR): Konto 8000 6'367.89 Ertrag, je Beleg eine Zeile
+(MwSt-Altsaldo 2'079.39, Kreditoren-Altrest 96.95, Nachtrag Forderungen
+2'383.45 + 630.05, Heineken 08/2019 −161.55, Ertrag ohne Rechnung 1'169.15,
+Schlussausgleich 170.45). Per Textvergleich geprüft: Seiten 1–3 und 5
+identisch mit Fassung 2 (nur Versionsvermerk), Zahlen wie §10c. **Fassung 3
+ist die zu unterschreibende Jahresrechnung 2025.**
