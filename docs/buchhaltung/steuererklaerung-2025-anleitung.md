@@ -90,13 +90,24 @@ erklärt ihn.
 
 | Ziffer | Bezeichnung | Wert CHF |
 |---|---|---|
-| 13.1 | Gewinnvortrag aus dem Vorjahr | 35'060.71 |
+| 13.1 | Gewinnvortrag aus dem Vorjahr | **35'060.71** (SofTax übernimmt 35'319 aus der Datei 2024 — überschreiben; siehe Bemerkung unten) |
 | 13.2 | Reingewinn gemäss Erfolgsrechnung (Hertrag Ziffer 1) | 18'616.70 |
 | 13.3 | Entnahmen aus den Reserven | 0.00 |
 | 13.4 | Total zu verteilender Gewinn | 53'677.41 |
 | 13.5–13.8 | Dividenden, Zuweisungen an Reserven, Übrige | 0.00 |
 | 13.9 | Total Gewinnverwendung | 0.00 |
 | 13.10 | Vortrag auf neue Rechnung | 53'677.41 (= Ziffer 16) |
+
+**Warum 35'060.71 und nicht 35'319:** Die Steuererklärung 2024 setzte in 13.2
+den steuerbaren Gewinn 28'399 statt des handelsrechtlichen 28'277.51 ein und
+in 13.1 einen Vortrag von 6'920 statt 6'783.20; so entstand 35'319
+(Differenz 258.29). Massgebend ist die Handelsbilanz: Eigenkapital
+31.12.2024 = 55'060.71 (Vorjahresspalte der Jahresrechnung Fassung 3),
+Vortrag 01.01.2025 = 35'060.71, Eigenkapital 31.12.2025 = 73'677.41. In
+**Ziffer 32 Bemerkungen** eintragen: «Gewinnvortrag 01.01.2025 gemäss Bilanz
+35'060.71; die Steuererklärung 2024 wies 35'319 aus (Reingewinn 2024
+handelsrechtlich 28'277.51 statt 28'399, Vortrag 2023 6'783.20). Eigenkapital
+31.12.2024 laut Bilanz 55'060.71.»
 
 ## 4b. Ziffer 28 Verlustverrechnung — so stimmt die Tabelle
 
