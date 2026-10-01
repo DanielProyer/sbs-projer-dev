@@ -15,10 +15,21 @@ PDF · v0.130.0 Wächter vor der Heineken-Freigabe.
 (13'966.09 brutto, Soll 1100 an Haben 3400). Offen bleibt nur der
 Zahlungseingang über den Bankabgleich.
 
+**Übergabe 01.10.2026 (Arbeitsschluss v0.154.0) — nächste Session: Jahresabschluss 2025 + Steuererklärung 2025.**
+Einstieg: die Liste «🗓️ Donnerstag 01.10.2026» unten. Alles läuft über die
+App (v0.154.0 live): Mehr → Abschlüsse und Steuern → **Jahresabschluss** → Jahr
+2025 zeigt die sechs Schritte mit Ampel. Migrationen 215/216 sind angewendet,
+`parse-dokument` ist deployt. Vorweg klären: Ist die Fristerstreckung
+beantragt, liegt der GKB Zins-/Kapitalausweis vor (hochladen über Steuern →
+2025 → «Dokument hochladen», die Erkennung ordnet ihn ein)? Nicht im Browser
+geprüft: der echte Datenweg mit Login (Lauf, Buchen-Knöpfe, PDF-Ablage,
+Erkennung) — die Reviewer haben die Logik gegen Live-Daten gerechnet. SQL aus
+`docs/buchhaltung/jahresabschluss-2025.md` §9 nur als Rückfall, nie zusätzlich
+zu den Knöpfen.
+
 **Wenn du weitermachst, das Naheliegende zuerst:**
-1. **Jahresabschluss 2025 + Steuererklärung 2025 am Donnerstag 01.10.** —
-   Liste unten («🗓️ Donnerstag»). Vorher: Fristerstreckung beantragen (Frist
-   war der 30.09.) und den GKB Zins-/Kapitalausweis holen.
+1. **Jahresabschluss 2025 + Steuererklärung 2025** — Liste unten
+   («🗓️ Donnerstag»), Schritt für Schritt in der App.
 2. **AXA-Zahlung** — überfällig, 8'935.80.
 3. **Die fünf Telefonate** zur Lohnsumme.
 4. **19 Winterfenster** stehen noch auf Saison 2025/26 — ab Dezember fallen
@@ -48,9 +59,9 @@ SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
 - [ ] **Fristerstreckung** für die Steuererklärung 2025 bei der Steuerverwaltung
       Graubünden beantragen (online möglich) — die Frist ist der 30.09., wir
       reichen erst am 01.10. oder danach ein.
-- [ ] **GKB Zins-/Kapitalausweis per 31.12.2025** holen (E-Banking →
-      Dokumente). Das einzige Steuerdokument, das im Dossier noch fehlt;
-      Lohnausweis 2025 und Jahresrechnung (Fassung 1) liegen in der App.
+- [x] **GKB Zins-/Kapitalausweis per 31.12.2025** — liegt seit 01.10. im
+      Dossier (Typ «Zins-/Kapitalausweis», Jahr 2025); damit sind Lohnausweis,
+      Jahresrechnung (Fassung 1) und Zinsausweis da.
 
 **Donnerstag, in dieser Reihenfolge:**
 1. [ ] **Jahrgang 2020 abschreiben** — App: Mehr → Abschlüsse und Steuern →
