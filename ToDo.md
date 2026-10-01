@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.154.2 live** (Schritt 6: Jahresrechnung herunterladen; v0.154.1 Anhang: periodenfremde Positionen aus 8000; Migrationen 217–221 Debitoren Excel-Ära, Jahresabschluss 2025 Schritte 1–5 gebucht; davor v0.154.0 Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **221** · **3371 Tests grün**.
+**Stand:** **v0.154.2 live** (Schritt 6: Jahresrechnung herunterladen — Knopf von Daniel 01.10. bestätigt; v0.154.1 Anhang: periodenfremde Positionen aus 8000; Migrationen 217–221 Debitoren Excel-Ära, Jahresabschluss 2025 Schritte 1–5 gebucht; davor v0.154.0 Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **221** · **3371 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -56,9 +56,9 @@ Donnerstag dazu (76 Rg, 7'216.30). Jahrgang 2021 folgt im Abschluss 2026.
 SQL und Zahlen: `docs/buchhaltung/jahresabschluss-2025.md` §9.
 
 **Vorher (Mittwoch 30.09.) — Daniel:**
-- [ ] **Fristerstreckung** für die Steuererklärung 2025 bei der Steuerverwaltung
-      Graubünden beantragen (online möglich) — die Frist ist der 30.09., wir
-      reichen erst am 01.10. oder danach ein.
+- [x] ~~**Fristerstreckung** für die Steuererklärung 2025~~ — nachträglich nicht
+      möglich (nur vor Ablauf); stattdessen am 01.10.2026 direkt eingereicht.
+      Kommt trotzdem eine Mahnung: ignorieren, die Einreichung ist drin.
 - [x] **GKB Zins-/Kapitalausweis per 31.12.2025** — liegt seit 01.10. im
       Dossier (Typ «Zins-/Kapitalausweis», Jahr 2025); damit sind Lohnausweis,
       Jahresrechnung (Fassung 1) und Zinsausweis da.
@@ -133,7 +133,7 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
 7. [x] **Claude: Anhang OR 959c und Steuerbeilage** — ✅ kommen seit v0.154.0 aus der App (kein Skript mehr); Anhang-Lücke periodenfremder Ertrag mit v0.154.1 geschlossen. Ursprünglich:
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
-8. [ ] **Steuererklärung 2025 ausfüllen** — **Anleitung Ziffer für Ziffer mit allen Werten: `docs/buchhaltung/steuererklaerung-2025-anleitung.md` (SofTax GR 2025 JP, Formular 11a + Hilfsformulare 12/13/14/17, Beilagen); GV-Beschluss-Entwurf `docs/buchhaltung/beschluss-gesellschafterversammlung-2025.md`. Frist 30.09. ist abgelaufen → heute Mail an revisorat@stv.gr.ch, dann in Tagen einreichen.** (juristische Personen, Kanton GR):
+8. [x] **Steuererklärung 2025 ausfüllen** — ✅ 01.10.2026 in SofTax ausgefüllt, jede Seite per Screenshot geprüft (Formular 11a, 12, 13, 14, 17; provisorische Steuerberechnung 3'607 = Kanton 2'000 + Bund 1'607). — **Anleitung Ziffer für Ziffer mit allen Werten: `docs/buchhaltung/steuererklaerung-2025-anleitung.md` (SofTax GR 2025 JP, Formular 11a + Hilfsformulare 12/13/14/17, Beilagen); GV-Beschluss-Entwurf `docs/buchhaltung/beschluss-gesellschafterversammlung-2025.md`. Frist 30.09. ist abgelaufen → heute Mail an revisorat@stv.gr.ch, dann in Tagen einreichen.** **Formular 12 Feld für Feld (01.10., Anleitung §6): Lohn 83'124, Ziffer 2.4 leer (die Büromiete 3'000 geht an Daniel privat, wird wie in den Vorjahren nicht angegeben — Entscheid Daniel 01.10.), Spesen effektiv 3'014.20 in 3.3, Fahrzeug gehört Heineken/AXA-Leasing (3.2 leer, 4.1 nein), Kontokorrent 2260 16'748.98 nur in Formular 14 (Code 01) + Kontoauszug als Beilage — Ziffer 5 hat in SofTax keine Felder; AHV-Nr. 756.7321.6431.61 ist prüfziffer-gültig — SofTax-Meldung «ungültig» = Feld leeren und ohne Punkte tippen.** (juristische Personen, Kanton GR):
        Reingewinn laut ER, **Aufrechnung Bussen 311.01** (111.01 netto auf
        6280/6281 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig — die
        Steuerbeilage aus der App rechnet das automatisch),
@@ -143,17 +143,16 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
        (unterschrieben), Lohnausweis 2025, GKB Zins-/Kapitalausweis, Beschluss
        der Gesellschafterversammlung (Jahresrechnung genehmigt, Gewinn auf
        neue Rechnung vorgetragen).
-9. [ ] **Einreichen**; App: Steuern → 2025 → Status «eingereicht», Datum,
-       steuerbarer Gewinn und Kapital eintragen; hochladen: Jahresrechnung
-       Fassung 2, Steuererklärung, GKB-Ausweis, Beschluss.
-10. [ ] **Nachher:** MWST Q4/2026 zusätzlich: Zeile 302 Umsatz +2'795.00 (JA2025_F_MWST 218.50) · definitive Veranlagung 2025 → 2208 gegen 8900
+9. [x] **Einreichen** — ✅ 01.10.2026 elektronisch aus SofTax eingereicht; Quittung/Steuererklärung (1.7 MB, Referenz 130444) im Dossier Steuern → 2025 (Typ Steuererklärung), Status «eingereicht», `eingereicht_am` 01.10.2026 per SQL gesetzt, Notiz nachgeführt. Jahresrechnung Fassung 3 und GKB-Ausweis liegen ebenfalls im Dossier.
+10. [ ] **Nachher:** MWST Q4/2026 zusätzlich: Zeile 302 Umsatz +2'795.00 (JA2025_F_MWST 218.50) · definitive Veranlagung 2025 → 2208 gegen 8900 (SofTax provisorisch 3'607 = Kanton 2'000 + Bund 1'607, Rückstellung 3'400, Differenz ≈ 207; Rückerstattung ≈ 1'546.50)
         ausgleichen · MWST Q3/2026 (165.88) bis 30.11. · **Q4/2026 Ziff. 235:
         516.43** (Jahrgang 2020) · Jahrgang 2021 im Abschluss 2026 (84 Rg,
-        8'158.40, MWST 583.39).
+        8'158.40, MWST 583.39). · Lohnausweis 2026: Ziffer 13.1.1 effektive Spesen ausweisen (2025 fehlten 3'014.20, siehe Review-Punkt unten).
 
 **Aus den Reviews 29.09. (nicht dringend):**
 - Abschreibung: rechnerischer MWST-Satz aus gerundeten Beträgen (2023–2025 gibt es Rechnungen mit 6.8/7.0/6.7/7.2/83.3 %) — ab Abschluss 2028 relevant; Satz aus dem Leistungsdatum ableiten (< 2024 → 7.7, sonst 8.1) in Funktion, View und Vorschau, «Satz unplausibel» als Ausschlussgrund; die 2024er-Rechnung mit 83.3 % (netto 69.00 / MWST 57.45) ist ein Datenfehler.
 - Bussen 6280 sind mit Vorsteuer gebucht (31.07.2025 8.99, 28.01.2026 1.50) — auf Bussen gibt es keinen Vorsteuerabzug; bei der nächsten MWST-Abrechnung korrigieren.
+- Lohnausweis-PDF: Ziffer 13.1.1 «effektive Spesen» aus Konto 5820 des Lohnjahres ausweisen (brutto; 2025: 3'014.20) — der Lohnausweis 2025 zeigt dort nichts, das Formular 12 der Steuererklärung 2025 aber 3'014; ab Lohnausweis 2026 sollen beide übereinstimmen.
 - Dokument-Erkennung: keine Seitenbremse bei grossen PDFs (Kosten ≈ 0.5–1 $ je 50–100 Seiten); bei Bedarf Seiten zählen und über ~20 Seiten nicht erkennen.
 
 **Optional, vor Schritt 3 (Debitoren-Hygiene):** 10 Tresen-Rechnungen vom
@@ -182,7 +181,7 @@ der Rechnungsliste je Rechnung «bezahlt» (Datum, Bar/Tresen) — Debitoren
 
 | | Frist | Stand |
 |---|---|---|
-| **Steuererklärung 2025** | **30.09.2026 → Fristerstreckung beantragen** | Einreichung am Donnerstag 01.10. nach dem Abschluss (Liste «🗓️ Donnerstag» oben). Die Kennzahlen ändern sich mit dem Jahrgang 2020: steuerbarer Gewinn ≈ 15'555.70 statt 21'201.23, Kapital ≈ 70'296.41 statt 75'950.93. **Bussen 2025 aufrechnen: 320.00** (Befund 23.09.). Es fehlt der GKB Zins-/Kapitalausweis. |
+| ~~**Steuererklärung 2025**~~ | ~~30.09.2026~~ | ✅ **eingereicht 01.10.2026** (steuerbarer Gewinn 18'927.71, Kapital 73'677.41, Bussen 311.01 aufgerechnet; SofTax provisorisch 3'607). Offen bleibt nur die definitive Veranlagung → 2208/8900 ausgleichen. |
 | **AXA-Zahlung** | überfällig | Vorgesehen 4'467.90, **offen 8'935.80** (Q1+Q2/2026). |
 | **MWST Q3/2026 — Ziff. 235** | **30.11.2026** | **Zwei Zeilen**, seit 20.09. beide in der App unter Buchhaltung → MwSt-Abrechnung → Q3: **2'076.00 netto in Zeile 302 (7.7 %) → 159.90** (Abschreibung Jahrgang 2019) und **73.82 netto in Zeile 303 (8.1 %) → 5.98** (Einzelabschreibungen Dischma 69.00 + Chalet Güggel 2.04 + Triel 2.78, Stand 27.09.). Zusammen 2'149.82 netto → **165.88**. Die App-Sicht (Buchhaltung → MwSt-Abrechnung → Q3) ist führend. Im Portal prüfen, ob die Zeilen eine reduzierende Eingabe annehmen; sonst ESTV-Hotline. |
 

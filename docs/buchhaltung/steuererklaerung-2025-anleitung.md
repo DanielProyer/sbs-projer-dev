@@ -79,7 +79,7 @@ erklärt ihn.
 | 17 | ./. Eigene Kapitalanteile | 0.00 | – |
 | 18 | Eigenkapital laut Bilanz | **73'677.41** | 14 + 16 |
 | 19 | Als Gewinn versteuerte stille Reserven | 0.00 | – |
-| 20 | Verdecktes Eigenkapital | 0.00 | Fremdkapital 51'347.82 = 41 % der Aktiven, weit unter 80 %; das Privatkonto 2260 ist keine verdeckte Eigenkapitalfinanzierung |
+| 20 | Verdecktes Eigenkapital | **leer / 0.00** | Nur Gesellschafterdarlehen, soweit das Fremdkapital die zulässige Fremdfinanzierung nach ESTV-Kreisschreiben 6 übersteigt (100 % flüssige Mittel 18'872.97 + 85 % Forderungen ≈ 109'000 zulässig). Effektives Fremdkapital 51'347.82 inkl. Rückstellung → kein verdecktes Eigenkapital. Das Privatkonto 2260 (16'748.98, Guthaben Daniel) ist normales Fremdkapital: Formular 14 Code 01 und Formular 12 Ziffer 5. Frage Daniel 01.10.2026 («letztes Jahr als verdecktes Eigenkapital eingegeben?»): Im Formular 2024 war Ziffer 20 leer, die 13'599 standen in Ziffer 14; die Veranlagung 2024 setzte Kapital 55'319 = 20'000 + 35'319, nichts nachzuholen |
 | 21 | Steuerbefreiter Betrag (ideeller Zweck) | 0.00 | – |
 | 22 | Ermässigung des Eigenkapitals | 0.00 | – |
 | 23 | **Steuerbares Eigenkapital** | **73'677.41** | = Steuerjahr 2025 in der App |
@@ -137,16 +137,90 @@ löschen. Ergebnis in beiden Fällen: Ziffer 6 = 0, Ziffer 7 = 18'928.
 
 ## 6. Hilfsformulare
 
-**Formular 12 — Leistungen an Gesellschafter / Geschäftsführung** (ein
-Formular für Daniel Projer, einziger Gesellschafter und Geschäftsführer):
+**Formular 12 — Bescheinigung über Leistungen an Gesellschafter** (eine
+Zeile in der Übersicht, ein Formular: Daniel Projer, einziger Gesellschafter
+und Geschäftsführer). Werte per SQL 01.10.2026. Antworten Daniel 01.10.2026:
+die Büromiete (Konto 6000, 12 × 250.00 = 3'000) geht an ihn privat (Büro in
+der Wohnung) und wird **wie in den Vorjahren nicht angegeben** (Entscheid
+Daniel 01.10.2026); das Servicefahrzeug gehört Heineken, Leasing über die
+AXA — die GmbH zahlt nur Benzin, Reparaturen und Vignette.
 
-| Angabe | Wert CHF | Herkunft |
+**Übersicht (Seite mit den zehn Zeilen):** Name **Projer**, Vorname
+**Daniel** (SofTax hatte die beiden Felder vertauscht), AHV-Nr.
+**756.7321.6431.61** (aus den Lohn-Einstellungen, Lohnausweis Ziffer «AHV-Nr.»;
+die EAN-13-Prüfziffer stimmt, in der Datenbank stecken keine versteckten
+Zeichen). Weist SofTax die Nummer ab («ungültig»): Feld komplett leeren und
+die 13 Ziffern **ohne Punkte von Hand tippen** (7567321643161), nicht
+einfügen — eingefügte Leer- oder Steuerzeichen lassen die Prüfung scheitern.
+Bleibt die Meldung, die Nummer mit dem AHV-Versichertenausweis vergleichen
+und bei einem Tippfehler auch die Lohn-Einstellungen in der App und den
+Lohnausweis 2025 korrigieren.
+
+**Ziffer 1 — Leistungsempfänger**
+
+| Feld | Eintrag |
+|---|---|
+| Name / Vorname | Projer / Daniel |
+| AHV-Nr. | 756.7321.6431.61 |
+| Funktion | Gesellschafter (100 %) und Geschäftsführer |
+| Genaue Wohnsitzadresse | Via Rezia 8, 7013 Domat/Ems |
+| «Falls nicht identisch mit Leistungsempfänger» | leer |
+| Beteiligung am Stammkapital | **Ja**, Anteil Fr. **20'000** |
+| Quellensteuer bei Wohnsitz im Ausland | leer (Wohnsitz in der Schweiz) |
+| Geschäftsjahr | 2025 (zweites Feld leer) |
+
+**Ziffer 2 — Leistungs- und Funktionsentgelte** (Spalte Total; die Spalte
+«zweites Kalenderjahr» bleibt leer)
+
+| Ziffer | Eintrag CHF | Herkunft |
 |---|---|---|
-| Bruttolohn 2025 (Lohnausweis Ziffer 8) | 83'124 | Lohnausweis im Dossier |
-| Nettolohn (Lohnausweis Ziffer 11) | 70'700 | – |
-| Spesen | effektive Spesen laut Beleg (Lohnausweis Ziffer 13.1 angekreuzt), kein Pauschalbetrag | Konto 5820 2'907.42 |
-| Kontokorrent / Darlehen Gesellschafter | Privatkonto 2260: **16'748.98** Guthaben Daniel Projer gegenüber der GmbH per 31.12.2025 (Vorjahr 13'933.21), unverzinst | Kontoauszug 2260 beilegen (App: Buchhaltung → Konto 2260, PDF) |
-| Dividende, Tantiemen, Naturalbezüge, Privatanteil Fahrzeug | keine | wie Vorjahre |
+| 2.1 Gehalt, Lohn | **83'124** | Lohnausweis Ziffer 8 |
+| 2.2 Tantiemen | leer | keine |
+| 2.3 Verwaltungsratshonorare | leer | keine |
+| 2.4 Sonstige Vergütungen | leer | Entscheid Daniel 01.10.2026: die Büromiete an ihn privat (Konto 6000, 3'000) wird wie in den Vorjahren nicht angegeben. Zur Kenntnis: Die beigelegte Jahresrechnung zeigt Konto 6000 «Mietaufwand» 3'000 bei Firmensitz = Wohnadresse; fragt die Steuerverwaltung nach, gilt die Miete als Leistung an den Gesellschafter und privat als Einkommen aus Untervermietung (Nachsteuer auf 3'000) |
+| 2.5 Total brutto | 83'124 (rechnet SofTax) | |
+| 2.6 Abzüge AHV/IV/EO/ALV/NBUV | **5'320** | Lohnausweis Ziffer 9 |
+| 2.6 Abzüge berufliche Vorsorge | **7'104** | Lohnausweis Ziffer 10 |
+| 2.7 Total netto | 70'700 (rechnet SofTax, = Lohnausweis Ziffer 11) | |
+
+**Ziffer 3 — Spesenvergütungen** (Spalte «effektiv»; «pauschal» und
+«verbuchter Privatanteil» bleiben leer)
+
+| Ziffer | Eintrag CHF | Herkunft |
+|---|---|---|
+| 3.1 Repräsentationsspesen | leer | |
+| 3.2 Autospesen für das Privatfahrzeug | leer | kein Privatfahrzeug im Einsatz: Benzin 6200 7'389.62, Reparaturen 6250 945.00, Bewilligungen/Vignette 6275 251.30 (brutto) betreffen das Heineken-Fahrzeug |
+| 3.3 Reisespesen | **3'014** | Konto 5820: 235 Verpflegungsbelege auswärts (Mittag-/Abendessen), brutto 3'014.20, netto 2'907.42 (Vorsteuer 106.72) |
+| 3.4 Übrige Spesen | leer | |
+| 3.5 Total | 3'014 | |
+
+Der Lohnausweis 2025 im Dossier weist unter Ziffer 13 keinen Spesenbetrag
+aus; richtig wäre 13.1.1 «effektive Spesen» 3'014. Der Betrag im Formular 12
+ist trotzdem korrekt, die Steuerverwaltung sieht nur die Abweichung zum
+Lohnausweis (ab Lohnausweis 2026 ausweisen, siehe ToDo).
+
+**Ziffer 4 — private Nutzung**
+
+| Ziffer | Eintrag |
+|---|---|
+| 4.1 Geschäftsfahrzeug | **Nein** — das Fahrzeug gehört Heineken Switzerland (Leasing AXA), nicht der GmbH; sie trägt nur die Betriebskosten. Wird es auch privat gefahren, gilt das trotzdem als Privatanteil (0.9 % des Kaufpreises je Monat, Lohnausweis Ziffer 2.2) — dann «Ja» und Marke/Kaufpreis von Heineken erfragen |
+| 4.2 Telefon, Radio, TV | Nein (Geschäftshandy, Konto 6510) |
+| 4.3 Räumlichkeiten | Nein |
+| 4.4 Heizung, Strom | Nein |
+| 4.5 Versicherungsprämien | Nein |
+| 4.6 Übrige | Nein (Privateinkäufe laufen über das Privatkonto 2260, nicht über den Aufwand) |
+
+**Ziffer 5 — Darlehen und Kontokorrente:** hat in SofTax **keine
+Eingabefelder** (geprüft 01.10.2026), nur den Hinweis «Sämtliche Darlehens-
+und Kontokorrentbeziehungen sind mittels Kontokopien zu dokumentieren». Also
+nichts eintragen; das Privatkonto 2260 wird so dokumentiert:
+
+| Wo | Eintrag |
+|---|---|
+| Formular 14 Schuldenverzeichnis | Daniel Projer, Kontokorrent (2260) 16'748.98, Code 01 |
+| Beilage | Kontoauszug 2260 für 2025 (App: Buchhaltung → Konto 2260 → PDF): Saldo 01.01.2025 13'933.21, Gutschriften 2'815.77 (privat bezahlte Geschäftsauslagen: Benzin/AdBlue/Vignette 1'444.77, Arbeitskleider 430.20, Verpflegung 404.15, Material 277.80, MS Office 167.40, Kehrichtsäcke 91.45), Bezüge 0.00, Saldo 31.12.2025 16'748.98, unverzinst |
+
+Datum 01.10.2026; bei elektronischer Einreichung keine Unterschrift.
 
 **Formular 13 — Wertschriften und Guthaben:**
 
@@ -193,6 +267,16 @@ zusätzlich zur Mindestgliederung ausdrücklich wünscht.
 5. Kontoauszug Privatkonto 2260 (Formular 12/14, Code 01).
 
 ## 8. Nach dem Versand
+
+✅ **Eingereicht am 01.10.2026** (elektronisch aus SofTax). Quittung/Steuererklärung
+im Dossier Steuern → 2025 (Typ Steuererklärung, Referenz 130444), Steuerjahr
+2025 auf «eingereicht» mit Datum 01.10.2026.
+
+**Provisorische Steuerberechnung SofTax (01.10.2026, geprüft):** Gewinn
+18'900 × 4.05 % = 765, Kapital 73'600 × 2.07 ‰ = 152, Zuschlag FAG 95 % 968,
+Kultussteuer 11.3 % 115 → Kanton 2'000; Bund 18'900 × 8.5 % = 1'607;
+**total 3'607**. Rückstellung 2208 3'400 → bei der definitiven Veranlagung
+≈ 207 auf 8900. Provisorisch bezahlt 5'153.50 → Rückerstattung ≈ 1'546.50.
 
 - Übermittlungsquittung aus SofTax als PDF speichern und in der App ablegen:
   Steuern → 2025 → Dokument hochladen (Typ Steuererklärung).
