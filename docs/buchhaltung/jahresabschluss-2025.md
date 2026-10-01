@@ -335,3 +335,23 @@ Nicht gemacht (kosmetisch): 55 Sammelzahlungen bleiben je eine Buchung; die
 Zuordnung zu ihren Rechnungen steht in `rechnungen.einzahlungsbeleg`
 (Abschnitt E der Arbeitslisten). Rückwege in den Köpfen der Migrationen
 219–221.
+
+### 10c. Stand nach Schritt 3 und 4 (01.10.2026, per SQL)
+
+Delkredere `JA2025_E2` 1109 an 3805 151.23 (1109 = 5'478.15 = 5 % von
+109'562.91), Steuerrückstellung `JA2025_D2` 2208 an 8900 600.00 (Rückstellung
+3'400: Gewinn vor Rückstellung 22'016.70 + Aufrechnungen 311.01, 18.2 % auf den
+Gewinn nach Steuern, gerundet) — beide über die App.
+
+| Grösse per 31.12.2025 | Wert |
+|---|---|
+| Aktiven = Passiven + kumulierter Erfolg | 125'025.23 = 71'347.82 + 53'677.41 |
+| Gewinn 2025 | **18'616.70** (02.09.: 20'890.22; Jahrgang 2020 −7'216.30, Schritt F +4'191.55, Delkredere +151.23, Rückstellung +600.00) |
+| Eigenkapital | **73'677.41** = 20'000 + Vortrag 35'060.71 + 18'616.70 |
+| Debitoren 1100 / Delkredere 1109 | 109'562.91 / 5'478.15 |
+| Bank 1020 (= camt) / Kasse 1000 | 12'202.73 / 6'670.24 |
+| Steuerrückstellung 2208 / MWST 2200 | 3'400.00 / 0.00 |
+| Steuerbarer Gewinn (Bussen 311.01 aufgerechnet) / Kapital | **18'927.71** / **73'677.41** |
+
+Fassung 1 (02.09.) ist damit überholt; Fassung 2 über den App-Schritt
+«Jahresrechnung» (Mehr → Abschlüsse und Steuern → Jahresabschluss → 2025).

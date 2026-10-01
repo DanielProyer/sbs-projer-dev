@@ -104,13 +104,13 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
        Sammelbuchung `2200 an 3805 516.43` am Entscheidtag (01.10.2026) →
        **Ziff. 235 in Q4/2026** (Art. 41 Abs. 2 MWSTG; Q4/2025 ist eingereicht
        und viermal berichtigt). Nichts mehr per SQL — §9b nur als Rückfall.
-3. [ ] **Delkredere nachziehen — in der App:** Abschlussprüfung 2025 → Zeile
+3. [x] **Delkredere nachziehen — ✅ gebucht 01.10.2026 über die App: `JA2025_E2` 1109 an 3805 151.23, 1109 = 5'478.15 = 5 % von 109'562.91 (per SQL bestätigt).** Ursprünglich: Abschlussprüfung 2025 → Zeile
        «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen». Erwartet
        **nach der Debitoren-Bereinigung (Schritt F, 01.10.)**: 5 % von
        109'562.91 = **5'478.15** (bisher 5'629.38) → `1109 an 3805 151.23`
        per 31.12.2025 als `JA2025_E2`. Nach Schritt 1 die Prüfung neu
        laden (die Zeile wird erst dann gelb).
-4. [ ] **Steuerrückstellung — in der App, Entscheid Daniel:** Abschlussprüfung
+4. [x] **Steuerrückstellung — ✅ gebucht 01.10.2026 über die App: `JA2025_D2` 2208 an 8900 600.00, Rückstellung 3'400 (Gewinn vor Rückstellung 22'016.70 + Aufrechnungen 311.01, 18.2 % auf den Gewinn nach Steuern, auf Hundert gerundet); 2208 per 31.12.2025 = 3'400.00. Provisorisch bezahlt 5'153.50 → Rückerstattung ≈ 1'753.50.** Ursprünglich: Abschlussprüfung
        2025 → Zeile «Steuerrückstellung 2208» (grüne zeigen, falls
        eingeklappt) → Knopf «Rückstellung buchen». Der Dialog schlägt vor:
        Gewinn vor Rückstellung ≈ 18'017 (17'865.47 nach Schritt F + 151.23
@@ -124,11 +124,12 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
        Steuerzuordnung, Steuererklärung vorhanden).
 6. [ ] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — App: Mehr →
        Abschlüsse und Steuern → Bilanz und Erfolgsrechnung → 31.12.2025 → PDF
-       (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Erwartet nach
-       1–4 und Schritt F (01.10.):** Gewinn 2025 = 17'865.47 + 151.23 +
-       Rückstellungs-Anpassung aus Schritt 4; Debitoren 109'562.91, Delkredere
-       5'478.15; EK = 20'000 + 35'060.71 + Gewinn. Zahlen nach Schritt 4 per
-       SQL nachrechnen (Claude), Herleitung `jahresabschluss-2025.md` §10b.
+       (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Stand nach 1–4 und
+       Schritt F, per SQL 01.10.2026 (Bilanz geht auf: Aktiven 125'025.23):**
+       Gewinn 2025 **18'616.70**, EK 31.12.2025 **73'677.41** (20'000 +
+       35'060.71 + 18'616.70), Debitoren 109'562.91, Delkredere 5'478.15,
+       Rückstellung 2208 3'400.00, Bank 12'202.73, Kasse 6'670.24, 2200 0.00.
+       Das PDF muss diese Zahlen zeigen (`jahresabschluss-2025.md` §10c).
 7. [ ] **Claude: Anhang OR 959c und Steuerbeilage** mit den finalen Zahlen
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
@@ -136,8 +137,8 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
        Reingewinn laut ER, **Aufrechnung Bussen 311.01** (111.01 netto auf
        6280/6281 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig — die
        Steuerbeilage aus der App rechnet das automatisch),
-       steuerbarer Gewinn ≈ **15'555.70**, steuerbares Kapital = EK ≈
-       **70'296.41**; keine Beteiligungen, kein Anlagevermögen, keine
+       steuerbarer Gewinn **18'927.71** (18'616.70 + 311.01), steuerbares
+       Kapital = EK **73'677.41** (Stand 01.10.2026 nach Schritt F); keine Beteiligungen, kein Anlagevermögen, keine
        Liegenschaften, keine Verrechnungssteuer. Beilagen: Jahresrechnung 2025
        (unterschrieben), Lohnausweis 2025, GKB Zins-/Kapitalausweis, Beschluss
        der Gesellschafterversammlung (Jahresrechnung genehmigt, Gewinn auf
