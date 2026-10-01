@@ -306,3 +306,32 @@ dem Hauptbuch und ist davon nicht berührt; das Delkredere rechnet darauf.
 Betroffen ist nur die Rechnungsliste (Mahnwesen): rund 4'300 davon stehen
 offen, ohne dass das Hauptbuch je eine Forderung kannte. Die Jahrgangs-
 Abschreibung räumt sie mit den Jahrgängen ab (2021 im Abschluss 2026 usw.).
+
+### 10b. Gebucht 01.10.2026 — Debitoren bereinigt (Migrationen 219–221, Schritt F)
+
+Entscheid Daniel (vier Fragen einzeln): März-2023-Lücke buchen (beides per
+31.12.2025), MWST in Q4/2026 auf Zeile 302, Verknüpfungen ohne Saldenwirkung,
+Rest ausbuchen, bis die Regel grün ist. Arbeitslisten:
+`debitoren-abgleich-excel-aera.md`.
+
+| Beleg | Datum | Buchung | Betrag | Inhalt |
+|---|---|---|---|---|
+| Migration 219 | – | nur Verknüpfungen | 0.00 | 19 Excel-Zahlungen mit ihren Rechnungen verknüpft (4 exakt, 14 Zahldatum-Tippfehler korrigiert, Eisstadion Davos 124.30 bezahlt) |
+| JA2025_F1 | 31.12.2025 | 1100 an 8000, 27 Buchungen | 2'383.45 | März-2023-Lücke, bezahlte Rechnungen (Zahlung auf 1100, Ertrag fehlte) |
+| JA2025_F2 | 31.12.2025 | 1100 an 8000, 6 Buchungen | 630.05 | März-2023-Lücke, offene Rechnungen (bleiben offen, Jahrgang 2023 → Abschluss 2028) |
+| JA2025_F3 | 31.12.2025 | 8000 an 1100 | 161.55 | Heineken 08/2019: Excel-Forderung zu hoch; dazu die drei Heineken-Monate aus 217 verknüpft, Rechnungsbeträge 05/2019 und 05/2022 auf Excel = Zahlung gesetzt |
+| JA2025_F4 | 31.12.2025 | 1100 an 8000, 7 Buchungen | 1'169.15 | Zahlungen ohne Rechnung, Herkunft unklar (ohne MWST; bei Klärung nachdeklarieren) |
+| JA2025_F_MWST | 01.10.2026 | 8000 an 2200 (mwst_konto 2200, 7.7 %) | 218.50 | MWST auf F1+F2 (33 Rg, netto 2'795.00), Ziff. 200/Zeile 302 Q4/2026 — **Umsatz 2'795.00 im Formular von Hand eintragen**, die App zeigt als Umsatz nur Konto 3400 |
+| JA2025_F5 | 31.12.2025 | 1100 an 8000 | 170.45 | Schlussausgleich: Betragspaare (−106.38), Forderungen ohne Rechnung (+152.95), «KEIN BELEG» 2020, Rundungen |
+
+Ergebnis per SQL (Saldenlogik der App): Regel «Debitoren 1100 = offene
+Rechnungen» **0.00** · 1100 per 31.12.2025 **109'562.91** (vorher 105'351.96)
+· Gewinn 2025 vor Delkredere/Rückstellung **17'865.47** (vorher 13'673.92,
++4'191.55 periodenfremder Ertrag auf 8000) · Delkredere 5 % neu **5'478.15**
+→ Schritt 3 bucht `1109 an 3805 151.23` (statt 361.78) · alle 88
+Heineken-Monate verknüpft.
+
+Nicht gemacht (kosmetisch): 55 Sammelzahlungen bleiben je eine Buchung; die
+Zuordnung zu ihren Rechnungen steht in `rechnungen.einzahlungsbeleg`
+(Abschnitt E der Arbeitslisten). Rückwege in den Köpfen der Migrationen
+219–221.

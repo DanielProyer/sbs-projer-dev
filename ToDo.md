@@ -1,6 +1,6 @@
 # ToDo-Liste — Daniel Projer (SBS Projer App)
 
-**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **218** · **3371 Tests grün**.
+**Stand:** **v0.154.0 live** (Jahresabschluss in der App, Migrationen 215/216, parse-dokument; Vorbereitung Abschluss 2025, Migration 214; fahrzeit-route routet Koordinaten, Migration 213; Fahrten: Route oder nichts; Diktat: Neues sofort sichtbar; Material: Kategorie-Chips + Karten-Swipe, Foto ganz sichtbar; davor v0.150.0 Navigation, v0.149.x Statusmodell-Zielbild 211 / Isar eingefroren / Zeit-Nachfrage / Aufgaben mit Betrieb 212, v0.148.0, v0.147.0) · Edge Functions `send-rechnung-mail` **v24**, `send-pdf-mail` **v15**, `send-raster-mail` **v15**, `parse-einsatz` **v9** · Migrationen bis **221** · **3371 Tests grün**.
 
 ## ▶ Übergabe an die nächste Session (22.09.2026, Arbeitsschluss)
 
@@ -80,6 +80,15 @@ Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
 - Nebenbefund: September 2026 zeigt «3 ohne Buchung» — drei
   Heineken-Reinigungen, die regulär auf die September-Monatsrechnung warten.
 
+**Debitoren-Bereinigung Excel-Ära — ✅ gebucht 01.10.2026 (Migrationen 219–221, Schritt F):**
+Die rote Zeile «Debitoren 1100 = offene Rechnungen» (−4'315.85) ist auf 0.00.
+Ursache war die Excel-Ära: eine Hauptbuch-Lücke 09.–27.03.2023 (33 Rechnungen
+ohne Forderung), Zahlungen ohne Rechnung, Heineken 08/2019 und Kleinreste.
+Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
+8000) und JA2025_F_MWST am 01.10.2026 (218.50, Q4/2026 Zeile 302 — Umsatz
+2'795.00 dort von Hand eintragen). Arbeitslisten:
+`docs/buchhaltung/debitoren-abgleich-excel-aera.md`, Buchungen §10b.
+
 **Donnerstag, in dieser Reihenfolge:**
 1. [x] **Jahrgang 2020 abschreiben** — ✅ gebucht 01.10.2026 über die App,
        per SQL nachgerechnet: Lauf L2 (`abschreibung_laeufe` bc3bb3d9) mit
@@ -96,15 +105,16 @@ Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
        **Ziff. 235 in Q4/2026** (Art. 41 Abs. 2 MWSTG; Q4/2025 ist eingereicht
        und viermal berichtigt). Nichts mehr per SQL — §9b nur als Rückfall.
 3. [ ] **Delkredere nachziehen — in der App:** Abschlussprüfung 2025 → Zeile
-       «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen». Erwartet:
-       5 % von 105'351.96 (Saldo 1100 per 31.12.2025 nach Schritt 1, per SQL
-       bestätigt 01.10.) = **5'267.60** (bisher 5'629.38) → `1109 an 3805
-       361.78` per 31.12.2025 als `JA2025_E2`. Nach Schritt 1 die Prüfung neu
+       «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen». Erwartet
+       **nach der Debitoren-Bereinigung (Schritt F, 01.10.)**: 5 % von
+       109'562.91 = **5'478.15** (bisher 5'629.38) → `1109 an 3805 151.23`
+       per 31.12.2025 als `JA2025_E2`. Nach Schritt 1 die Prüfung neu
        laden (die Zeile wird erst dann gelb).
 4. [ ] **Steuerrückstellung — in der App, Entscheid Daniel:** Abschlussprüfung
        2025 → Zeile «Steuerrückstellung 2208» (grüne zeigen, falls
        eingeklappt) → Knopf «Rückstellung buchen». Der Dialog schlägt vor:
-       Gewinn vor Rückstellung ≈ 18'035.70, Aufrechnungen automatisch
+       Gewinn vor Rückstellung ≈ 18'017 (17'865.47 nach Schritt F + 151.23
+       Delkredere), Aufrechnungen automatisch
        **311.01** (Bussen 111.01 auf 6280/6281 + 200.00 «Busse Kanton» auf
        8900), Satz 18.2 % → **2'800** (bisher 4'000) → `2208 an 8900 1'200.00`
        per 31.12.2025 als `JA2025_D2`. Provisorisch bezahlt 5'153.50 →
@@ -115,9 +125,10 @@ Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
 6. [ ] **Bilanz und Erfolgsrechnung per 31.12.2025** als PDF — App: Mehr →
        Abschlüsse und Steuern → Bilanz und Erfolgsrechnung → 31.12.2025 → PDF
        (seit v0.153.1 dort, nicht mehr unter Buchhaltung). **Erwartet nach
-       1–4:** Gewinn 2025 ≈ **15'235.70** (20'890.22 − 7'216.30 + 361.78 +
-       1'200.00), EK 31.12.2025 ≈ **70'296.41**, Debitoren 105'351.96,
-       Delkredere 5'267.60. Ohne Schritt 4: Gewinn 14'035.70, EK 69'096.41.
+       1–4 und Schritt F (01.10.):** Gewinn 2025 = 17'865.47 + 151.23 +
+       Rückstellungs-Anpassung aus Schritt 4; Debitoren 109'562.91, Delkredere
+       5'478.15; EK = 20'000 + 35'060.71 + Gewinn. Zahlen nach Schritt 4 per
+       SQL nachrechnen (Claude), Herleitung `jahresabschluss-2025.md` §10b.
 7. [ ] **Claude: Anhang OR 959c und Steuerbeilage** mit den finalen Zahlen
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
@@ -134,7 +145,7 @@ Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
 9. [ ] **Einreichen**; App: Steuern → 2025 → Status «eingereicht», Datum,
        steuerbarer Gewinn und Kapital eintragen; hochladen: Jahresrechnung
        Fassung 2, Steuererklärung, GKB-Ausweis, Beschluss.
-10. [ ] **Nachher:** definitive Veranlagung 2025 → 2208 gegen 8900
+10. [ ] **Nachher:** MWST Q4/2026 zusätzlich: Zeile 302 Umsatz +2'795.00 (JA2025_F_MWST 218.50) · definitive Veranlagung 2025 → 2208 gegen 8900
         ausgleichen · MWST Q3/2026 (165.88) bis 30.11. · **Q4/2026 Ziff. 235:
         516.43** (Jahrgang 2020) · Jahrgang 2021 im Abschluss 2026 (84 Rg,
         8'158.40, MWST 583.39).
