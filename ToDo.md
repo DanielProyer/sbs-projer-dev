@@ -133,7 +133,7 @@ Gebucht als JA2025_F1–F5 per 31.12.2025 (+4'191.55 periodenfremder Ertrag auf
 7. [x] **Claude: Anhang OR 959c und Steuerbeilage** — ✅ kommen seit v0.154.0 aus der App (kein Skript mehr); Anhang-Lücke periodenfremder Ertrag mit v0.154.1 geschlossen. Ursprünglich:
        erzeugen (`Datenbank/wartung/jahresrechnung_beilage.py`) → zusammen mit
        6. die **Jahresrechnung 2025, Fassung 2**; Daniel unterschreibt.
-8. [ ] **Steuererklärung 2025 ausfüllen** (juristische Personen, Kanton GR):
+8. [ ] **Steuererklärung 2025 ausfüllen** — **Anleitung Ziffer für Ziffer mit allen Werten: `docs/buchhaltung/steuererklaerung-2025-anleitung.md` (SofTax GR 2025 JP, Formular 11a + Hilfsformulare 12/13/14/17, Beilagen); GV-Beschluss-Entwurf `docs/buchhaltung/beschluss-gesellschafterversammlung-2025.md`. Frist 30.09. ist abgelaufen → heute Mail an revisorat@stv.gr.ch, dann in Tagen einreichen.** (juristische Personen, Kanton GR):
        Reingewinn laut ER, **Aufrechnung Bussen 311.01** (111.01 netto auf
        6280/6281 + 200.00 Steuerbusse auf 8900, nicht abzugsfähig — die
        Steuerbeilage aus der App rechnet das automatisch),
