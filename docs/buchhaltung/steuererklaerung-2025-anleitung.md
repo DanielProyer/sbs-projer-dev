@@ -56,7 +56,7 @@ Bei Nichteinreichung folgt zuerst eine Mahnung, keine Busse. Darum:
 | 3 | Total | 18'927.71 | 1 + 2 |
 | 4 | Abzüge | 0.00 | keine |
 | 5 / 5.1 | Reingewinn nach Korrekturen / STAF-Entlastungen | 18'927.71 / 0.00 | keine STAF-Entlastung |
-| 6 | Verlustverrechnung | 0.00 | keine Vorjahresverluste (Ziffer 28 leer) |
+| 6 | Verlustverrechnung | **0.00** | Die Verluste 2019/2020 (41'257) sind 2021–2023 vollständig verrechnet, siehe Ziffer 28 unten. **SofTax trägt aus der Vorjahresdatei 41'257 ein und rechnet −22'329 — das ist falsch und muss auf 0 korrigiert werden** (derselbe Fehler stand in der Steuererklärung 2024, die Veranlagung hat ihn stillschweigend berichtigt). |
 | 7 | **Steuerbarer Reingewinn** | **18'927.71** | = Steuerjahr 2025 in der App |
 | 8 | Auslandanteil | 0.00 | – |
 | 10 | Anteil andere Kantone | 0.00 | – |
@@ -73,7 +73,7 @@ erklärt ihn.
 
 | Ziffer | Bezeichnung | Wert CHF | Herkunft |
 |---|---|---|---|
-| 14 | Einbezahltes Stammkapital | **20'000.00** | Konto 2800 |
+| 14 | Einbezahltes Stammkapital | **20'000.00** | Konto 2800, Handelsregister (2024 stand fälschlich 13'599; die Veranlagung 2024 hat 20'000 eingesetzt) |
 | 15.1–15.4 | Offene Reserven (Kapital-, gesetzliche, freiwillige, übrige) | 0.00 | keine Reserven ausgeschieden |
 | 16 | Nicht verteilte Gewinne (Bilanzgewinn nach Gewinnverwendung) | **53'677.41** | Vortrag 35'060.71 + Gewinn 2025 18'616.70, laut GV-Beschluss vollständig vorgetragen |
 | 17 | ./. Eigene Kapitalanteile | 0.00 | – |
@@ -86,13 +86,42 @@ erklärt ihn.
 | 24 / 26 | Ausland / andere Kantone | 0.00 | – |
 | 27 | In Graubünden steuerbares Eigenkapital | **73'677.41** | – |
 
+## 4a. Formular 11a — Ziffer 13 Gewinnverwendung (laut GV-Beschluss)
+
+| Ziffer | Bezeichnung | Wert CHF |
+|---|---|---|
+| 13.1 | Gewinnvortrag aus dem Vorjahr | 35'060.71 |
+| 13.2 | Reingewinn gemäss Erfolgsrechnung (Hertrag Ziffer 1) | 18'616.70 |
+| 13.3 | Entnahmen aus den Reserven | 0.00 |
+| 13.4 | Total zu verteilender Gewinn | 53'677.41 |
+| 13.5–13.8 | Dividenden, Zuweisungen an Reserven, Übrige | 0.00 |
+| 13.9 | Total Gewinnverwendung | 0.00 |
+| 13.10 | Vortrag auf neue Rechnung | 53'677.41 (= Ziffer 16) |
+
+## 4b. Ziffer 28 Verlustverrechnung — so stimmt die Tabelle
+
+Verrechenbar sind Verluste der sieben Vorjahre (2018–2024), soweit nicht schon
+mit späteren Gewinnen verrechnet. Stand laut Veranlagungsverfügungen (Dossier):
+
+| Geschäftsjahr | Verlust | Verrechnet in | Betrag |
+|---|---|---|---|
+| 2019 (Rumpfjahr) | 4'973 | 2021 | 4'973 |
+| 2020 | 36'284 | 2021 / 2022 / 2023 | 11'099 / 18'049 / 7'136 |
+| Zwischentotal Vorjahresverluste | **41'257** | | |
+| Abzüglich bereits verrechnete Verluste | **41'257** | (2021: 16'072 · 2022: 18'049 · 2023: 7'136 laut Verfügungen vom 06.03.2023, 05.12.2023, 10.12.2024) | |
+| Verrechenbarer Verlust (Übertrag auf Ziffer 6) | **0** | | |
+
+In SofTax: entweder die zwei Verlustzeilen stehen lassen und in «Abzüglich
+bereits verrechnete Verluste» 41'257 eintragen, oder die beiden Zeilen
+löschen. Ergebnis in beiden Fällen: Ziffer 6 = 0, Ziffer 7 = 18'928.
+
 ## 5. Ergänzende Fragen (Ziffern 28–31)
 
 | Ziffer | Antwort |
 |---|---|
-| 28 Verlustverrechnung | leer (keine Verluste 2018–2024) |
+| 28 Verlustverrechnung | Tabelle wie unten ausfüllen: Verluste 2019 und 2020 aufführen, als «bereits verrechnet» 41'257 eintragen, verrechenbarer Verlust **0** |
 | 29 Immobiliengesellschaft | nein |
-| 30 Gesellschaft ohne Geschäftstätigkeit | nein |
+| 30 Gesellschaft ohne Geschäftstätigkeit | **nein** (2024 stand fälschlich «ja», die Steuerberechnung rechnete mit Mindeststeuer; SofTax übernimmt das Häkchen aus dem Vorjahr) |
 | 31 Multinationale Gruppe (OECD-Mindeststeuer) | nein |
 
 ## 6. Hilfsformulare
