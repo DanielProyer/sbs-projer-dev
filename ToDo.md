@@ -81,20 +81,24 @@ Dinge, beide ohne Buchung und ohne Wirkung auf den Gewinn 2025:
   Heineken-Reinigungen, die regulär auf die September-Monatsrechnung warten.
 
 **Donnerstag, in dieser Reihenfolge:**
-1. [ ] **Jahrgang 2020 abschreiben** — App: Mehr → Abschlüsse und Steuern →
-       Abschlussprüfung → Jahr 2025 → rote Zeile «Offene Rechnungen älter als
-       5 Jahre» → «Jahrgang abschreiben». Die Vorschau muss zeigen:
-       **76 Rechnungen · 7'216.30 brutto · 6'699.87 netto · 516.43 MWST**
-       (Jahrgänge bis 2020; 2019 ist schon abgeschrieben). Migration 214
-       erlaubt den zweiten Lauf im selben Jahr.
-2. [ ] **MWST-Rückholung nach dem 2019-Muster — macht der App-Schritt seit
-       Migration 215 selbst:** Verlust brutto auf 3805 per 31.12.2025, EINE
+1. [x] **Jahrgang 2020 abschreiben** — ✅ gebucht 01.10.2026 über die App,
+       per SQL nachgerechnet: Lauf L2 (`abschreibung_laeufe` bc3bb3d9) mit
+       **76 Rechnungen · 7'216.30 brutto · 6'699.87 netto · 516.43 MWST**,
+       Kategorien gestellt 24 / nie gestellt 23 / Tresen 29; 76 Buchungen
+       `3805 an 1100` brutto per 31.12.2025, alle 76 Rechnungen auf
+       «abgeschrieben», Positionen = Rechnungsbeträge, Satz überall 7.7 %.
+       3805 im Jahr 2025 jetzt 15'081.58 (2'235.90 + 7'216.30 + 5'629.38).
+2. [x] **MWST-Rückholung nach dem 2019-Muster — ✅ vom App-Schritt mitgebucht:
+       `JA2025_A_MWST_7_7_L2` 2200 an 3805 516.43 am 01.10.2026,
+       `view_entgeltsminderung` zeigt Q4/2026 6'699.87 netto zu 7.7 % →
+       516.43 (Q3/2026 unverändert 165.88). Ursprünglich:** Verlust brutto auf 3805 per 31.12.2025, EINE
        Sammelbuchung `2200 an 3805 516.43` am Entscheidtag (01.10.2026) →
        **Ziff. 235 in Q4/2026** (Art. 41 Abs. 2 MWSTG; Q4/2025 ist eingereicht
        und viermal berichtigt). Nichts mehr per SQL — §9b nur als Rückfall.
 3. [ ] **Delkredere nachziehen — in der App:** Abschlussprüfung 2025 → Zeile
        «Delkredere = 5 % Debitoren» → Knopf «per 31.12.2025 buchen». Erwartet:
-       5 % von 105'351.96 = **5'267.60** (bisher 5'629.38) → `1109 an 3805
+       5 % von 105'351.96 (Saldo 1100 per 31.12.2025 nach Schritt 1, per SQL
+       bestätigt 01.10.) = **5'267.60** (bisher 5'629.38) → `1109 an 3805
        361.78` per 31.12.2025 als `JA2025_E2`. Nach Schritt 1 die Prüfung neu
        laden (die Zeile wird erst dann gelb).
 4. [ ] **Steuerrückstellung — in der App, Entscheid Daniel:** Abschlussprüfung
